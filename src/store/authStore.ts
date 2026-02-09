@@ -136,18 +136,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (authError) throw authError;
       if (!authData.user) throw new Error('Registration failed');
 
-      // Profile is auto-created by database trigger. Fetch it (may need a brief delay for trigger)
-      await new Promise((r) => setTimeout(r, 500));
+      const user = authData.user;
+
+      const { error: profileInsertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          email: user.email ?? userData.email,
+          username: userData.username,
+          full_name: userData.fullName,
+          role,
+          sports_category: userData.sportsCategory,
+          gender: userData.gender,
+          accessibility_needs: userData.accessibilityNeeds ?? [],
+          preferred_accommodations: userData.preferredAccommodations ?? [],
+          sport_role: userData.sportRole ?? null,
+          sport_interests: userData.sportInterests ?? [],
+          is_professional: userData.isProfessional ?? false,
+          verification_status: userData.verificationStatus ?? 'approved',
+        });
+
+      if (profileInsertError) {
+        if (profileInsertError.message.includes('duplicate') || profileInsertError.code === '23505') {
+          throw new Error('Username or email already exists. Please try a different one.');
+        }
+        throw new Error(profileInsertError.message);
+      }
+
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', authData.user.id)
+        .eq('id', user.id)
         .single();
 
       if (profileError) {
-        throw new Error(profileError.message.includes('duplicate')
-          ? 'Username or email already exists. Please try a different one.'
-          : profileError.message);
+        throw new Error(profileError.message);
       }
 
       if (profile && authData.session) {
