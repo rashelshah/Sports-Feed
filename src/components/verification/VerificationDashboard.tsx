@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  User, 
-  File, 
-  Eye, 
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  User,
+  File,
+  Eye,
   Download,
   Filter,
   Search,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { Button } from '../ui/Button';
+import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { EvidenceDocument, User as UserType } from '../../types';
 
@@ -38,102 +39,90 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Mock data for pending verifications
-    setPendingVerifications([
-      {
-        id: '1',
-        user: {
-          id: '9',
-          email: 'aspirant@fitness.com',
-          username: 'fitnessaspirant',
-          fullName: 'Jordan Smith',
-          role: 'aspirant',
-          sportsCategory: 'calorie-fight',
-          gender: 'non-binary',
-          isVerified: false,
-          profileImage: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
-          bio: 'Aspiring personal trainer working towards certification',
-          followers: 12,
-          following: 35,
-          posts: 2,
-          createdAt: '2024-02-15T00:00:00Z',
-          accessibilityNeeds: [],
-          preferredAccommodations: [],
-          sportRole: {
-            id: 'cf-1',
-            name: 'Personal Trainer',
-            category: 'calorie-fight',
-            description: 'Certified personal trainer',
-            isProfessional: true,
-            requiresEvidence: true,
-            evidenceTypes: ['certificate', 'license']
-          },
-          sportInterests: [],
-          isProfessional: true,
-          verificationStatus: 'pending',
-          evidenceDocuments: [],
-        },
-        evidenceDocuments: [
-          {
-            id: '1',
-            userId: '9',
-            fileName: 'personal_trainer_certificate.pdf',
-            fileUrl: '#',
-            documentType: 'certificate',
-            sportRole: 'cf-1',
-            description: 'Personal Trainer Certification',
-            uploadedAt: '2024-02-15T10:00:00Z',
-            status: 'pending',
-            aiAnalysis: {
-              confidence: 0.85,
-              detectedText: 'Personal Trainer Certification from National Academy of Sports Medicine',
-              suggestedAction: 'approve',
-              analysisDate: '2024-02-15T10:05:00Z',
-            }
-          },
-          {
-            id: '2',
-            userId: '9',
-            fileName: 'cpr_certification.jpg',
-            fileUrl: '#',
-            documentType: 'certificate',
-            sportRole: 'cf-1',
-            description: 'CPR Certification',
-            uploadedAt: '2024-02-15T10:01:00Z',
-            status: 'pending',
-            aiAnalysis: {
-              confidence: 0.92,
-              detectedText: 'CPR Certification from American Red Cross',
-              suggestedAction: 'approve',
-              analysisDate: '2024-02-15T10:06:00Z',
-            }
-          }
-        ],
-        submittedAt: '2024-02-15T10:00:00Z',
-        sportRole: {
-          id: 'cf-1',
-          name: 'Personal Trainer',
-          category: 'calorie-fight',
-          description: 'Certified personal trainer',
-          isProfessional: true,
-          requiresEvidence: true,
-          evidenceTypes: ['certificate', 'license']
+    // Fetch real verification requests from Supabase
+    async function fetchVerifications() {
+      try {
+        const { data, error } = await supabase
+          .from('verification_requests')
+          .select(`
+            *,
+            user:profiles!user_id(
+              id, email, username, full_name, role, sports_category, gender,
+              profile_image, avatar_url, bio, is_verified, verification_status,
+              followers, following, posts, created_at, sport_role, sport_interests,
+              is_professional, accessibility_needs, preferred_accommodations
+            )
+          `)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Failed to fetch verifications:', error);
+          setPendingVerifications([]);
+          return;
         }
+
+        const mapped = (data || []).map((d: any) => ({
+          id: d.id,
+          user: {
+            id: d.user?.id ?? d.user_id,
+            email: d.user?.email ?? '',
+            username: d.user?.username ?? d.user?.full_name ?? '',
+            fullName: d.user?.full_name ?? '',
+            role: d.user?.role ?? 'user',
+            sportsCategory: d.user?.sports_category ?? 'coco',
+            gender: d.user?.gender ?? 'prefer-not-to-say',
+            isVerified: d.user?.is_verified ?? false,
+            profileImage: d.user?.profile_image ?? d.user?.avatar_url,
+            bio: d.user?.bio ?? '',
+            followers: d.user?.followers ?? 0,
+            following: d.user?.following ?? 0,
+            posts: d.user?.posts ?? 0,
+            createdAt: d.user?.created_at ?? new Date().toISOString(),
+            accessibilityNeeds: d.user?.accessibility_needs ?? [],
+            preferredAccommodations: d.user?.preferred_accommodations ?? [],
+            sportRole: d.user?.sport_role,
+            sportInterests: d.user?.sport_interests ?? [],
+            isProfessional: d.user?.is_professional ?? false,
+            verificationStatus: d.user?.verification_status ?? 'pending',
+            evidenceDocuments: [],
+          } as UserType,
+          evidenceDocuments: (d.evidence_documents || d.documents || []).map((doc: any) => ({
+            id: doc.id ?? crypto.randomUUID(),
+            userId: d.user_id,
+            fileName: doc.file_name ?? doc.fileName ?? 'Document',
+            fileUrl: doc.file_url ?? doc.fileUrl ?? '#',
+            documentType: doc.document_type ?? doc.documentType ?? 'certificate',
+            sportRole: doc.sport_role ?? '',
+            description: doc.description ?? '',
+            uploadedAt: doc.uploaded_at ?? doc.uploadedAt ?? d.created_at,
+            status: doc.status ?? 'pending',
+            aiAnalysis: doc.ai_analysis ?? doc.aiAnalysis,
+          })),
+          submittedAt: d.created_at ?? new Date().toISOString(),
+          sportRole: d.sport_role ?? d.user?.sport_role ?? { name: 'Unknown', category: 'coco' },
+        }));
+
+        setPendingVerifications(mapped);
+      } catch (err) {
+        console.error('Error fetching verifications:', err);
+        setPendingVerifications([]);
       }
-    ]);
+    }
+    fetchVerifications();
   }, []);
 
   const filteredVerifications = pendingVerifications.filter(verification => {
     const matchesSearch = verification.user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         verification.user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      verification.user.email.toLowerCase().includes(searchTerm.toLowerCase());
+
     if (filter === 'all') return matchesSearch;
-    
+
     const aiSuggestions = verification.evidenceDocuments.map(doc => doc.aiAnalysis?.suggestedAction);
     const hasApproved = aiSuggestions.includes('approve');
     const hasRejected = aiSuggestions.includes('reject');
     const hasManualReview = aiSuggestions.includes('manual-review');
-    
+
     switch (filter) {
       case 'ai-approved':
         return matchesSearch && hasApproved && !hasRejected && !hasManualReview;
@@ -150,14 +139,14 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
     try {
       // Mock API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setPendingVerifications(prev => 
+
+      setPendingVerifications(prev =>
         prev.filter(v => v.id !== verificationId)
       );
-      
+
       toast.success('Verification approved successfully!');
       setSelectedVerification(null);
-      
+
     } catch (error) {
       toast.error('Failed to approve verification. Please try again.');
     }
@@ -167,14 +156,14 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
     try {
       // Mock API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setPendingVerifications(prev => 
+
+      setPendingVerifications(prev =>
         prev.filter(v => v.id !== verificationId)
       );
-      
+
       toast.success('Verification rejected.');
       setSelectedVerification(null);
-      
+
     } catch (error) {
       toast.error('Failed to reject verification. Please try again.');
     }
@@ -182,7 +171,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
 
   const getOverallAISuggestion = (verification: PendingVerification) => {
     const suggestions = verification.evidenceDocuments.map(doc => doc.aiAnalysis?.suggestedAction);
-    
+
     if (suggestions.includes('reject')) return 'reject';
     if (suggestions.includes('manual-review')) return 'manual-review';
     if (suggestions.every(s => s === 'approve')) return 'approve';
@@ -235,7 +224,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
               />
             </div>
           </div>
-          
+
           <div className="flex space-x-2">
             {[
               { id: 'all', label: 'All' },
@@ -246,11 +235,10 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
               <button
                 key={filterOption.id}
                 onClick={() => setFilter(filterOption.id as any)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filter === filterOption.id
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${filter === filterOption.id
                     ? 'bg-blue-100 text-blue-700'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 {filterOption.label}
               </button>
@@ -262,7 +250,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
         <div className="space-y-4">
           {filteredVerifications.map((verification) => {
             const aiSuggestion = getOverallAISuggestion(verification);
-            
+
             return (
               <motion.div
                 key={verification.id}
@@ -278,7 +266,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                       alt={verification.user.fullName}
                       className="h-12 w-12 rounded-full object-cover"
                     />
-                    
+
                     <div>
                       <h3 className="font-semibold text-gray-900">{verification.user.fullName}</h3>
                       <p className="text-sm text-gray-600">{verification.user.email}</p>
@@ -287,7 +275,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
                       <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getSuggestionColor(aiSuggestion)}`}>
@@ -300,7 +288,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                         {new Date(verification.submittedAt).toLocaleDateString()}
                       </p>
                     </div>
-                    
+
                     <Button
                       size="sm"
                       variant="outline"
@@ -317,7 +305,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
               </motion.div>
             );
           })}
-          
+
           {filteredVerifications.length === 0 && (
             <div className="text-center py-12">
               <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -390,7 +378,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                         </Button>
                       </div>
                     </div>
-                    
+
                     {doc.aiAnalysis && (
                       <div className="bg-white p-3 rounded border">
                         <p className="text-sm text-gray-700">

@@ -18,7 +18,7 @@ export const useSocketStore = create<SocketState>((set, get) => ({
   onlineUsers: [],
 
   connect: (userId: string) => {
-    const socket = io('http://localhost:3001', {
+    const socket = io('http://localhost:3000', {
       auth: { userId },
       reconnection: false,
       timeout: 5000,

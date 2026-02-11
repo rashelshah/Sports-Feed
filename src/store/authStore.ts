@@ -72,6 +72,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .eq('id', session.user.id)
           .single();
         if (profile) {
+          // Save token to localStorage
+          if (session.access_token) {
+            localStorage.setItem('token', session.access_token);
+          }
           set({ user: mapProfileToUser(profile), isAuthenticated: true });
         }
       }
@@ -99,7 +103,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error('User profile not found. Please sign up first.');
       }
 
-      set({ user: mapProfileToUser(profile), isAuthenticated: true });
+      const user = mapProfileToUser(profile);
+
+      // Save the access token to localStorage for API requests
+      if (data.session?.access_token) {
+        localStorage.setItem('token', data.session.access_token);
+      }
+
+      set({ user, isAuthenticated: true, isLoading: false });
+      return;
     } catch (error: any) {
       const message = error?.message?.includes('Invalid login credentials')
         ? 'Invalid email or password. Please try again.'
@@ -163,18 +175,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error(profileInsertError.message);
       }
 
-      const { data: profile, error: profileError } = await supabase
+      const fetchedProfile = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      if (profileError) {
-        throw new Error(profileError.message);
-      }
+      if (fetchedProfile.data) {
+        const mappedUser = mapProfileToUser(fetchedProfile.data);
 
-      if (profile && authData.session) {
-        set({ user: mapProfileToUser(profile), isAuthenticated: true });
+        // Save token to localStorage
+        if (authData.session?.access_token) {
+          localStorage.setItem('token', authData.session.access_token);
+        }
+
+        set({ user: mappedUser, isAuthenticated: true, isLoading: false });
       } else if (!authData.session) {
         throw new Error('Please check your email to confirm your account, then log in.');
       }

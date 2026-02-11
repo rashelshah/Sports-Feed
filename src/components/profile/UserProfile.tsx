@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, CreditCard as Edit, Users, UserPlus, Share, Shield, Upload, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -9,6 +9,7 @@ import { FollowersModal } from './FollowersModal';
 import { SettingsModal } from './SettingsModal';
 import { EvidenceUpload } from '../verification/EvidenceUpload';
 import { Button } from '../ui/Button';
+import { User } from '../../types';
 import toast from 'react-hot-toast';
 
 export function UserProfile() {
@@ -20,13 +21,20 @@ export function UserProfile() {
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following'>('followers');
   const [showSettings, setShowSettings] = useState(false);
   const [showEvidenceUpload, setShowEvidenceUpload] = useState(false);
+  const [followers, setFollowers] = useState<User[]>([]);
+  const [following, setFollowing] = useState<User[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      getUserFollowers(user.id).then(setFollowers);
+      getUserFollowing(user.id).then(setFollowing);
+    }
+  }, [user?.id]);
 
   if (!user) return null;
 
   const userPosts = getUserPosts(user.id);
   const sharedPosts = getSharedPosts(user.id);
-  const followers = getUserFollowers(user.id);
-  const following = getUserFollowing(user.id);
 
   const displayPosts = activeTab === 'posts' ? userPosts : sharedPosts;
 
@@ -43,7 +51,7 @@ export function UserProfile() {
   const handleShareProfile = () => {
     const profileUrl = `${window.location.origin}/profile/${user.username}`;
     const shareText = `Check out ${user.fullName}'s profile on SportsFeed! ${user.role === 'coach' ? 'Professional Coach' : 'Athlete'} in ${user.sportsCategory.replace('-', ' ')}`;
-    
+
     if (navigator.share) {
       navigator.share({
         title: `${user.fullName} - SportsFeed`,
@@ -64,9 +72,9 @@ export function UserProfile() {
 
   const getVerificationBadge = () => {
     if (!user.isVerified) return null;
-    
+
     const badgeColor = user.role === 'coach' ? 'text-purple-500' : 'text-blue-500';
-    
+
     return (
       <svg className={`w-5 h-5 ${badgeColor}`} fill="currentColor" viewBox="0 0 20 20">
         <path
@@ -139,12 +147,11 @@ export function UserProfile() {
                     {user.verificationStatus === 'rejected' && <XCircle className="h-5 w-5 text-red-500" />}
                     {user.verificationStatus === 'pending' && <Clock className="h-5 w-5 text-yellow-500" />}
                     <span className="font-medium text-gray-900">
-                      Verification Status: 
-                      <span className={`ml-2 capitalize ${
-                        user.verificationStatus === 'approved' ? 'text-green-600' :
-                        user.verificationStatus === 'rejected' ? 'text-red-600' :
-                        'text-yellow-600'
-                      }`}>
+                      Verification Status:
+                      <span className={`ml-2 capitalize ${user.verificationStatus === 'approved' ? 'text-green-600' :
+                          user.verificationStatus === 'rejected' ? 'text-red-600' :
+                            'text-yellow-600'
+                        }`}>
                         {user.verificationStatus}
                       </span>
                     </span>
@@ -162,7 +169,7 @@ export function UserProfile() {
                 </div>
                 {user.sportRole && (
                   <p className="text-sm text-gray-600 mt-2">
-                    <strong>Sport Role:</strong> {user.sportRole.name} 
+                    <strong>Sport Role:</strong> {user.sportRole.name}
                     {user.sportRole.isProfessional && <span className="text-blue-600 ml-1">(Professional)</span>}
                   </p>
                 )}
@@ -196,17 +203,17 @@ export function UserProfile() {
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Profile
               </Button>
-              <Button 
+              <Button
                 onClick={() => setShowSettings(true)}
-                variant="outline" 
+                variant="outline"
                 size="sm"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
-              <Button 
+              <Button
                 onClick={handleShareProfile}
-                variant="outline" 
+                variant="outline"
                 size="sm"
               >
                 <Share className="h-4 w-4 mr-2" />
@@ -224,21 +231,19 @@ export function UserProfile() {
           <nav className="flex">
             <button
               onClick={() => setActiveTab('posts')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'posts'
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'posts'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Posts ({userPosts.length})
             </button>
             <button
               onClick={() => setActiveTab('shared')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'shared'
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'shared'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Shared ({sharedPosts.length})
             </button>
