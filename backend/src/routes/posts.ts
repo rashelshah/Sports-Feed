@@ -53,31 +53,13 @@ router.get('/', optionalAuthMiddleware, validateQuery(getPostsQuerySchema), asyn
 
   const offset = (page - 1) * limit;
 
-  let query = supabase
+  // Build base query without joins using admin client to bypass RLS
+  let query = supabaseAdmin
     .from('posts')
-    .select(`
-      *,
-      author:users!author_id(
-        id,
-        name,
-        avatar_url,
-        role,
-        is_verified
-      ),
-      likes:post_likes(count),
-      shares:post_shares(count),
-      comments(count),
-      user_liked:post_likes(
-        user_id
-      ),
-      user_shared:post_shares(
-        user_id
-      )
-    `, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .range(offset, offset + limit - 1);
 
   // Apply filters
-
   if (authorId) {
     query = query.eq('author_id', authorId);
   }
@@ -90,8 +72,7 @@ router.get('/', optionalAuthMiddleware, validateQuery(getPostsQuerySchema), asyn
   if (sortBy === 'created_at') {
     query = query.order('created_at', { ascending: sortOrder === 'asc' });
   } else {
-    // For likes, shares, comments we need to use a different approach
-    query = query.order('created_at', { ascending: false }); // Default fallback
+    query = query.order('created_at', { ascending: false });
   }
 
   const { data: posts, error, count } = await query;
@@ -104,16 +85,54 @@ router.get('/', optionalAuthMiddleware, validateQuery(getPostsQuerySchema), asyn
     return;
   }
 
-  // Process posts to add user interaction flags
-  const processedPosts = posts?.map(post => ({
+  // Fetch related data separately
+  const postIds = (posts || []).map(p => p.id);
+  const authorIds = Array.from(new Set((posts || []).map(p => p.author_id)));
+
+  let authors: any[] = [];
+  let likedPostIds = new Set<string>();
+  let sharedPostIds = new Set<string>();
+
+  if (postIds.length > 0) {
+    // Fetch authors using admin client to bypass RLS
+    if (authorIds.length > 0) {
+      const { data: authorsData, error: authorsError } = await supabaseAdmin
+        .from('users')
+        .select('*')
+        .in('id', authorIds);
+      if (authorsError) {
+        console.error('Error fetching authors:', authorsError);
+      } else {
+        console.log('Authors found:', authorsData?.length, 'columns:', authorsData?.[0] ? Object.keys(authorsData[0]) : 'none');
+      }
+      authors = (authorsData || []).map(a => ({
+        id: a.id,
+        name: a.full_name || a.name || a.username || 'Unknown',
+        avatar_url: a.profile_image || a.avatar_url || null,
+        role: a.role,
+        is_verified: a.is_verified,
+        username: a.username,
+        sports_category: a.sports_category || null
+      }));
+    }
+
+    // Fetch user likes/shares if authenticated
+    if (req.user) {
+      const [likesResult, sharesResult] = await Promise.all([
+        supabaseAdmin.from('post_likes').select('post_id').eq('user_id', req.user.id).in('post_id', postIds),
+        supabaseAdmin.from('post_shares').select('post_id').eq('user_id', req.user.id).in('post_id', postIds)
+      ]);
+      likedPostIds = new Set((likesResult.data || []).map((l: any) => l.post_id));
+      sharedPostIds = new Set((sharesResult.data || []).map((s: any) => s.post_id));
+    }
+  }
+
+  // Process posts with author data and interaction flags
+  const processedPosts = (posts || []).map(post => ({
     ...post,
-    likes: post.likes?.[0]?.count || 0,
-    shares: post.shares?.[0]?.count || 0,
-    comments: post.comments?.[0]?.count || 0,
-    isLikedByUser: req.user ? post.user_liked?.some((like: any) => like.user_id === req.user!.id) : false,
-    isSharedByUser: req.user ? post.user_shared?.some((share: any) => share.user_id === req.user!.id) : false,
-    user_liked: undefined, // Remove from response
-    user_shared: undefined // Remove from response
+    author: authors.find(a => a.id === post.author_id) || null,
+    isLikedByUser: likedPostIds.has(post.id),
+    isSharedByUser: sharedPostIds.has(post.id)
   }));
 
   const totalPages = Math.ceil((count || 0) / limit);
@@ -220,31 +239,10 @@ router.get('/home', authenticateToken, asyncHandler(async (req: Request, res: Re
 router.get('/:id', optionalAuthMiddleware, validateParams(postIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
 
+  // Fetch post data
   const { data: post, error } = await supabase
     .from('posts')
-    .select(`
-      *,
-      author:users!author_id(
-        id,
-        name,
-        avatar_url,
-        role,
-        bio,
-        is_verified
-      ),
-      likes:post_likes(count),
-      shares:post_shares(count),
-      comments(
-        *,
-        author:users!author_id(
-          id,
-          name,
-          avatar_url,
-          role,
-          is_verified
-        )
-      )
-    `)
+    .select('*')
     .eq('id', id)
     .single();
 
@@ -255,6 +253,34 @@ router.get('/:id', optionalAuthMiddleware, validateParams(postIdSchema), asyncHa
     });
     return;
   }
+
+  // Fetch related data separately to avoid join issues
+  const [authorResult, likesCountResult, sharesCountResult, commentsResult] = await Promise.all([
+    supabase.from('users').select('id, full_name, profile_image, role, bio, is_verified, username').eq('id', post.author_id).single(),
+    supabase.from('post_likes').select('*', { count: 'exact', head: true }).eq('post_id', id),
+    supabase.from('post_shares').select('*', { count: 'exact', head: true }).eq('post_id', id),
+    supabase.from('comments').select('*').eq('post_id', id).order('created_at', { ascending: false })
+  ]);
+
+  // Fetch comment authors
+  const commentUserIds = (commentsResult.data || []).map((c: any) => c.user_id);
+  let commentAuthors: any[] = [];
+  if (commentUserIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, profile_image, role, is_verified, username')
+      .in('id', commentUserIds);
+    commentAuthors = users || [];
+  }
+
+  // Map comments with their authors
+  const commentsWithAuthors = (commentsResult.data || []).map((comment: any) => ({
+    ...comment,
+    user: (() => {
+      const u = commentAuthors.find(u => u.id === comment.user_id);
+      return u ? { ...u, name: u.full_name } : null;
+    })()
+  }));
 
   // Check if user has liked/shared the post
   let isLikedByUser = false;
@@ -274,8 +300,11 @@ router.get('/:id', optionalAuthMiddleware, validateParams(postIdSchema), asyncHa
     success: true,
     post: {
       ...post,
-      likes: post.likes?.[0]?.count || 0,
-      shares: post.shares?.[0]?.count || 0,
+      author: authorResult.data,
+      likes_count: likesCountResult.count || 0,
+      shares_count: sharesCountResult.count || 0,
+      comments_count: commentsWithAuthors.length,
+      comments: commentsWithAuthors,
       isLikedByUser,
       isSharedByUser
     }
@@ -328,7 +357,7 @@ router.post('/', authenticateToken, validate(createPostSchema), moderateContent,
   // Fetch author data separately to avoid join issues
   const { data: authorData } = await supabaseAdmin
     .from('users')
-    .select('id, name, avatar_url, role')
+    .select('id, full_name, profile_image, role, username')
     .eq('id', req.user!.id)
     .single();
 
@@ -395,8 +424,9 @@ router.put('/:id', authenticateToken, validateParams(postIdSchema), validate(upd
       *,
       author:users!author_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
+        username,
         role,
         is_verified
       )
@@ -559,7 +589,7 @@ router.post('/:id/like', authenticateToken, validateParams(postIdSchema), asyncH
       // Get user's name for notification
       const { data: userData } = await supabaseAdmin
         .from('users')
-        .select('name')
+        .select('full_name')
         .eq('id', userId)
         .single();
 
@@ -569,7 +599,7 @@ router.post('/:id/like', authenticateToken, validateParams(postIdSchema), asyncH
           user_id: post.author_id,
           type: 'like',
           title: 'Post Liked',
-          message: `${userData?.name || 'Someone'} liked your post`,
+          message: `${userData?.full_name || 'Someone'} liked your post`,
           data: { postId, userId },
           from_user_id: userId,
           created_at: new Date().toISOString()
@@ -700,7 +730,7 @@ router.post('/:id/share', authenticateToken, validateParams(postIdSchema), async
       // Get user's name for notification
       const { data: userData } = await supabaseAdmin
         .from('users')
-        .select('name')
+        .select('full_name')
         .eq('id', userId)
         .single();
 
@@ -710,7 +740,7 @@ router.post('/:id/share', authenticateToken, validateParams(postIdSchema), async
           user_id: post.author_id,
           type: 'share',
           title: 'Post Shared',
-          message: `${userData?.name || 'Someone'} shared your post`,
+          message: `${userData?.full_name || 'Someone'} shared your post`,
           data: { postId, userId },
           from_user_id: userId,
           created_at: new Date().toISOString()
@@ -763,8 +793,9 @@ router.get('/trending/posts', optionalAuthMiddleware, validateQuery(trendingPost
       *,
       author:users!author_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
+        username,
         role,
         is_verified
       ),
@@ -830,7 +861,7 @@ router.post('/:id/comments', authenticateToken, validateParams(postIdSchema), as
   }
 
   // Check if post exists
-  const { data: post, error: postError } = await supabase
+  const { data: post, error: postError } = await supabaseAdmin
     .from('posts')
     .select('id')
     .eq('id', postId)
@@ -845,38 +876,90 @@ router.post('/:id/comments', authenticateToken, validateParams(postIdSchema), as
   }
 
   // Create comment
+  const commentId = uuidv4();
   const { data: comment, error } = await supabaseAdmin
     .from('comments')
     .insert({
+      id: commentId,
       post_id: postId,
       user_id: userId,
       content: content.trim(),
       created_at: new Date().toISOString()
     })
-    .select(`
-      *,
-      user:users!user_id(
-        id, 
-        name, 
-        avatar_url, 
-        username, 
-        is_verified
-      )
-    `)
+    .select()
     .single();
 
   if (error) {
     logger.error('Failed to create comment', { error, postId, userId });
     res.status(400).json({
       success: false,
-      error: 'Failed to create comment'
+      error: 'Failed to create comment',
+      details: error.message || error
     });
     return;
   }
 
+  // Fetch user data separately
+  const { data: userData } = await supabaseAdmin
+    .from('users')
+    .select('id, full_name, profile_image, username, is_verified, role')
+    .eq('id', userId)
+    .single();
+
+  const commentWithUser = {
+    ...comment,
+    user: userData ? { ...userData, name: userData.full_name, avatar_url: userData.profile_image } : null
+  };
+
+  // Update post comments count
+  const { count: commentsCount } = await supabaseAdmin
+    .from('comments')
+    .select('id', { count: 'exact', head: true })
+    .eq('post_id', postId);
+
+  await supabaseAdmin
+    .from('posts')
+    .update({ comments_count: commentsCount || 0, updated_at: new Date().toISOString() })
+    .eq('id', postId);
+
+  // Get post author for notification
+  const { data: postData } = await supabaseAdmin
+    .from('posts')
+    .select('author_id')
+    .eq('id', postId)
+    .single();
+
+  // Create notification for post author (if not commenting on own post)
+  if (postData && postData.author_id !== userId) {
+    const { data: notif } = await supabaseAdmin
+      .from('notifications')
+      .insert({
+        user_id: postData.author_id,
+        type: 'comment',
+        title: 'New Comment',
+        message: `${userData?.full_name || 'Someone'} commented on your post`,
+        data: { postId, commentId: comment.id, userId },
+        from_user_id: userId,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    const socketHandlers = req.app.locals.socketHandlers;
+    if (socketHandlers && notif) {
+      socketHandlers.sendNotificationToUser(postData.author_id, notif);
+    }
+  }
+
+  // Award tokens for engagement
+  await supabaseAdmin.rpc('add_user_tokens', {
+    user_id_param: userId,
+    amount_param: 1
+  });
+
   res.status(201).json({
     success: true,
-    comment
+    comment: commentWithUser
   });
 }));
 
@@ -884,18 +967,10 @@ router.post('/:id/comments', authenticateToken, validateParams(postIdSchema), as
 router.get('/:id/comments', validateParams(postIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { id: postId } = req.params;
 
+  // Fetch comments
   const { data: comments, error } = await supabase
     .from('comments')
-    .select(`
-      *,
-      user:users!user_id(
-        id, 
-        name, 
-        avatar_url, 
-        username, 
-        is_verified
-      )
-    `)
+    .select('*')
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
 
@@ -908,9 +983,29 @@ router.get('/:id/comments', validateParams(postIdSchema), asyncHandler(async (re
     return;
   }
 
+  // Fetch all comment authors separately (use admin to bypass RLS)
+  const userIds = [...new Set((comments || []).map(c => c.user_id).filter(Boolean))];
+  let users: any[] = [];
+  if (userIds.length > 0) {
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('id, full_name, profile_image, username, is_verified, role')
+      .in('id', userIds);
+    users = userData || [];
+  }
+
+  // Map comments with their users (add name alias from full_name)
+  const commentsWithUsers = (comments || []).map(comment => {
+    const u = users.find(u => u.id === comment.user_id);
+    return {
+      ...comment,
+      user: u ? { ...u, name: u.full_name, avatar_url: u.profile_image } : null
+    };
+  });
+
   res.json({
     success: true,
-    comments: comments || []
+    comments: commentsWithUsers
   });
 }));
 

@@ -54,10 +54,10 @@ router.get('/post/:postId', optionalAuthMiddleware, validateParams(postIdSchema)
     .from('comments')
     .select(`
       *,
-      author:users!author_id(
+      author:users!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       )
@@ -86,10 +86,10 @@ router.get('/post/:postId', optionalAuthMiddleware, validateParams(postIdSchema)
       .from('comments')
       .select(`
         *,
-        author:users!author_id(
+        author:users!user_id(
           id,
-          name,
-          avatar_url,
+          full_name,
+          profile_image,
           role,
           is_verified
         )
@@ -136,10 +136,10 @@ router.get('/:id', optionalAuthMiddleware, validateParams(commentIdSchema), asyn
     .from('comments')
     .select(`
       *,
-      author:users!author_id(
+      author:users!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       ),
@@ -225,17 +225,17 @@ router.post('/', authenticateToken, validate(createCommentSchema), moderateConte
     .insert({
       id: commentId,
       post_id: postId,
-      author_id: req.user!.id,
+      user_id: req.user!.id,
       content,
       parent_id: parentId || null,
       created_at: new Date().toISOString()
     })
     .select(`
       *,
-      author:users!author_id(
+      author:users!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       )
@@ -310,7 +310,7 @@ router.put('/:id', authenticateToken, validateParams(commentIdSchema), validate(
   // Check if user owns the comment
   const { data: existingComment, error: fetchError } = await supabaseAdmin
     .from('comments')
-    .select('author_id')
+    .select('user_id')
     .eq('id', id)
     .single();
 
@@ -322,7 +322,7 @@ router.put('/:id', authenticateToken, validateParams(commentIdSchema), validate(
     return;
   }
 
-  if (existingComment.author_id !== req.user!.id) {
+  if (existingComment.user_id !== req.user!.id) {
     res.status(403).json({
       success: false,
       error: 'Not authorized to update this comment'
@@ -340,10 +340,10 @@ router.put('/:id', authenticateToken, validateParams(commentIdSchema), validate(
     .eq('id', id)
     .select(`
       *,
-      author:users!author_id(
+      author:users!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       )
@@ -372,7 +372,7 @@ router.delete('/:id', authenticateToken, validateParams(commentIdSchema), asyncH
   // Check if user owns the comment
   const { data: existingComment, error: fetchError } = await supabaseAdmin
     .from('comments')
-    .select('author_id, post_id')
+    .select('user_id, post_id')
     .eq('id', id)
     .single();
 
@@ -391,8 +391,8 @@ router.delete('/:id', authenticateToken, validateParams(commentIdSchema), asyncH
     .eq('id', existingComment.post_id)
     .single();
 
-  const canDelete = existingComment.author_id === req.user!.id || 
-                   (post && post.author_id === req.user!.id);
+  const canDelete = existingComment.user_id === req.user!.id ||
+    (post && post.author_id === req.user!.id);
 
   if (!canDelete) {
     res.status(403).json({
@@ -537,10 +537,10 @@ router.get('/:id/replies', optionalAuthMiddleware, validateParams(commentIdSchem
     .from('comments')
     .select(`
       *,
-      author:users!comments_user_id_fkey(
+      author:users!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       ),
@@ -562,7 +562,7 @@ router.get('/:id/replies', optionalAuthMiddleware, validateParams(commentIdSchem
   const processedReplies = await Promise.all(
     (replies || []).map(async (reply) => {
       let isLikedByUser = false;
-      
+
       if (req.user) {
         const { data: like } = await supabase
           .from('comment_likes')
@@ -570,7 +570,7 @@ router.get('/:id/replies', optionalAuthMiddleware, validateParams(commentIdSchem
           .eq('comment_id', reply.id)
           .eq('user_id', req.user.id)
           .single();
-        
+
         isLikedByUser = !!like;
       }
 

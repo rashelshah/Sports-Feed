@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share, MoreHorizontal, Send, Volume2, Edit, Trash2, Check, X } from 'lucide-react';
 import { Post } from '../../types';
@@ -13,7 +13,7 @@ interface PostCardProps {
 
 export function PostCard({ post }: PostCardProps) {
   const { user } = useAuthStore();
-  const { updatePostLikes, updatePostShares, addSharedPost, addComment, getPostComments, addNotification, updatePostContent, deletePost } = useAppStore();
+  const { likePost, updatePostShares, addSharedPost, addComment, getPostComments, addNotification, updatePostContent, deletePost } = useAppStore();
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likesCount, setLikesCount] = useState(post.likes);
   const [sharesCount, setSharesCount] = useState(post.shares);
@@ -23,48 +23,107 @@ export function PostCard({ post }: PostCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(post.content);
+  const [fetchedComments, setFetchedComments] = useState<any[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
 
-  const comments = getPostComments(post.id);
+  const localComments = getPostComments(post.id);
 
-  const handleLike = () => {
+  // Fetch comments from API when comments section is opened
+  useEffect(() => {
+    if (!showComments) return;
+
+    const fetchComments = async () => {
+      setIsLoadingComments(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/posts/${post.id}/comments`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        const data = await response.json();
+        if (data.success && data.comments) {
+          const mapped = data.comments.map((c: any) => ({
+            id: c.id,
+            postId: post.id,
+            userId: c.user?.id || c.user_id,
+            user: {
+              id: c.user?.id || c.user_id,
+              username: c.user?.username || c.user?.name || 'Unknown',
+              fullName: c.user?.name || 'Unknown',
+              email: '',
+              profileImage: c.user?.avatar_url || null,
+              sportsCategory: 'unstructured-sports',
+              gender: 'prefer-not-to-say' as const,
+              role: c.user?.role || 'athlete',
+              isVerified: c.user?.is_verified || false,
+              bio: '',
+              followers: 0,
+              following: 0,
+              posts: 0,
+              createdAt: c.created_at
+            },
+            content: c.content,
+            likes: 0,
+            createdAt: c.created_at
+          }));
+          setFetchedComments(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to fetch comments:', err);
+      } finally {
+        setIsLoadingComments(false);
+      }
+    };
+
+    fetchComments();
+  }, [showComments, post.id]);
+
+  // Merge fetched comments with locally added comments (avoid duplicates)
+  const allComments = [...fetchedComments];
+  localComments.forEach(lc => {
+    if (!allComments.find(fc => fc.id === lc.id)) {
+      allComments.push(lc);
+    }
+  });
+  const comments = allComments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  const handleLike = async () => {
+    if (!user) {
+      toast.error('You must be logged in to like posts');
+      return;
+    }
+
     const newIsLiked = !isLiked;
     const newLikesCount = newIsLiked ? likesCount + 1 : likesCount - 1;
-    
+
+    // Optimistic update
     setIsLiked(newIsLiked);
     setLikesCount(newLikesCount);
-    
-    // Update the post in the store
-    updatePostLikes(post.id, newLikesCount, newIsLiked);
-    
-    // Add notification if liking (not unliking) and not own post
-    if (newIsLiked && user && user.id !== post.userId) {
-      addNotification({
-        id: Date.now().toString(),
-        userId: post.userId,
-        type: 'like',
-        message: `${user.fullName} liked your post`,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        fromUser: user,
-      });
+
+    try {
+      // Call API to persist the like
+      await likePost(post.id, user.id);
+    } catch (error) {
+      // Revert on error
+      setIsLiked(!newIsLiked);
+      setLikesCount(likesCount);
     }
   };
 
   const handleShare = () => {
     if (!user) return;
-    
+
     const newSharesCount = sharesCount + 1;
     setSharesCount(newSharesCount);
-    
+
     // Update the post in the store
     updatePostShares(post.id, newSharesCount);
-    
+
     // Add to user's shared posts
     addSharedPost(user.id, post.id);
-    
+
     const shareUrl = `${window.location.origin}/post/${post.id}`;
     const shareText = `Check out this post by ${post.user.fullName}: "${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''}"`;
-    
+
     if (navigator.share) {
       navigator.share({
         title: `Post by ${post.user.fullName}`,
@@ -84,7 +143,7 @@ export function PostCard({ post }: PostCardProps) {
         toast.success('Post shared!');
       });
     }
-    
+
     // Add notification if not own post
     if (user.id !== post.userId) {
       addNotification({
@@ -101,42 +160,19 @@ export function PostCard({ post }: PostCardProps) {
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!newComment.trim() || !user) return;
-    
+
     setIsCommenting(true);
-    
+
     try {
-      // Mock API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const comment = {
-        id: Date.now().toString(),
-        postId: post.id,
-        userId: user.id,
-        user,
-        content: newComment,
-        likes: 0,
-        createdAt: new Date().toISOString(),
-      };
-      
-      addComment(comment);
-      
-      // Add notification if not own post
-      if (user.id !== post.userId) {
-        addNotification({
-          id: (Date.now() + 1).toString(),
-          userId: post.userId,
-          type: 'comment',
-          message: `${user.fullName} commented on your post`,
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          fromUser: user,
-        });
+      // Call the API to add comment
+      const comment = await addComment(post.id, newComment.trim());
+
+      if (comment) {
+        setNewComment('');
+        toast.success('Comment added!');
       }
-      
-      setNewComment('');
-      toast.success('Comment added!');
     } catch (error) {
       toast.error('Failed to add comment');
     } finally {
@@ -145,9 +181,9 @@ export function PostCard({ post }: PostCardProps) {
   };
   const getVerificationBadge = () => {
     if (!post.user.isVerified) return null;
-    
+
     const badgeColor = post.user.role === 'coach' ? 'text-purple-500' : 'text-blue-500';
-    
+
     return (
       <svg className={`w-4 h-4 ${badgeColor}`} fill="currentColor" viewBox="0 0 20 20">
         <path
@@ -181,7 +217,7 @@ export function PostCard({ post }: PostCardProps) {
             <p className="text-sm text-gray-500 capitalize">{post.user.sportsCategory.replace('-', ' ')}</p>
           </div>
         </div>
-        
+
         <div className="relative">
           <button
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -302,22 +338,21 @@ export function PostCard({ post }: PostCardProps) {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleLike}
-              className={`flex items-center space-x-2 transition-colors ${
-                isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-              }`}
+              className={`flex items-center space-x-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+                }`}
             >
               <Heart className={`h-6 w-6 ${isLiked ? 'fill-current' : ''}`} />
               <span className="text-sm font-medium">{likesCount}</span>
             </motion.button>
-            
-            <button 
+
+            <button
               onClick={() => setShowComments(!showComments)}
               className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors"
             >
               <MessageCircle className="h-6 w-6" />
-              <span className="text-sm font-medium">{post.comments + comments.length}</span>
+              <span className="text-sm font-medium">{post.comments}</span>
             </button>
-            
+
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -329,7 +364,7 @@ export function PostCard({ post }: PostCardProps) {
             </motion.button>
           </div>
         </div>
-        
+
         <p className="text-xs text-gray-500">
           {new Date(post.createdAt).toLocaleDateString('en-US', {
             month: 'short',
@@ -339,7 +374,7 @@ export function PostCard({ post }: PostCardProps) {
           })}
         </p>
       </div>
-      
+
       {/* Comments Section */}
       {showComments && (
         <motion.div
@@ -380,7 +415,7 @@ export function PostCard({ post }: PostCardProps) {
               </div>
             </form>
           )}
-          
+
           {/* Comments List */}
           <div className="space-y-3">
             {comments.map((comment) => (
@@ -418,12 +453,17 @@ export function PostCard({ post }: PostCardProps) {
                 </div>
               </motion.div>
             ))}
-            
-            {comments.length === 0 && (
+
+            {isLoadingComments ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                <p className="text-gray-400 text-sm">Loading comments...</p>
+              </div>
+            ) : comments.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-4">
                 No comments yet. Be the first to comment!
               </p>
-            )}
+            ) : null}
           </div>
         </motion.div>
       )}
