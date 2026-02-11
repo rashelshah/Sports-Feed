@@ -10,7 +10,7 @@ export function Feed() {
   const { user } = useAuthStore();
   const { posts, getFilteredPosts, addPost, fetchPosts, isLoadingPosts } = useAppStore();
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
-  const [feedFilter, setFeedFilter] = useState<'my-sport' | 'all-sports'>('my-sport');
+  const [feedFilter, setFeedFilter] = useState<'my-sport' | 'all-sports'>('all-sports');
 
   // Fetch real posts from Supabase on mount
   useEffect(() => {
@@ -46,8 +46,8 @@ export function Feed() {
           <button
             onClick={() => setFeedFilter('my-sport')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'my-sport'
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
           >
             My Sport ({user.sportsCategory.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())})
@@ -55,8 +55,8 @@ export function Feed() {
           <button
             onClick={() => setFeedFilter('all-sports')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'all-sports'
-                ? 'bg-purple-100 text-purple-700'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-purple-100 text-purple-700'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
           >
             All Sports
@@ -67,27 +67,32 @@ export function Feed() {
       <CreatePost onPostCreated={handlePostCreated} />
 
       <div className="space-y-6">
-        {filteredPosts.map((post) => (
-          <PostCard key={post.id} post={post} />
-        ))}
+        {isLoadingPosts ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading posts...</p>
+          </div>
+        ) : filteredPosts.length > 0 ? (
+          filteredPosts.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-12"
+          >
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
+            <p className="text-gray-600">
+              {feedFilter === 'my-sport'
+                ? `No posts from ${user.sportsCategory.replace('-', ' ')} coaches yet.`
+                : 'No posts from any sport yet.'
+              }
+              {user.role === 'coach' && ' Be the first to share something amazing!'}
+            </p>
+          </motion.div>
+        )}
       </div>
-
-      {filteredPosts.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center py-12"
-        >
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
-          <p className="text-gray-600">
-            {feedFilter === 'my-sport'
-              ? `No posts from ${user.sportsCategory.replace('-', ' ')} coaches yet.`
-              : 'No posts from any sport yet.'
-            }
-            {user.role === 'coach' && ' Be the first to share something amazing!'}
-          </p>
-        </motion.div>
-      )}
     </motion.div>
   );
 }

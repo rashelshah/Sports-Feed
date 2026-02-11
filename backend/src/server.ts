@@ -217,7 +217,7 @@ app.get('/health', (req, res) => {
 // API Routes with per-user rate limiting for authenticated endpoints
 app.use('/api/auth', authRoutes);
 app.use('/api/users', optionalAuthMiddleware, userRoutes);
-app.use('/api/posts', authMiddleware, userLimiter, postRoutes);
+app.use('/api/posts', optionalAuthMiddleware, userLimiter, postRoutes);
 app.use('/api/comments', authMiddleware, userLimiter, commentRoutes);
 app.use('/api/messages', authMiddleware, userLimiter, messageRoutes);
 app.use('/api/conversations', authMiddleware, userLimiter, conversationRoutes);

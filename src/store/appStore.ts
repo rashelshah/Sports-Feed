@@ -163,46 +163,64 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setCurrentView: (view) => set({ currentView: view }),
 
-  // Fetch real posts from Supabase
+  // Fetch real posts from backend API
   fetchPosts: async (currentUserId?: string) => {
     const { isLoadingPosts } = get();
     if (isLoadingPosts) return;
     set({ isLoadingPosts: true });
     try {
-      const { data: posts, error } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          author:profiles!author_id(
-            id,
-            email,
-            username,
-            full_name,
-            role,
-            sports_category,
-            gender,
-            profile_image,
-            bio,
-            created_at
-          ),
-          likes:post_likes(count),
-          shares:post_shares(count),
-          comments(count),
-          user_liked:post_likes(
-            user_id
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) {
-        console.error('Failed to fetch posts:', error);
+      const token = localStorage.getItem('token');
+      if (!token) {
         set({ isLoadingPosts: false });
         return;
       }
 
-      const mappedPosts = (posts || []).map((p: any) => mapDbPostToPost(p, currentUserId));
-      set({ posts: mappedPosts, isLoadingPosts: false });
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/posts?limit=50&sortOrder=desc`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        console.error('Failed to fetch posts:', response.statusText);
+        set({ isLoadingPosts: false });
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success && data.posts) {
+        const mappedPosts = data.posts.map((p: any) => ({
+          id: p.id,
+          userId: p.author_id,
+          user: {
+            id: p.author?.id || p.author_id,
+            username: p.author?.username || p.author?.name || 'Unknown',
+            fullName: p.author?.name || 'Unknown',
+            email: p.author?.email || '',
+            profileImage: p.author?.avatar_url || null,
+            sportsCategory: p.author?.sports_category || 'unstructured-sports',
+            gender: 'prefer-not-to-say' as const,
+            role: p.author?.role || 'athlete',
+            isVerified: p.author?.is_verified || false,
+            bio: p.author?.bio || '',
+            followers: 0,
+            following: 0,
+            posts: 0,
+            createdAt: p.created_at
+          },
+          content: p.content,
+          mediaUrl: p.media_urls && p.media_urls.length > 0 ? p.media_urls[0] : null,
+          mediaType: 'image' as const,
+          likes: p.likes_count || 0,
+          shares: p.shares_count || 0,
+          comments: p.comments_count || 0,
+          isLiked: p.isLikedByUser || false,
+          createdAt: p.created_at
+        }));
+        set({ posts: mappedPosts, isLoadingPosts: false });
+      } else {
+        set({ isLoadingPosts: false });
+      }
     } catch (err) {
       console.error('Error fetching posts:', err);
       set({ isLoadingPosts: false });
@@ -319,22 +337,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getUserFollowers: async (userId) => {
     try {
-      const { data, error } = await supabase
-        .from('user_following')
-        .select(`
-          follower:profiles!follower_id(
-            id, email, username, full_name, role, sports_category, gender,
-            profile_image, profile_image, bio, is_verified, verification_status,
-            followers, following, posts, created_at
-          )
-        `)
-        .eq('following_id', userId);
-
-      if (error || !data) {
-        console.error('Failed to fetch followers:', error);
-        return [];
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userId}/followers`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const data = await response.json();
+      if (data.success && data.followers) {
+        return data.followers.map((row: any) => mapDbUserToUser(row)).filter(Boolean);
       }
-      return data.map((row: any) => mapDbUserToUser(row.follower)).filter(Boolean);
+      return [];
     } catch (err) {
       console.error('Error fetching followers:', err);
       return [];
@@ -343,22 +354,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getUserFollowing: async (userId) => {
     try {
-      const { data, error } = await supabase
-        .from('user_following')
-        .select(`
-          following:profiles!following_id(
-            id, email, username, full_name, role, sports_category, gender,
-            profile_image, profile_image, bio, is_verified, verification_status,
-            followers, following, posts, created_at
-          )
-        `)
-        .eq('follower_id', userId);
-
-      if (error || !data) {
-        console.error('Failed to fetch following:', error);
-        return [];
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userId}/following`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const data = await response.json();
+      if (data.success && data.following) {
+        return data.following.map((row: any) => mapDbUserToUser(row)).filter(Boolean);
       }
-      return data.map((row: any) => mapDbUserToUser(row.following)).filter(Boolean);
+      return [];
     } catch (err) {
       console.error('Error fetching following:', err);
       return [];
@@ -560,16 +564,44 @@ export const useAppStore = create<AppState>((set, get) => ({
         throw new Error(data.error || 'Failed to add comment');
       }
 
-      // Update comment count in local state
+      // Update comment count and add comment to local state
+      const commentData = data.comment;
+      const commentUser = commentData.user || {};
+      const mappedComment: Comment = {
+        id: commentData.id,
+        postId: postId,
+        userId: commentUser.id || commentData.user_id,
+        user: {
+          id: commentUser.id || commentData.user_id,
+          username: commentUser.username || commentUser.name || 'Unknown',
+          fullName: commentUser.name || 'Unknown',
+          email: '',
+          profileImage: commentUser.avatar_url || null,
+          sportsCategory: 'unstructured-sports',
+          gender: 'prefer-not-to-say' as const,
+          role: commentUser.role || 'athlete',
+          isVerified: commentUser.is_verified || false,
+          bio: '',
+          followers: 0,
+          following: 0,
+          posts: 0,
+          createdAt: commentData.created_at
+        },
+        content: commentData.content,
+        likes: 0,
+        createdAt: commentData.created_at
+      };
+
       set(state => ({
         posts: state.posts.map(p =>
           p.id === postId
             ? { ...p, comments: p.comments + 1 }
             : p
-        )
+        ),
+        comments: [...state.comments, mappedComment]
       }));
 
-      return data.comment;
+      return mappedComment;
     } catch (error: any) {
       console.error('Comment error:', error);
       toast.error(error.message || 'Failed to add comment');
