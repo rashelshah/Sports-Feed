@@ -8,15 +8,22 @@ import { useAppStore } from '../../store/appStore';
 
 export function Feed() {
   const { user } = useAuthStore();
-  const { posts, getFilteredPosts, addPost } = useAppStore();
+  const { posts, getFilteredPosts, addPost, fetchPosts, isLoadingPosts } = useAppStore();
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [feedFilter, setFeedFilter] = useState<'my-sport' | 'all-sports'>('my-sport');
 
+  // Fetch real posts from Supabase on mount
   useEffect(() => {
     if (user) {
-      const userPosts = feedFilter === 'my-sport' 
+      fetchPosts(user.id);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user) {
+      const userPosts = feedFilter === 'my-sport'
         ? getFilteredPosts(user.sportsCategory)
-        : posts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        : [...posts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setFilteredPosts(userPosts);
     }
   }, [user, posts, getFilteredPosts, feedFilter]);
@@ -38,35 +45,33 @@ export function Feed() {
         <div className="flex items-center justify-center space-x-4">
           <button
             onClick={() => setFeedFilter('my-sport')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              feedFilter === 'my-sport'
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'my-sport'
                 ? 'bg-blue-100 text-blue-700'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             My Sport ({user.sportsCategory.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())})
           </button>
           <button
             onClick={() => setFeedFilter('all-sports')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              feedFilter === 'all-sports'
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'all-sports'
                 ? 'bg-purple-100 text-purple-700'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             All Sports
           </button>
         </div>
       </div>
-      
+
       <CreatePost onPostCreated={handlePostCreated} />
-      
+
       <div className="space-y-6">
         {filteredPosts.map((post) => (
           <PostCard key={post.id} post={post} />
         ))}
       </div>
-      
+
       {filteredPosts.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -75,7 +80,7 @@ export function Feed() {
         >
           <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
           <p className="text-gray-600">
-            {feedFilter === 'my-sport' 
+            {feedFilter === 'my-sport'
               ? `No posts from ${user.sportsCategory.replace('-', ' ')} coaches yet.`
               : 'No posts from any sport yet.'
             }

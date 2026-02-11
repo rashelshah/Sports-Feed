@@ -108,24 +108,43 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
         }
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Create post via backend API
+      const finalContent = audioBlob && transcribedText ? `${content}\n\n[Voice: ${transcribedText}]` : content;
 
-      const newPost = {
-        id: Date.now().toString(),
-        userId: user.id,
-        user,
-        content: audioBlob && transcribedText ? `${content}\n\n[Voice: ${transcribedText}]` : content,
-        mediaUrl: mediaFile ? URL.createObjectURL(mediaFile) : undefined,
-        mediaType: mediaFile?.type.startsWith('video/') ? 'video' as const : 'image' as const,
-        audioUrl: audioBlob ? URL.createObjectURL(audioBlob) : undefined,
-        likes: 0,
-        comments: 0,
-        shares: 0,
-        isLiked: false,
-        createdAt: new Date().toISOString(),
-      };
+      // TODO: Upload media files to cloud storage (Cloudinary/S3) first
+      const mediaUrls: string[] = [];
+      if (mediaFile) {
+        // For now, we'll skip media upload - you need to implement cloud storage
+        toast('Media upload not yet implemented', { icon: 'ℹ️' });
+      }
 
-      onPostCreated(newPost);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to post');
+        setIsPosting(false);
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/posts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          content: finalContent,
+          mediaUrls
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create post');
+      }
+
+      // Call the callback with the new post
+      onPostCreated(data.post);
 
       setContent('');
       setMediaFile(null);
@@ -140,12 +159,12 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
 
   const handleFileSelect = (file: File) => {
     const maxSize = 50 * 1024 * 1024; // 50MB
-    
+
     if (file.size > maxSize) {
       toast.error('File size must be less than 50MB');
       return;
     }
-    
+
     setMediaFile(file);
     toast.success('Media file selected');
   };
@@ -163,7 +182,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
             alt={user?.fullName}
             className="h-12 w-12 rounded-full object-cover"
           />
-          
+
           <div className="flex-1">
             <textarea
               value={content}
@@ -172,7 +191,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={4}
             />
-            
+
             {mediaFile && (
               <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between">
@@ -247,17 +266,16 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${
-                    isRecording
-                      ? 'text-red-500 hover:text-red-700'
-                      : 'text-gray-500 hover:text-green-500'
-                  }`}
+                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${isRecording
+                    ? 'text-red-500 hover:text-red-700'
+                    : 'text-gray-500 hover:text-green-500'
+                    }`}
                 >
                   {isRecording ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                   <span className="text-sm">{isRecording ? 'Stop' : 'Voice'}</span>
                 </button>
               </div>
-              
+
               <Button
                 type="submit"
                 loading={isPosting}

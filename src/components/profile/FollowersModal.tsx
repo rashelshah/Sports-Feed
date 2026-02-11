@@ -13,22 +13,17 @@ interface FollowersModalProps {
 export function FollowersModal({ users, type, onClose }: FollowersModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock followers/following data - in a real app, this would come from the backend
-  const mockFollowers = users.slice(0, Math.min(5, users.length));
-  const mockFollowing = users.slice(0, Math.min(3, users.length));
-  
-  const displayUsers = type === 'followers' ? mockFollowers : mockFollowing;
-  
-  const filteredUsers = displayUsers.filter(user =>
+  // Users are now real data passed from parent (fetched from Supabase user_following table)
+  const filteredUsers = users.filter(user =>
     user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getVerificationBadge = (user: User) => {
     if (!user.isVerified) return null;
-    
+
     const badgeColor = user.role === 'coach' ? 'text-purple-500' : 'text-blue-500';
-    
+
     return (
       <svg className={`w-4 h-4 ${badgeColor}`} fill="currentColor" viewBox="0 0 20 20">
         <path
@@ -57,7 +52,7 @@ export function FollowersModal({ users, type, onClose }: FollowersModalProps) {
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900 capitalize">
-            {type} ({displayUsers.length})
+            {type} ({users.length})
           </h2>
           <button
             onClick={onClose}
@@ -112,19 +107,18 @@ export function FollowersModal({ users, type, onClose }: FollowersModalProps) {
                           {getVerificationBadge(user)}
                         </div>
                         <p className="text-sm text-gray-600">@{user.username}</p>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          user.role === 'coach' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${user.role === 'coach' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
                           {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </span>
                       </div>
                     </div>
-                    
+
                     <Button size="sm" variant="outline">
                       {type === 'followers' ? 'Follow Back' : 'Unfollow'}
                     </Button>
                   </div>
-                  
+
                   {user.bio && (
                     <p className="text-sm text-gray-600 mt-2 ml-15 line-clamp-2">
                       {user.bio}

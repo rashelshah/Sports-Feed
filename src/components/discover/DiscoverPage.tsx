@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Users, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -8,10 +8,15 @@ import { Button } from '../ui/Button';
 
 export function DiscoverPage() {
   const { user } = useAuthStore();
-  const { users, isFollowing, followUser, unfollowUser } = useAppStore();
+  const { users, isFollowing, followUser, unfollowUser, fetchUsers, isLoadingUsers } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'coaches' | 'users'>('all');
   const [sportFilter, setSportFilter] = useState<'all' | 'coco' | 'martial-arts' | 'calorie-fight'>('all');
+
+  // Fetch real users from Supabase on mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   if (!user) return null;
 
@@ -19,12 +24,12 @@ export function DiscoverPage() {
 
   const searchResults = allUsers.filter(u => {
     const matchesSearch = u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         u.bio?.toLowerCase().includes(searchTerm.toLowerCase());
+      u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.bio?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilter = filterType === 'all' ||
-                         (filterType === 'coaches' && u.role === 'coach') ||
-                         (filterType === 'users' && u.role === 'user');
+      (filterType === 'coaches' && u.role === 'coach') ||
+      (filterType === 'users' && u.role === 'user');
 
     const matchesSport = sportFilter === 'all' || u.sportsCategory === sportFilter;
 
@@ -43,9 +48,9 @@ export function DiscoverPage() {
 
   const getVerificationBadge = (targetUser: User) => {
     if (!targetUser.isVerified) return null;
-    
+
     const badgeColor = targetUser.role === 'coach' ? 'text-purple-500' : 'text-blue-500';
-    
+
     return (
       <svg className={`w-4 h-4 ${badgeColor}`} fill="currentColor" viewBox="0 0 20 20">
         <path
@@ -67,7 +72,7 @@ export function DiscoverPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">
           Discover Sports Community
         </h1>
-        
+
         {/* Search and Filter */}
         <div className="flex flex-col gap-4 mb-6">
           <div className="relative flex-1">
@@ -80,82 +85,75 @@ export function DiscoverPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          
+
           {/* Role Filter */}
           <div className="flex flex-wrap gap-2">
             <span className="text-sm font-medium text-gray-700 self-center">Role:</span>
             <button
               onClick={() => setFilterType('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterType === 'all'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterType === 'all'
+                ? 'bg-blue-100 text-blue-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setFilterType('coaches')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterType === 'coaches'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterType === 'coaches'
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Coaches
             </button>
             <button
               onClick={() => setFilterType('users')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterType === 'users'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterType === 'users'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Athletes
             </button>
           </div>
-          
+
           {/* Sport Filter */}
           <div className="flex flex-wrap gap-2">
             <span className="text-sm font-medium text-gray-700 self-center">Sport:</span>
             <button
               onClick={() => setSportFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                sportFilter === 'all'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${sportFilter === 'all'
+                ? 'bg-blue-100 text-blue-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               All Sports
             </button>
             <button
               onClick={() => setSportFilter('coco')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                sportFilter === 'coco'
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${sportFilter === 'coco'
+                ? 'bg-orange-100 text-orange-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Coco
             </button>
             <button
               onClick={() => setSportFilter('martial-arts')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                sportFilter === 'martial-arts'
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${sportFilter === 'martial-arts'
+                ? 'bg-red-100 text-red-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Martial Arts
             </button>
             <button
               onClick={() => setSportFilter('calorie-fight')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                sportFilter === 'calorie-fight'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${sportFilter === 'calorie-fight'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               Calorie Fight
             </button>
@@ -208,34 +206,32 @@ export function DiscoverPage() {
                 className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 h-20 w-20 rounded-full border-4 border-white object-cover"
               />
             </div>
-            
+
             <div className="pt-12 p-6 text-center">
               <div className="flex items-center justify-center space-x-1 mb-2">
                 <h3 className="font-semibold text-gray-900">{targetUser.fullName}</h3>
                 {getVerificationBadge(targetUser)}
               </div>
-              
+
               <p className="text-gray-600 text-sm mb-1">@{targetUser.username}</p>
-              
+
               <div className="flex flex-col items-center space-y-1 mb-3">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  targetUser.role === 'coach' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                }`}>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${targetUser.role === 'coach' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
                   {targetUser.role.charAt(0).toUpperCase() + targetUser.role.slice(1)}
                 </span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  targetUser.sportsCategory === 'coco' ? 'bg-orange-100 text-orange-800' :
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${targetUser.sportsCategory === 'coco' ? 'bg-orange-100 text-orange-800' :
                   targetUser.sportsCategory === 'martial-arts' ? 'bg-red-100 text-red-800' :
-                  'bg-green-100 text-green-800'
-                }`}>
+                    'bg-green-100 text-green-800'
+                  }`}>
                   {targetUser.sportsCategory.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                 </span>
               </div>
-              
+
               {targetUser.bio && (
                 <p className="text-gray-600 text-sm mb-4 line-clamp-2">{targetUser.bio}</p>
               )}
-              
+
               <div className="flex justify-center space-x-4 mb-4 text-sm">
                 <div className="text-center">
                   <p className="font-bold text-gray-900">{targetUser.posts}</p>
@@ -250,7 +246,7 @@ export function DiscoverPage() {
                   <p className="text-gray-600">Following</p>
                 </div>
               </div>
-              
+
               <Button
                 onClick={() => handleFollow(targetUser.id)}
                 size="sm"

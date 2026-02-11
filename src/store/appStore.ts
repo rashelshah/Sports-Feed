@@ -1,10 +1,74 @@
 import { create } from 'zustand';
 import { User, Post, Comment, Message, Conversation, Video, Membership, UserTokens, TokenTransaction, LocationCheckIn, SafeLocation, HeatMapData, Event } from '../types';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
+
+// Helper: map a raw Supabase profile/user row to the frontend User type
+function mapDbUserToUser(row: any): User {
+  return {
+    id: row.id,
+    email: row.email ?? '',
+    username: row.username ?? row.name ?? '',
+    fullName: row.full_name ?? row.name ?? '',
+    role: row.role ?? 'user',
+    sportsCategory: row.sports_category ?? 'coco',
+    gender: row.gender ?? 'prefer-not-to-say',
+    isVerified: row.is_verified ?? (row.verification_status === 'approved') ?? false,
+    profileImage: row.profile_image ?? row.profile_image ?? undefined,
+    bio: row.bio ?? undefined,
+    followers: row.followers_count ?? row.followers ?? 0,
+    following: row.following_count ?? row.following ?? 0,
+    posts: row.posts_count ?? row.posts ?? 0,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    sharedPosts: [],
+    accessibilityNeeds: row.accessibility_needs ?? [],
+    preferredAccommodations: row.preferred_accommodations ?? [],
+    sportRole: row.sport_role ?? undefined,
+    sportInterests: row.sport_interests ?? [],
+    isProfessional: row.is_professional ?? false,
+    verificationStatus: row.verification_status ?? 'approved',
+  };
+}
+
+// Helper: map a raw Supabase post row to the frontend Post type
+function mapDbPostToPost(row: any, currentUserId?: string): Post {
+  // Handle author being an array (PostgREST can return this with views)
+  const rawAuthor = row.author;
+  const author = Array.isArray(rawAuthor) ? rawAuthor[0] : rawAuthor;
+  return {
+    id: row.id,
+    userId: row.author_id,
+    user: author ? mapDbUserToUser(author) : {
+      id: row.author_id,
+      email: '',
+      username: 'unknown',
+      fullName: 'Unknown User',
+      role: 'user',
+      sportsCategory: 'coco',
+      gender: 'prefer-not-to-say',
+      isVerified: false,
+      followers: 0,
+      following: 0,
+      posts: 0,
+      createdAt: new Date().toISOString(),
+    },
+    content: row.content ?? '',
+    mediaUrl: row.media_urls?.[0] ?? undefined,
+    mediaType: row.media_urls?.[0] ? 'image' : undefined,
+    likes: typeof row.likes === 'number' ? row.likes : row.likes?.[0]?.count ?? row.likes_count ?? 0,
+    comments: typeof row.comments === 'number' ? row.comments : row.comments?.[0]?.count ?? row.comments_count ?? 0,
+    shares: typeof row.shares === 'number' ? row.shares : row.shares?.[0]?.count ?? row.shares_count ?? 0,
+    isLiked: currentUserId ? (row.user_liked?.some?.((l: any) => l.user_id === currentUserId) ?? row.isLikedByUser ?? false) : false,
+    createdAt: row.created_at ?? new Date().toISOString(),
+  };
+}
 
 interface AppState {
   currentView: 'home' | 'discover' | 'notifications' | 'messages' | 'profile' | 'expert' | 'play' | 'map';
   posts: Post[];
   users: User[];
+  isLoadingPosts: boolean;
+  isLoadingUsers: boolean;
   comments: Comment[];
   conversations: Conversation[];
   messages: Message[];
@@ -14,6 +78,8 @@ interface AppState {
   userTokens: UserTokens[];
   userFollowing: { followerId: string; followingId: string }[];
   setCurrentView: (view: AppState['currentView']) => void;
+  fetchPosts: (currentUserId?: string) => Promise<void>;
+  fetchUsers: () => Promise<void>;
   addPost: (post: Post) => void;
   updatePostContent: (postId: string, content: string) => void;
   deletePost: (postId: string) => void;
@@ -21,21 +87,22 @@ interface AppState {
   updatePostShares: (postId: string, shares: number) => void;
   addSharedPost: (userId: string, postId: string) => void;
   getSharedPosts: (userId: string) => Post[];
-  addComment: (comment: Comment) => void;
+  addComment: (postId: string, content: string) => Promise<any>;
   getPostComments: (postId: string) => Comment[];
   getFilteredPosts: (userSportsCategory: string) => Post[];
   getFilteredUsers: (userSportsCategory: string) => User[];
   getUserPosts: (userId: string) => Post[];
-  getUserFollowers: (userId: string) => User[];
-  getUserFollowing: (userId: string) => User[];
+  getUserFollowers: (userId: string) => Promise<User[]>;
+  getUserFollowing: (userId: string) => Promise<User[]>;
   addMessage: (message: Message) => void;
   getConversations: (userId: string, userSportsCategory: string | 'all') => Conversation[];
   addNotification: (notification: Notification) => void;
   markNotificationAsRead: (notificationId: string) => void;
   updateUserInStore: (updatedUser: User) => void;
-  followUser: (userId: string, targetUserId: string) => void;
-  unfollowUser: (userId: string, targetUserId: string) => void;
-  isFollowing: (userId: string, targetUserId: string) => boolean;
+  followUser: (userId: string, targetUserId: string) => Promise<void>;
+  unfollowUser: (userId: string, targetUserId: string) => Promise<void>;
+  isFollowing: (userId: string, targetUserId: string) => Promise<boolean>;
+  likePost: (postId: string, userId: string) => Promise<void>;
   watchAd: (userId: string) => void;
   addVideo: (video: Video) => void;
   getVideosByCategory: (category: string) => Video[];
@@ -48,7 +115,6 @@ interface AppState {
   purchaseTokens: (userId: string, amount: number, price: number) => void;
   addMembership: (membership: Membership) => void;
   getMembershipsByCoach: (coachId: string) => Membership[];
-  watchAd: (userId: string) => void;
   livestreams: any[];
   addLivestream: (livestream: any) => void;
   getLivestreams: (category: string) => any[];
@@ -75,160 +141,16 @@ interface Notification {
   fromUser?: User;
 }
 
-// Mock data for different sports categories
-const mockUsers: User[] = [
-  {
-    id: '8',
-    email: 'coach2@martial.com',
-    username: 'martialcoach2',
-    fullName: 'Sarah Johnson',
-    role: 'coach',
-    sportsCategory: 'martial-arts',
-    isVerified: true,
-    profileImage: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=400',
-    bio: 'Professional martial arts instructor with 10+ years experience',
-    followers: 2500,
-    following: 150,
-    posts: 89,
-    sharedPosts: [],
-    createdAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '9',
-    email: 'coach2@calorie.com',
-    username: 'caloriecoach2',
-    fullName: 'Mike Chen',
-    role: 'coach',
-    sportsCategory: 'calorie-fight',
-    isVerified: true,
-    profileImage: 'https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg?auto=compress&cs=tinysrgb&w=400',
-    bio: 'Certified fitness trainer specializing in calorie burning workouts',
-    followers: 1800,
-    following: 200,
-    posts: 156,
-    sharedPosts: [],
-    createdAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '10',
-    email: 'coach2@coco.com',
-    username: 'cococoach2',
-    fullName: 'Alex Rodriguez',
-    role: 'coach',
-    sportsCategory: 'coco',
-    isVerified: true,
-    profileImage: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=400',
-    bio: 'Coco sport specialist and performance coach',
-    followers: 1200,
-    following: 80,
-    posts: 67,
-    sharedPosts: [],
-    createdAt: '2024-01-01T00:00:00Z',
-  },
-  {
-    id: '11',
-    email: 'user2@martial.com',
-    username: 'martialuser2',
-    fullName: 'Emma Davis',
-    role: 'user',
-    sportsCategory: 'martial-arts',
-    isVerified: false,
-    profileImage: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400',
-    bio: 'Martial arts enthusiast, always learning',
-    followers: 150,
-    following: 45,
-    posts: 12,
-    sharedPosts: [],
-    createdAt: '2024-02-01T00:00:00Z',
-  },
-  {
-    id: '12',
-    email: 'user2@calorie.com',
-    username: 'calorieuser2',
-    fullName: 'John Smith',
-    role: 'user',
-    sportsCategory: 'calorie-fight',
-    isVerified: false,
-    profileImage: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=400',
-    bio: 'Fitness enthusiast on a weight loss journey',
-    followers: 89,
-    following: 67,
-    posts: 8,
-    sharedPosts: [],
-    createdAt: '2024-02-15T00:00:00Z',
-  },
-  {
-    id: '13',
-    email: 'user2@coco.com',
-    username: 'cocouser2',
-    fullName: 'Maria Garcia',
-    role: 'user',
-    sportsCategory: 'coco',
-    isVerified: false,
-    profileImage: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
-    bio: 'Coco enthusiast, learning from the best',
-    followers: 67,
-    following: 34,
-    posts: 3,
-    sharedPosts: [],
-    createdAt: '2024-02-20T00:00:00Z',
-  },
-];
-
-const mockPosts: Post[] = [
-  {
-    id: '1',
-    userId: '8',
-    user: mockUsers[0],
-    content: 'Remember, consistency is key in martial arts training. Here\'s a quick warm-up routine that will prepare your body for intensive training. Practice these movements daily! 🥋',
-    mediaUrl: 'https://images.pexels.com/photos/4752861/pexels-photo-4752861.jpeg?auto=compress&cs=tinysrgb&w=800',
-    mediaType: 'image',
-    likes: 234,
-    comments: 18,
-    shares: 12,
-    isLiked: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    userId: '9',
-    user: mockUsers[1],
-    content: 'New HIIT workout video is live! This 20-minute session will help you burn calories efficiently. Perfect for busy schedules. Who\'s joining me? 💪',
-    mediaUrl: 'https://images.pexels.com/photos/1552252/pexels-photo-1552252.jpeg?auto=compress&cs=tinysrgb&w=800',
-    mediaType: 'image',
-    likes: 456,
-    comments: 32,
-    shares: 28,
-    isLiked: true,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: '3',
-    userId: '10',
-    user: mockUsers[2],
-    content: 'Coco training session complete! Focus on technique and breathing. Remember, it\'s not about speed, it\'s about precision and control. 🎯',
-    mediaUrl: 'https://images.pexels.com/photos/1552106/pexels-photo-1552106.jpeg?auto=compress&cs=tinysrgb&w=800',
-    mediaType: 'image',
-    likes: 189,
-    comments: 15,
-    shares: 8,
-    isLiked: false,
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-];
-
-const mockNotifications: Notification[] = [
-  // Start with empty notifications - they will be generated by user actions
-];
-
 export const useAppStore = create<AppState>((set, get) => ({
   currentView: 'home',
-  posts: mockPosts,
-  users: mockUsers,
+  posts: [],
+  users: [],
+  isLoadingPosts: false,
+  isLoadingUsers: false,
   comments: [],
   conversations: [],
   messages: [],
-  notifications: mockNotifications,
+  notifications: [],
   videos: [],
   memberships: [],
   userTokens: [],
@@ -240,6 +162,78 @@ export const useAppStore = create<AppState>((set, get) => ({
   events: [],
 
   setCurrentView: (view) => set({ currentView: view }),
+
+  // Fetch real posts from Supabase
+  fetchPosts: async (currentUserId?: string) => {
+    const { isLoadingPosts } = get();
+    if (isLoadingPosts) return;
+    set({ isLoadingPosts: true });
+    try {
+      const { data: posts, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          author:profiles!author_id(
+            id,
+            email,
+            username,
+            full_name,
+            role,
+            sports_category,
+            gender,
+            profile_image,
+            bio,
+            created_at
+          ),
+          likes:post_likes(count),
+          shares:post_shares(count),
+          comments(count),
+          user_liked:post_likes(
+            user_id
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('Failed to fetch posts:', error);
+        set({ isLoadingPosts: false });
+        return;
+      }
+
+      const mappedPosts = (posts || []).map((p: any) => mapDbPostToPost(p, currentUserId));
+      set({ posts: mappedPosts, isLoadingPosts: false });
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+      set({ isLoadingPosts: false });
+    }
+  },
+
+  // Fetch real users from Supabase
+  fetchUsers: async () => {
+    const { isLoadingUsers } = get();
+    if (isLoadingUsers) return;
+    set({ isLoadingUsers: true });
+    try {
+      const { data: users, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error('Failed to fetch users:', error);
+        set({ isLoadingUsers: false });
+        return;
+      }
+
+      const mappedUsers = (users || []).map((u: any) => mapDbUserToUser(u));
+      set({ users: mappedUsers, isLoadingUsers: false });
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      set({ isLoadingUsers: false });
+    }
+  },
 
   addPost: (post) => set((state) => ({ posts: [post, ...state.posts] })),
 
@@ -286,7 +280,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           ? { ...user, sharedPosts: [...(user.sharedPosts || []), postId] }
           : user
       );
-      
+
       return { users: updatedUsers };
     });
   },
@@ -295,19 +289,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const state = get();
     const user = state.users.find(u => u.id === userId);
     if (!user?.sharedPosts || user.sharedPosts.length === 0) return [];
-    
-    return state.posts.filter(post => user.sharedPosts?.includes(post.id));
-  },
 
-  addComment: (comment) => {
-    set((state) => ({
-      comments: [...state.comments, comment],
-      posts: state.posts.map(post =>
-        post.id === comment.postId
-          ? { ...post, comments: post.comments + 1 }
-          : post
-      ),
-    }));
+    return state.posts.filter(post => user.sharedPosts?.includes(post.id));
   },
 
   getPostComments: (postId) => {
@@ -319,8 +302,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getFilteredPosts: (userSportsCategory) => {
     const { posts } = get();
-    return posts.filter(post => 
-      post.user.sportsCategory === userSportsCategory
+    return posts.filter(post =>
+      post.user?.sportsCategory === userSportsCategory
     ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
@@ -334,16 +317,52 @@ export const useAppStore = create<AppState>((set, get) => ({
     return posts.filter(post => post.userId === userId);
   },
 
-  getUserFollowers: (userId) => {
-    const { users } = get();
-    // Mock followers - in a real app this would come from a followers relationship table
-    return users.filter(user => user.id !== userId).slice(0, 3);
+  getUserFollowers: async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_following')
+        .select(`
+          follower:profiles!follower_id(
+            id, email, username, full_name, role, sports_category, gender,
+            profile_image, profile_image, bio, is_verified, verification_status,
+            followers, following, posts, created_at
+          )
+        `)
+        .eq('following_id', userId);
+
+      if (error || !data) {
+        console.error('Failed to fetch followers:', error);
+        return [];
+      }
+      return data.map((row: any) => mapDbUserToUser(row.follower)).filter(Boolean);
+    } catch (err) {
+      console.error('Error fetching followers:', err);
+      return [];
+    }
   },
 
-  getUserFollowing: (userId) => {
-    const { users } = get();
-    // Mock following - in a real app this would come from a following relationship table
-    return users.filter(user => user.id !== userId).slice(0, 2);
+  getUserFollowing: async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_following')
+        .select(`
+          following:profiles!following_id(
+            id, email, username, full_name, role, sports_category, gender,
+            profile_image, profile_image, bio, is_verified, verification_status,
+            followers, following, posts, created_at
+          )
+        `)
+        .eq('follower_id', userId);
+
+      if (error || !data) {
+        console.error('Failed to fetch following:', error);
+        return [];
+      }
+      return data.map((row: any) => mapDbUserToUser(row.following)).filter(Boolean);
+    } catch (err) {
+      console.error('Error fetching following:', err);
+      return [];
+    }
   },
 
   addMessage: (message) => {
@@ -352,24 +371,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   getConversations: (userId, userSportsCategory) => {
     const { users, messages } = get();
-    const filteredUsers = users.filter(user => 
+    const filteredUsers = users.filter(user =>
       (userSportsCategory === 'all' || user.sportsCategory === userSportsCategory) && user.id !== userId
     );
-    
+
     const conversations: Conversation[] = filteredUsers.map(otherUser => {
       const conversationMessages = messages.filter(msg =>
         (msg.senderId === userId && msg.receiverId === otherUser.id) ||
         (msg.senderId === otherUser.id && msg.receiverId === userId)
       );
-      
-      const lastMessage = conversationMessages.sort((a, b) => 
+
+      const lastMessage = conversationMessages.sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )[0];
-      
+
       const unreadCount = conversationMessages.filter(msg =>
         msg.receiverId === userId && !msg.isRead
       ).length;
-      
+
       return {
         id: `conv-${userId}-${otherUser.id}`,
         participants: [otherUser],
@@ -378,8 +397,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         updatedAt: lastMessage?.createdAt || new Date().toISOString(),
       };
     });
-    
-    return conversations.sort((a, b) => 
+
+    return conversations.sort((a, b) =>
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
   },
@@ -406,54 +425,156 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
 
-  followUser: (userId: string, targetUserId: string) => {
-    set((state) => {
-      // Add to following relationship
-      const newFollowing = { followerId: userId, followingId: targetUserId };
-      const updatedUserFollowing = [...state.userFollowing, newFollowing];
-      
-      // Update user counts
-      const updatedUsers = state.users.map(user => {
-        if (user.id === userId) {
-          return { ...user, following: user.following + 1 };
-        }
-        if (user.id === targetUserId) {
-          return { ...user, followers: user.followers + 1 };
-        }
-        return user;
+  followUser: async (userId: string, targetUserId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to follow users');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/follow`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: targetUserId })
       });
-      
-      return { userFollowing: updatedUserFollowing, users: updatedUsers };
-    });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to follow user');
+      }
+
+      // Refresh users to update follower/following counts
+      await get().fetchUsers();
+      toast.success(data.message || 'Successfully followed user');
+    } catch (error: any) {
+      console.error('Follow error:', error);
+      toast.error(error.message || 'Failed to follow user');
+    }
   },
 
-  unfollowUser: (userId: string, targetUserId: string) => {
-    set((state) => {
-      // Remove from following relationship
-      const updatedUserFollowing = state.userFollowing.filter(
-        uf => !(uf.followerId === userId && uf.followingId === targetUserId)
-      );
-      
-      // Update user counts
-      const updatedUsers = state.users.map(user => {
-        if (user.id === userId) {
-          return { ...user, following: Math.max(0, user.following - 1) };
+  unfollowUser: async (userId: string, targetUserId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to unfollow users');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/follow/${targetUserId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-        if (user.id === targetUserId) {
-          return { ...user, followers: Math.max(0, user.followers - 1) };
-        }
-        return user;
       });
-      
-      return { userFollowing: updatedUserFollowing, users: updatedUsers };
-    });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to unfollow user');
+      }
+
+      // Refresh users to update follower/following counts
+      await get().fetchUsers();
+      toast.success(data.message || 'Successfully unfollowed user');
+    } catch (error: any) {
+      console.error('Unfollow error:', error);
+      toast.error(error.message || 'Failed to unfollow user');
+    }
   },
 
-  isFollowing: (userId: string, targetUserId: string) => {
-    const { userFollowing } = get();
-    return userFollowing.some(
-      uf => uf.followerId === userId && uf.followingId === targetUserId
-    );
+  isFollowing: async (userId: string, targetUserId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return false;
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/follow-status/${targetUserId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      return data.success ? data.isFollowing : false;
+    } catch (error) {
+      console.error('Error checking follow status:', error);
+      return false;
+    }
+  },
+
+  likePost: async (postId: string, userId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to like posts');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to like post');
+      }
+
+      // Update post in local state
+      set(state => ({
+        posts: state.posts.map(p =>
+          p.id === postId
+            ? { ...p, likes: p.likes + (data.liked ? 1 : -1), isLiked: data.liked }
+            : p
+        )
+      }));
+    } catch (error: any) {
+      console.error('Like error:', error);
+      toast.error(error.message || 'Failed to like post');
+    }
+  },
+
+  addComment: async (postId: string, content: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to comment');
+        return null;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content })
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to add comment');
+      }
+
+      // Update comment count in local state
+      set(state => ({
+        posts: state.posts.map(p =>
+          p.id === postId
+            ? { ...p, comments: p.comments + 1 }
+            : p
+        )
+      }));
+
+      return data.comment;
+    } catch (error: any) {
+      console.error('Comment error:', error);
+      toast.error(error.message || 'Failed to add comment');
+      return null;
+    }
   },
 
   // Video functions
@@ -472,18 +593,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   likeVideo: (videoId, userId) => {
     const { addTokens } = get();
-    
+
     // Award tokens for liking videos
     addTokens(userId, 2, 'earned', 'Liked video');
-    
+
     set((state) => ({
       videos: state.videos.map(video =>
         video.id === videoId
-          ? { 
-              ...video, 
-              likes: video.isLiked ? video.likes - 1 : video.likes + 1,
-              isLiked: !video.isLiked 
-            }
+          ? {
+            ...video,
+            likes: video.isLiked ? video.likes - 1 : video.likes + 1,
+            isLiked: !video.isLiked
+          }
           : video
       ),
     }));
@@ -493,7 +614,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Award tokens for watching videos
     const { addTokens } = get();
     addTokens(userId, 5, 'earned', 'Watched video');
-    
+
     // Increment view count
     set((state) => ({
       videos: state.videos.map(video =>
@@ -508,7 +629,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   getUserTokens: (userId) => {
     const { userTokens } = get();
     let userToken = userTokens.find(ut => ut.userId === userId);
-    
+
     if (!userToken) {
       // Create initial token balance for new user
       userToken = {
@@ -526,19 +647,19 @@ export const useAppStore = create<AppState>((set, get) => ({
           createdAt: new Date().toISOString(),
         }],
       };
-      
+
       set((state) => ({
         userTokens: [...state.userTokens, userToken!]
       }));
     }
-    
+
     return userToken;
   },
 
   addTokens: (userId, amount, reason, description) => {
     set((state) => {
       const existingTokenIndex = state.userTokens.findIndex(ut => ut.userId === userId);
-      
+
       const transaction: TokenTransaction = {
         id: Date.now().toString(),
         userId,
@@ -548,7 +669,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         description,
         createdAt: new Date().toISOString(),
       };
-      
+
       if (existingTokenIndex >= 0) {
         const updatedTokens = [...state.userTokens];
         updatedTokens[existingTokenIndex] = {
@@ -574,11 +695,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   spendTokens: (userId, amount, reason, description) => {
     const { userTokens } = get();
     const userToken = userTokens.find(ut => ut.userId === userId);
-    
+
     if (!userToken || userToken.balance < amount) {
       return false; // Insufficient tokens
     }
-    
+
     set((state) => {
       const transaction: TokenTransaction = {
         id: Date.now().toString(),
@@ -589,21 +710,21 @@ export const useAppStore = create<AppState>((set, get) => ({
         description,
         createdAt: new Date().toISOString(),
       };
-      
+
       return {
         userTokens: state.userTokens.map(ut =>
           ut.userId === userId
             ? {
-                ...ut,
-                balance: ut.balance - amount,
-                totalSpent: ut.totalSpent + amount,
-                transactions: [transaction, ...ut.transactions],
-              }
+              ...ut,
+              balance: ut.balance - amount,
+              totalSpent: ut.totalSpent + amount,
+              transactions: [transaction, ...ut.transactions],
+            }
             : ut
         ),
       };
     });
-    
+
     return true;
   },
 
@@ -613,8 +734,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // Membership functions
-  addMembership: (membership) => set((state) => ({ 
-    memberships: [...state.memberships, membership] 
+  addMembership: (membership) => set((state) => ({
+    memberships: [...state.memberships, membership]
   })),
 
   getMembershipsByCoach: (coachId) => {
@@ -651,7 +772,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const existingIndex = state.heatMapData.findIndex(
       item => item.latitude === data.latitude && item.longitude === data.longitude && item.type === data.type
     );
-    
+
     if (existingIndex >= 0) {
       const updatedData = [...state.heatMapData];
       updatedData[existingIndex] = data;

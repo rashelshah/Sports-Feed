@@ -4,6 +4,7 @@ import { Users, Shield, Heart, Star, Calendar, MapPin, Clock, Video, BookOpen, M
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
 import { Button } from '../ui/Button';
+import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface WomensEvent {
@@ -72,122 +73,124 @@ export function WomensLounge() {
   const isFemale = user?.gender === 'female';
 
   useEffect(() => {
-    // Mock data for women's events
-    setEvents([
-      {
-        id: '1',
-        title: 'Women\'s Self-Defense Workshop',
-        description: 'Learn essential self-defense techniques in a safe, supportive environment designed specifically for women.',
-        organizer: {
-          id: '1',
-          name: 'Sarah Johnson',
-          profileImage: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=400',
-          isVerified: true,
-        },
-        location: 'Downtown Community Center',
-        date: '2024-01-15',
-        time: '10:00 AM',
-        maxParticipants: 20,
-        currentParticipants: 12,
-        category: 'Martial Arts',
-        isOnline: false,
-        tokenCost: 50,
-        features: ['Beginner-friendly', 'Equipment provided', 'Safe environment'],
-        rating: 4.8,
-        totalRatings: 24,
-      },
-      {
-        id: '2',
-        title: 'Women\'s Fitness Bootcamp',
-        description: 'High-energy workout session designed for women of all fitness levels. Build strength and confidence!',
-        organizer: {
-          id: '2',
-          name: 'Maria Garcia',
-          profileImage: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
-          isVerified: true,
-        },
-        location: 'Online - Zoom',
-        date: '2024-01-16',
-        time: '7:00 PM',
-        maxParticipants: 30,
-        currentParticipants: 18,
-        category: 'Fitness',
-        isOnline: true,
-        tokenCost: 30,
-        features: ['All levels welcome', 'Equipment optional', 'Recorded session'],
-        rating: 4.9,
-        totalRatings: 45,
-      },
-    ]);
+    // Fetch real women's events from Supabase
+    async function fetchEvents() {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('is_women_only', true)
+          .order('created_at', { ascending: false });
 
-    // Mock data for women coaches
-    setCoaches([
-      {
-        id: '1',
-        name: 'Sarah Johnson',
-        profileImage: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=400',
-        bio: 'Certified martial arts instructor with 10+ years experience. Specializes in women\'s self-defense and empowerment.',
-        specialty: 'Martial Arts & Self-Defense',
-        rating: 4.9,
-        totalRatings: 156,
-        followers: 2500,
-        isVerified: true,
-        isOnline: true,
-      },
-      {
-        id: '2',
-        name: 'Maria Garcia',
-        profileImage: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
-        bio: 'Fitness coach and nutritionist specializing in women\'s health and wellness. Creating safe spaces for women to thrive.',
-        specialty: 'Fitness & Nutrition',
-        rating: 4.8,
-        totalRatings: 89,
-        followers: 1200,
-        isVerified: true,
-        isOnline: false,
-      },
-    ]);
+        if (!error && data && data.length > 0) {
+          setEvents(data.map((e: any) => ({
+            id: e.id,
+            title: e.title ?? 'Untitled Event',
+            description: e.description ?? '',
+            organizer: {
+              id: e.organizer_id ?? '',
+              name: e.organizer_name ?? 'Unknown',
+              profileImage: e.organizer_image,
+              isVerified: e.organizer_verified ?? false,
+            },
+            location: e.location_name ?? e.location?.name ?? 'TBD',
+            date: e.start_time ? new Date(e.start_time).toLocaleDateString() : 'TBD',
+            time: e.start_time ? new Date(e.start_time).toLocaleTimeString() : 'TBD',
+            maxParticipants: e.max_participants ?? 0,
+            currentParticipants: e.current_participants ?? 0,
+            category: e.category ?? 'General',
+            isOnline: e.is_online ?? false,
+            tokenCost: e.token_cost ?? 0,
+            features: e.accessibility_features ?? [],
+            rating: e.rating ?? 0,
+            totalRatings: e.total_ratings ?? 0,
+          })));
+        }
+      } catch (err) {
+        console.error('Error fetching women events:', err);
+      }
+    }
 
-    // Mock data for women's content
-    setContent([
-      {
-        id: '1',
-        title: 'Building Confidence Through Martial Arts',
-        description: 'A comprehensive guide to developing self-confidence and personal safety skills.',
-        type: 'video',
-        thumbnail: 'https://images.pexels.com/photos/4752861/pexels-photo-4752861.jpeg?auto=compress&cs=tinysrgb&w=800',
-        duration: '15:30',
-        author: {
-          name: 'Sarah Johnson',
-          profileImage: 'https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=400',
-        },
-        views: 1250,
-        likes: 89,
-        category: 'Self-Defense',
-        isPremium: false,
-        tokenCost: 0,
-      },
-      {
-        id: '2',
-        title: 'Women\'s Health & Fitness Guide',
-        description: 'Expert advice on nutrition, exercise, and wellness specifically tailored for women.',
-        type: 'article',
-        author: {
-          name: 'Maria Garcia',
-          profileImage: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=400',
-        },
-        views: 890,
-        likes: 67,
-        category: 'Health & Wellness',
-        isPremium: true,
-        tokenCost: 25,
-      },
-    ]);
+    // Fetch real women coaches from Supabase
+    async function fetchCoaches() {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('role', 'coach')
+          .eq('gender', 'female')
+          .order('followers', { ascending: false })
+          .limit(20);
+
+        if (!error && data && data.length > 0) {
+          setCoaches(data.map((c: any) => ({
+            id: c.id,
+            name: c.full_name ?? c.username ?? 'Unknown',
+            profileImage: c.profile_image ?? c.avatar_url,
+            bio: c.bio ?? '',
+            specialty: c.sports_category ?? 'General',
+            rating: c.rating ?? 0,
+            totalRatings: c.total_ratings ?? 0,
+            followers: c.followers ?? 0,
+            isVerified: c.is_verified ?? false,
+            isOnline: false,
+          })));
+        }
+      } catch (err) {
+        console.error('Error fetching women coaches:', err);
+      }
+    }
+
+    // Fetch real women's content from Supabase (posts by female users)
+    async function fetchContent() {
+      try {
+        const { data, error } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            author:profiles!author_id(
+              id, full_name, profile_image, avatar_url, gender
+            )
+          `)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (!error && data && data.length > 0) {
+          const womenContent = data
+            .filter((p: any) => p.author?.gender === 'female')
+            .map((p: any) => ({
+              id: p.id,
+              title: p.content?.substring(0, 50) ?? 'Post',
+              description: p.content ?? '',
+              type: p.media_urls?.[0] ? 'video' as const : 'article' as const,
+              thumbnail: p.media_urls?.[0],
+              author: {
+                name: p.author?.full_name ?? 'Unknown',
+                profileImage: p.author?.profile_image ?? p.author?.avatar_url,
+              },
+              views: p.views ?? 0,
+              likes: p.likes_count ?? 0,
+              category: 'General',
+              isPremium: false,
+              tokenCost: 0,
+            }));
+          if (womenContent.length > 0) {
+            setContent(womenContent);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching women content:', err);
+      }
+    }
+
+    fetchEvents();
+    fetchCoaches();
+    fetchContent();
   }, []);
 
   const handleJoinEvent = async (event: WomensEvent) => {
     if (!user) return;
-    
+
     const userTokens = getUserTokens(user.id);
     if (userTokens.balance < event.tokenCost) {
       toast.error('Insufficient tokens. Please purchase more tokens to join this event.');
@@ -198,8 +201,8 @@ export function WomensLounge() {
     if (success) {
       toast.success(`Successfully joined ${event.title}!`);
       // Update event participants
-      setEvents(prev => prev.map(e => 
-        e.id === event.id 
+      setEvents(prev => prev.map(e =>
+        e.id === event.id
           ? { ...e, currentParticipants: e.currentParticipants + 1 }
           : e
       ));
@@ -210,7 +213,7 @@ export function WomensLounge() {
 
   const handleAccessContent = async (contentItem: WomensContent) => {
     if (!user) return;
-    
+
     if (contentItem.isPremium) {
       const userTokens = getUserTokens(user.id);
       if (userTokens.balance < contentItem.tokenCost) {
@@ -236,7 +239,7 @@ export function WomensLounge() {
           <Shield className="h-16 w-16 text-pink-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Women's Lounge</h2>
           <p className="text-gray-600 mb-6">
-            This space is exclusively for women athletes and organizers. It provides a safe, supportive environment 
+            This space is exclusively for women athletes and organizers. It provides a safe, supportive environment
             for women to connect, learn, and grow together in sports.
           </p>
           <div className="bg-white rounded-lg p-6 shadow-sm">
@@ -278,11 +281,10 @@ export function WomensLounge() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
-              activeTab === tab.id
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${activeTab === tab.id
                 ? 'bg-white text-pink-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
-            }`}
+              }`}
           >
             <tab.icon className="h-4 w-4" />
             <span>{tab.label}</span>
@@ -306,7 +308,7 @@ export function WomensLounge() {
                   <div className="flex-1">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">{event.title}</h3>
                     <p className="text-gray-600 mb-4">{event.description}</p>
-                    
+
                     <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-4 w-4" />
@@ -333,7 +335,7 @@ export function WomensLounge() {
                       ))}
                     </div>
                   </div>
-                  
+
                   <div className="text-right">
                     <div className="flex items-center space-x-1 mb-2">
                       <Star className="h-4 w-4 text-yellow-400 fill-current" />
@@ -384,7 +386,7 @@ export function WomensLounge() {
                       <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-white"></div>
                     )}
                   </div>
-                  
+
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <h3 className="text-lg font-semibold text-gray-900">{coach.name}</h3>
@@ -392,9 +394,9 @@ export function WomensLounge() {
                         <Shield className="h-4 w-4 text-blue-500" />
                       )}
                     </div>
-                    
+
                     <p className="text-sm text-gray-600 mb-3">{coach.bio}</p>
-                    
+
                     <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
                       <div className="flex items-center space-x-1">
                         <Star className="h-4 w-4 text-yellow-400 fill-current" />
@@ -406,7 +408,7 @@ export function WomensLounge() {
                         <span>{coach.followers} followers</span>
                       </div>
                     </div>
-                    
+
                     <div className="flex space-x-2">
                       <Button size="sm" variant="outline">
                         <MessageCircle className="h-4 w-4 mr-1" />
@@ -455,11 +457,11 @@ export function WomensLounge() {
                     )}
                   </div>
                 )}
-                
+
                 <div className="p-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h3>
                   <p className="text-gray-600 text-sm mb-4">{item.description}</p>
-                  
+
                   <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
                     <div className="flex items-center space-x-1">
                       <Video className="h-4 w-4" />
@@ -470,7 +472,7 @@ export function WomensLounge() {
                       <span>{item.likes} likes</span>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-gray-500">
                       by {item.author.name}
