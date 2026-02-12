@@ -34,29 +34,29 @@ const loginSchema = Joi.object({
 });
 
 const updateProfileSchema = Joi.object({
-  name: Joi.string().min(2).max(50),
-  username: Joi.string().min(3).max(50).pattern(/^[a-zA-Z0-9_]+$/),
-  role: Joi.string().valid('user', 'admin', 'moderator', 'coach', 'fan', 'aspirant', 'administrator'),
-  gender: Joi.string().valid('male', 'female', 'other', 'prefer-not-to-say'),
-  date_of_birth: Joi.date().max('now'),
-  phone: Joi.string(),
-  bio: Joi.string().max(500),
-  location: Joi.string().max(100),
-  sports_categories: Joi.array().items(Joi.string()),
-  accessibility_needs: Joi.array().items(Joi.string()),
+  full_name: Joi.string().min(2).max(50).optional(),
+  username: Joi.string().min(3).max(50).pattern(/^[a-zA-Z0-9_]+$/).optional(),
+  role: Joi.string().valid('user', 'admin', 'moderator', 'coach', 'fan', 'aspirant', 'administrator').optional(),
+  gender: Joi.string().valid('male', 'female', 'other', 'prefer-not-to-say').optional(),
+  date_of_birth: Joi.date().max('now').optional(),
+  phone: Joi.string().optional(),
+  bio: Joi.string().max(500).allow('').optional(),
+  location: Joi.string().max(100).optional(),
+  sports_categories: Joi.array().items(Joi.string()).optional(),
+  accessibility_needs: Joi.array().items(Joi.string()).optional(),
   emergency_contact: Joi.object({
     name: Joi.string().required(),
     phone: Joi.string().required(),
     relationship: Joi.string().required()
-  }),
-  sport_roles: Joi.array().items(Joi.string()),
-  is_private: Joi.boolean(),
-  allow_location_sharing: Joi.boolean(),
-  push_notifications: Joi.boolean(),
-  email_notifications: Joi.boolean(),
-  privacyMode: Joi.boolean(),
-  darkMode: Joi.boolean(),
-  avatar_url: Joi.string().uri()
+  }).optional(),
+  sport_roles: Joi.array().items(Joi.string()).optional(),
+  is_private: Joi.boolean().optional(),
+  allow_location_sharing: Joi.boolean().optional(),
+  push_notifications: Joi.boolean().optional(),
+  email_notifications: Joi.boolean().optional(),
+  privacyMode: Joi.boolean().optional(),
+  darkMode: Joi.boolean().optional(),
+  profile_image: Joi.string().max(2000000).optional()
 });
 
 // Register new user

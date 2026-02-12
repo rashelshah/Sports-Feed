@@ -258,19 +258,71 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addPost: (post) => set((state) => ({ posts: [post, ...state.posts] })),
 
-  updatePostContent: (postId, content) => {
-    set((state) => ({
-      posts: state.posts.map(post =>
-        post.id === postId ? { ...post, content } : post
-      ),
-    }));
+  updatePostContent: async (postId, content) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to edit posts');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/posts/${postId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content })
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update post');
+      }
+
+      // Update local state after successful API call
+      set((state) => ({
+        posts: state.posts.map(post =>
+          post.id === postId ? { ...post, content } : post
+        ),
+      }));
+      toast.success('Post updated successfully');
+    } catch (error: any) {
+      console.error('Error updating post:', error);
+      toast.error(error.message || 'Failed to update post');
+    }
   },
 
-  deletePost: (postId) => {
-    set((state) => ({
-      posts: state.posts.filter(post => post.id !== postId),
-      comments: state.comments.filter(comment => comment.postId !== postId),
-    }));
+  deletePost: async (postId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to delete posts');
+        return;
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to delete post');
+      }
+
+      // Update local state after successful API call
+      set((state) => ({
+        posts: state.posts.filter(post => post.id !== postId),
+        comments: state.comments.filter(comment => comment.postId !== postId),
+      }));
+      toast.success('Post deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting post:', error);
+      toast.error(error.message || 'Failed to delete post');
+    }
   },
 
   updatePostLikes: (postId, likes, isLiked) => {

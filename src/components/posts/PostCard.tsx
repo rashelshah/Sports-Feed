@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share, MoreHorizontal, Send, Volume2, Edit, Trash2, Check, X } from 'lucide-react';
+import { Heart, MessageCircle, Share, MoreHorizontal, Send, Volume2, Edit, Trash2, Check, X, Loader2 } from 'lucide-react';
 import { Post } from '../../types';
 import { useAppStore } from '../../store/appStore';
 import { useAuthStore } from '../../store/authStore';
@@ -23,6 +23,8 @@ export function PostCard({ post }: PostCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(post.content);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [fetchedComments, setFetchedComments] = useState<any[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
 
@@ -237,16 +239,26 @@ export function PostCard({ post }: PostCardProps) {
                 <span>Edit text</span>
               </button>
               <button
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
-                onClick={() => {
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={async () => {
                   if (confirm('Delete this post?')) {
-                    deletePost(post.id);
+                    setIsDeleting(true);
+                    try {
+                      await deletePost(post.id);
+                    } finally {
+                      setIsDeleting(false);
+                    }
                   }
                   setMenuOpen(false);
                 }}
+                disabled={isDeleting}
               >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete post</span>
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                <span>{isDeleting ? 'Deleting...' : 'Delete post'}</span>
               </button>
             </div>
           )}
@@ -274,13 +286,26 @@ export function PostCard({ post }: PostCardProps) {
                 <span>Cancel</span>
               </button>
               <button
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-1"
-                onClick={() => { updatePostContent(post.id, editedContent); setIsEditing(false); }}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={async () => { 
+                  setIsSavingEdit(true);
+                  try {
+                    await updatePostContent(post.id, editedContent); 
+                    setIsEditing(false); 
+                  } finally {
+                    setIsSavingEdit(false);
+                  }
+                }}
+                disabled={isSavingEdit}
                 title="Save"
                 aria-label="Save edit"
               >
-                <Check className="h-4 w-4" />
-                <span>Save</span>
+                {isSavingEdit ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                <span>{isSavingEdit ? 'Saving...' : 'Save'}</span>
               </button>
             </div>
           </div>

@@ -51,8 +51,6 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
     setIsLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       const updatedData: Partial<UserType> = {
         fullName: formData.fullName,
         username: formData.username,
@@ -63,15 +61,18 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
         updatedData.profileImage = previewImage;
       }
 
-      updateUser(updatedData);
+      // Call the async updateUser function which now calls the backend API
+      await updateUser(updatedData);
 
+      // Update user in store as well
       const updatedUser = { ...user, ...updatedData };
       updateUserInStore(updatedUser);
 
       toast.success('Profile updated successfully!');
       onClose();
-    } catch (error) {
-      toast.error('Failed to update profile');
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }
