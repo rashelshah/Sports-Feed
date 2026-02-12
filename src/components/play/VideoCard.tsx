@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Clock, Eye, Heart, Lock, Coins, Share } from 'lucide-react';
 import { Video, UserTokens } from '../../types';
@@ -15,7 +15,7 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ video, userTokens }: VideoCardProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { likeVideo, spendTokens, watchVideo } = useAppStore();
   const [showPlayer, setShowPlayer] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
@@ -120,7 +120,7 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         whileHover={{ y: -5 }}
-        className="bg-white rounded-lg shadow-md overflow-hidden"
+        className={`rounded-lg shadow-md overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
       >
         {/* Thumbnail */}
         <div className="relative">
@@ -165,10 +165,10 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
         {/* Content */}
         <div className="p-4">
           <div className="flex items-start justify-between mb-2">
-            <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">{video.title}</h3>
+            <h3 className={`font-semibold line-clamp-2 flex-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{video.title}</h3>
           </div>
           
-          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{video.description}</p>
+          <p className={`text-sm mb-3 line-clamp-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{video.description}</p>
           
           {/* Tags */}
           <div className="flex flex-wrap gap-1 mb-3">
@@ -187,7 +187,7 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
               alt={video.coach.fullName}
               className="h-6 w-6 rounded-full object-cover"
             />
-            <span className="text-sm text-gray-700">{video.coach.fullName}</span>
+            <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{video.coach.fullName}</span>
             {video.coach.isVerified && (
               <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -197,7 +197,7 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
           
           {/* Stats and Actions */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <div className={`flex items-center space-x-4 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               <div className="flex items-center space-x-1">
                 <Eye className="h-4 w-4" />
                 <span>{video.views.toLocaleString()}</span>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Star, Check, Coins } from 'lucide-react';
 import { Membership, UserTokens } from '../../types';
@@ -13,7 +12,7 @@ interface MembershipCardProps {
 }
 
 export function MembershipCard({ membership, userTokens }: MembershipCardProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { spendTokens } = useAppStore();
 
   const handlePurchase = () => {
@@ -43,7 +42,7 @@ export function MembershipCard({ membership, userTokens }: MembershipCardProps) 
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -5 }}
-      className="bg-white rounded-lg shadow-md overflow-hidden border-2 border-purple-100"
+      className={`rounded-lg shadow-md overflow-hidden border-2 ${darkMode ? 'border-purple-900/50 bg-gray-800' : 'border-purple-100 bg-white'}`}
     >
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-500 to-blue-500 p-4 text-white">
@@ -65,43 +64,43 @@ export function MembershipCard({ membership, userTokens }: MembershipCardProps) 
           />
           <div>
             <div className="flex items-center space-x-1">
-              <p className="font-semibold text-gray-900">{membership.coach.fullName}</p>
+              <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{membership.coach.fullName}</p>
               {membership.coach.isVerified && (
                 <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
               )}
             </div>
-            <p className="text-sm text-gray-600 capitalize">{membership.coach.sportsCategory.replace('-', ' ')}</p>
+            <p className={`text-sm capitalize ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{membership.coach.sportsCategory.replace('-', ' ')}</p>
           </div>
         </div>
 
         {/* Benefits */}
         <div className="mb-6">
-          <h4 className="font-semibold text-gray-900 mb-3">What's Included:</h4>
+          <h4 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>What's Included:</h4>
           <ul className="space-y-2">
             {membership.benefits.map((benefit, index) => (
               <li key={index} className="flex items-center space-x-2">
                 <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-                <span className="text-gray-700 text-sm">{benefit}</span>
+                <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{benefit}</span>
               </li>
             ))}
           </ul>
         </div>
 
         {/* Duration */}
-        <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+        <div className={`mb-6 p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
           <div className="flex justify-between items-center">
-            <span className="text-gray-600">Duration:</span>
-            <span className="font-semibold text-gray-900">{membership.duration} days</span>
+            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Duration:</span>
+            <span className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{membership.duration} days</span>
           </div>
         </div>
 
         {/* Price and Purchase */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-            <span className="text-purple-700 font-medium">Price:</span>
-            <div className="flex items-center space-x-1 text-purple-700 font-bold text-lg">
+          <div className={`flex items-center justify-between p-3 rounded-lg ${darkMode ? 'bg-purple-900/30' : 'bg-purple-50'}`}>
+            <span className={`font-medium ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>Price:</span>
+            <div className={`flex items-center space-x-1 font-bold text-lg ${darkMode ? 'text-purple-300' : 'text-purple-700'}`}>
               <Coins className="h-5 w-5" />
               <span>{membership.price}</span>
             </div>

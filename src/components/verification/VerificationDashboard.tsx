@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   CheckCircle,
@@ -32,7 +32,7 @@ interface PendingVerification {
 }
 
 export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const [pendingVerifications, setPendingVerifications] = useState<PendingVerification[]>([]);
   const [selectedVerification, setSelectedVerification] = useState<PendingVerification | null>(null);
   const [filter, setFilter] = useState<'all' | 'ai-approved' | 'ai-rejected' | 'manual-review'>('all');
@@ -198,11 +198,11 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
         animate={{ opacity: 1, scale: 1 }}
         className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto"
       >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Verification Dashboard</h2>
+        <div className={`flex justify-between items-center mb-6 ${darkMode ? 'text-white' : ''}`}>
+          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Verification Dashboard</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
             title="Close verification dashboard"
             aria-label="Close verification dashboard"
           >
@@ -214,13 +214,17 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type="text"
                 placeholder="Search by name or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    : 'border-gray-300'
+                }`}
               />
             </div>
           </div>
@@ -236,8 +240,8 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                 key={filterOption.id}
                 onClick={() => setFilter(filterOption.id as any)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${filter === filterOption.id
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? (darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700')
+                    : (darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
                   }`}
               >
                 {filterOption.label}
@@ -256,7 +260,9 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                 key={verification.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gray-50 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                className={`rounded-lg p-4 cursor-pointer transition-colors ${
+                  darkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'
+                }`}
                 onClick={() => setSelectedVerification(verification)}
               >
                 <div className="flex items-center justify-between">
@@ -268,9 +274,9 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                     />
 
                     <div>
-                      <h3 className="font-semibold text-gray-900">{verification.user.fullName}</h3>
-                      <p className="text-sm text-gray-600">{verification.user.email}</p>
-                      <p className="text-sm text-gray-500">
+                      <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{verification.user.fullName}</h3>
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{verification.user.email}</p>
+                      <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                         {verification.sportRole.name} • {verification.evidenceDocuments.length} documents
                       </p>
                     </div>
@@ -284,7 +290,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                         {aiSuggestion === 'manual-review' && <Shield className="h-3 w-3 mr-1" />}
                         {aiSuggestion.replace('-', ' ')}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                         {new Date(verification.submittedAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -308,9 +314,9 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
 
           {filteredVerifications.length === 0 && (
             <div className="text-center py-12">
-              <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No pending verifications</h3>
-              <p className="text-gray-600">All verification requests have been processed.</p>
+              <Clock className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No pending verifications</h3>
+              <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>All verification requests have been processed.</p>
             </div>
           )}
         </div>
@@ -321,15 +327,15 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+              className={`rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
             >
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">
+                <h3 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                   Review Verification: {selectedVerification.user.fullName}
                 </h3>
                 <button
                   onClick={() => setSelectedVerification(null)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
                   title="Close verification details"
                   aria-label="Close verification details"
                 >
@@ -338,7 +344,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
               </div>
 
               {/* User Info */}
-              <div className="bg-blue-50 p-4 rounded-lg mb-6">
+              <div className={`p-4 rounded-lg mb-6 ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
                 <div className="flex items-center space-x-4">
                   <img
                     src={selectedVerification.user.profileImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
@@ -346,9 +352,9 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                     className="h-16 w-16 rounded-full object-cover"
                   />
                   <div>
-                    <h4 className="font-semibold text-blue-900">{selectedVerification.user.fullName}</h4>
-                    <p className="text-blue-800">{selectedVerification.user.email}</p>
-                    <p className="text-blue-700 text-sm">
+                    <h4 className={`font-semibold ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>{selectedVerification.user.fullName}</h4>
+                    <p className={darkMode ? 'text-blue-400' : 'text-blue-800'}>{selectedVerification.user.email}</p>
+                    <p className={`text-sm ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>
                       Applying for: {selectedVerification.sportRole.name}
                     </p>
                   </div>
@@ -357,15 +363,15 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
 
               {/* Evidence Documents */}
               <div className="space-y-4 mb-6">
-                <h4 className="font-semibold text-gray-900">Evidence Documents</h4>
+                <h4 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Evidence Documents</h4>
                 {selectedVerification.evidenceDocuments.map((doc) => (
-                  <div key={doc.id} className="bg-gray-50 rounded-lg p-4">
+                  <div key={doc.id} className={`rounded-lg p-4 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <File className="h-8 w-8 text-blue-500" />
                         <div>
-                          <p className="font-medium text-gray-900">{doc.fileName}</p>
-                          <p className="text-sm text-gray-600">{doc.description}</p>
+                          <p className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{doc.fileName}</p>
+                          <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{doc.description}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -380,11 +386,11 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                     </div>
 
                     {doc.aiAnalysis && (
-                      <div className="bg-white p-3 rounded border">
-                        <p className="text-sm text-gray-700">
+                      <div className={`p-3 rounded border ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'}`}>
+                        <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                           <strong>AI Analysis:</strong> {doc.aiAnalysis.detectedText}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           <strong>Confidence:</strong> {Math.round(doc.aiAnalysis.confidence * 100)}%
                         </p>
                       </div>
@@ -405,7 +411,7 @@ export function VerificationDashboard({ onClose }: VerificationDashboardProps) {
                 <Button
                   onClick={() => handleReject(selectedVerification.id, 'Insufficient evidence')}
                   variant="outline"
-                  className="flex-1 border-red-300 text-red-700 hover:bg-red-50"
+                  className={`flex-1 ${darkMode ? 'border-red-500 text-red-400 hover:bg-red-900/30' : 'border-red-300 text-red-700 hover:bg-red-50'}`}
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Reject

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Coins, Plus, TrendingUp, Gift } from 'lucide-react';
 import { UserTokens } from '../../types';
@@ -13,13 +13,13 @@ interface TokenWalletProps {
 }
 
 export function TokenWallet({ tokens }: TokenWalletProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
 
   return (
     <>
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 text-white min-w-[280px]">
+      <div className={`rounded-lg p-4 text-white min-w-[280px] ${darkMode ? 'bg-gradient-to-r from-blue-600 to-purple-700' : 'bg-gradient-to-r from-blue-500 to-purple-600'}`}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
             <Coins className="h-5 w-5" />

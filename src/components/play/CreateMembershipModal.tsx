@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Plus, X } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
@@ -13,7 +13,7 @@ interface CreateMembershipModalProps {
 }
 
 export function CreateMembershipModal({ coachId, onClose }: CreateMembershipModalProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { addMembership } = useAppStore();
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
@@ -112,24 +112,24 @@ export function CreateMembershipModal({ coachId, onClose }: CreateMembershipModa
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8"
+        className={`rounded-lg shadow-xl max-w-2xl w-full my-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-2xl font-bold flex items-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             <Star className="h-6 w-6 text-purple-500 mr-2" />
             Create Membership
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <p className="text-gray-600 text-center">
+          <p className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Create exclusive membership programs for your followers to access premium content
           </p>
 
@@ -164,14 +164,18 @@ export function CreateMembershipModal({ coachId, onClose }: CreateMembershipModa
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Description *
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Describe what members will get access to..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none ${
+                darkMode 
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  : 'border-gray-300'
+              }`}
               rows={4}
               required
             />
@@ -179,7 +183,7 @@ export function CreateMembershipModal({ coachId, onClose }: CreateMembershipModa
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Membership Benefits *
               </label>
               <Button
@@ -201,7 +205,11 @@ export function CreateMembershipModal({ coachId, onClose }: CreateMembershipModa
                     value={benefit}
                     onChange={(e) => updateBenefit(index, e.target.value)}
                     placeholder="e.g., Access to all premium videos"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-300'
+                    }`}
                   />
                   {formData.benefits.length > 1 && (
                     <button
@@ -217,8 +225,8 @@ export function CreateMembershipModal({ coachId, onClose }: CreateMembershipModa
             </div>
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm text-blue-800">
+          <div className={`p-4 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+            <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
               <strong>Note:</strong> Members will have access to all your content for {formData.duration} days after purchasing this membership for {formData.price} tokens.
             </p>
           </div>

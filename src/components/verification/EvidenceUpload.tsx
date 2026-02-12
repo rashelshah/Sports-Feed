@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, File, CheckCircle, AlertCircle, X, Eye, Download } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -12,7 +12,7 @@ interface EvidenceUploadProps {
 }
 
 export function EvidenceUpload({ onClose, sportRole }: EvidenceUploadProps) {
-  const { user, updateUser } = useAuthStore();
+  const { user, updateUser, darkMode } = useAuthStore();
   const [uploadedFiles, setUploadedFiles] = useState<EvidenceDocument[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -166,30 +166,33 @@ export function EvidenceUpload({ onClose, sportRole }: EvidenceUploadProps) {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        className={`rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
       >
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Upload Evidence Documents</h2>
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-xl font-bold flex items-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <Upload className="h-5 w-5 mr-2" />
+            Upload Evidence
+          </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            title="Close evidence upload"
-            aria-label="Close evidence upload"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
         {sportRole && (
-          <div className="bg-blue-50 p-4 rounded-lg mb-6">
-            <h3 className="font-semibold text-blue-900 mb-2">Verification Requirements</h3>
-            <p className="text-blue-800 text-sm mb-2">
+          <div className={`bg-blue-50 p-4 rounded-lg mb-6 ${darkMode ? 'bg-gray-700' : ''}`}>
+            <h3 className={`font-semibold text-blue-900 mb-2 ${darkMode ? 'text-white' : ''}`}>
+              Verification Requirements
+            </h3>
+            <p className={`text-blue-800 text-sm mb-2 ${darkMode ? 'text-gray-400' : ''}`}>
               <strong>Role:</strong> {sportRole.name}
             </p>
-            <p className="text-blue-800 text-sm mb-2">
+            <p className={`text-blue-800 text-sm mb-2 ${darkMode ? 'text-gray-400' : ''}`}>
               <strong>Description:</strong> {sportRole.description}
             </p>
-            <p className="text-blue-800 text-sm">
+            <p className={`text-blue-800 text-sm ${darkMode ? 'text-gray-400' : ''}`}>
               <strong>Required Evidence:</strong> {sportRole.evidenceTypes.join(', ')}
             </p>
           </div>
@@ -200,7 +203,7 @@ export function EvidenceUpload({ onClose, sportRole }: EvidenceUploadProps) {
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
             dragActive
               ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
+              : darkMode ? 'border-gray-600' : 'border-gray-300 hover:border-gray-400'
           }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -208,13 +211,13 @@ export function EvidenceUpload({ onClose, sportRole }: EvidenceUploadProps) {
           onDrop={handleDrop}
         >
           <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className={`text-lg font-medium ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
             Upload Evidence Documents
           </h3>
-          <p className="text-gray-600 mb-4">
-            Drag and drop files here, or click to select files
+          <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+            Upload documents to verify your sport role credentials. Accepted formats: JPG, PNG, PDF.
           </p>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className={`text-sm text-gray-500 mb-4 ${darkMode ? 'text-gray-400' : ''}`}>
             Supported formats: JPG, PNG, PDF (Max 5MB each)
           </p>
           

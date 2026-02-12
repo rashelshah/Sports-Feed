@@ -1,7 +1,7 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, Users, Clock, Radio } from 'lucide-react';
 import { User } from '../../types';
+import { useAuthStore } from '../../store/authStore';
 
 interface Livestream {
   id: string;
@@ -20,6 +20,7 @@ interface LivestreamCardProps {
 }
 
 export function LivestreamCard({ livestream }: LivestreamCardProps) {
+  const { darkMode } = useAuthStore();
   const getYoutubeEmbedUrl = (url: string) => {
     const videoId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
     return `https://www.youtube.com/embed/${videoId}`;
@@ -43,7 +44,7 @@ export function LivestreamCard({ livestream }: LivestreamCardProps) {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -5 }}
-      className="bg-white rounded-lg shadow-md overflow-hidden"
+      className={`rounded-lg shadow-md overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
     >
       {/* Video Embed */}
       <div className="relative aspect-video bg-gray-900">
@@ -90,7 +91,7 @@ export function LivestreamCard({ livestream }: LivestreamCardProps) {
           />
           <div className="flex-1">
             <div className="flex items-center space-x-1">
-              <p className="font-semibold text-gray-900">{livestream.coach.fullName}</p>
+              <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{livestream.coach.fullName}</p>
               {livestream.coach.isVerified && (
                 <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                   <path
@@ -107,17 +108,17 @@ export function LivestreamCard({ livestream }: LivestreamCardProps) {
           </div>
         </div>
 
-        <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+        <h3 className={`text-lg font-bold mb-2 line-clamp-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           {livestream.title}
         </h3>
 
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+        <p className={`text-sm mb-3 line-clamp-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           {livestream.description}
         </p>
 
         {/* Scheduled Time */}
         {!livestream.isLive && livestream.scheduledTime && (
-          <div className="flex items-center text-sm text-gray-500 bg-gray-50 p-2 rounded">
+          <div className={`flex items-center text-sm p-2 rounded ${darkMode ? 'text-gray-400 bg-gray-700' : 'text-gray-500 bg-gray-50'}`}>
             <Clock className="h-4 w-4 mr-2" />
             <span>Scheduled: {new Date(livestream.scheduledTime).toLocaleString()}</span>
           </div>
