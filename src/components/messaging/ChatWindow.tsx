@@ -402,14 +402,14 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto p-4 space-y-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
       >
         {hasMore && (
           <div className="flex justify-center py-2">
             <button
               onClick={loadMore}
               disabled={isLoading}
-              className={`text-sm ${isLoading ? (darkMode ? 'text-gray-600' : 'text-gray-400') : 'text-blue-500 hover:text-blue-600'}`}
+              className="text-sm text-blue-500 hover:text-blue-600 disabled:text-gray-400"
             >
               {isLoading ? 'Loading...' : 'Load more messages'}
             </button>
@@ -417,7 +417,7 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
         )}
 
         {messages.length === 0 && !isLoading && (
-          <div className={`flex flex-col items-center justify-center h-full ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
@@ -450,14 +450,14 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
                     className={`px-4 py-2 rounded-2xl ${
                       isOwn
                         ? 'bg-blue-500 text-white rounded-br-md'
-                        : (darkMode ? 'bg-gray-700 text-white rounded-bl-md' : 'bg-gray-100 text-gray-900 rounded-bl-md')
+                        : 'bg-gray-100 text-gray-900 rounded-bl-md'
                     }`}
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   </div>
 
                   <div className={`flex items-center gap-2 mt-1 px-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                    <span className={`text-xs ${isOwn ? 'text-blue-300' : (darkMode ? 'text-gray-500' : 'text-gray-400')}`}>
+                    <span className={`text-xs ${isOwn ? 'text-blue-300' : 'text-gray-400'}`}>
                       {new Date(message.created_at).toLocaleTimeString('en-US', {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -483,11 +483,11 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
       </div>
 
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className={`p-4 border-t ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
         <div className="flex items-center space-x-3">
           <button
             type="button"
-            className={`p-2 rounded-full transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
             title="Upload image"
           >
             <Image className="h-5 w-5" />
@@ -501,30 +501,26 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isValidating}
-                className={`w-full px-4 py-2 pr-10 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 ${
-                  darkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'border-gray-300'
-                }`}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
               />
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 title="Add emoji"
               >
                 <Smile className="h-5 w-5" />
               </button>
               
               {showEmojiPicker && (
-                <div className={`absolute bottom-full right-0 mb-2 rounded-lg shadow-lg border p-3 z-50 w-64 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 p-3 z-50 w-64">
                   <div className="grid grid-cols-6 gap-2">
                     {commonEmojis.map((emoji, index) => (
                       <button
                         key={index}
                         type="button"
                         onClick={() => handleEmojiSelect(emoji)}
-                        className={`text-2xl rounded p-1 transition-colors ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                        className="text-2xl hover:bg-gray-100 rounded p-1 transition-colors"
                       >
                         {emoji}
                       </button>
@@ -543,11 +539,7 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
           <button
             type="submit"
             disabled={!newMessage.trim() || isValidating}
-            className={`p-2 rounded-full transition-colors ${
-              !newMessage.trim() || isValidating
-                ? (darkMode ? 'bg-gray-600 text-gray-400' : 'bg-gray-300 text-white')
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            }`}
+            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white p-2 rounded-full transition-colors"
             title="Send message"
           >
             <Send className="h-5 w-5" />

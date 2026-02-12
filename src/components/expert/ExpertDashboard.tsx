@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, X, Clock, FileText } from 'lucide-react';
+import { CheckCircle, X, Clock, FileText, User } from 'lucide-react';
 import { VerificationDocument } from '../../types';
 import { Button } from '../ui/Button';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 export function ExpertDashboard() {

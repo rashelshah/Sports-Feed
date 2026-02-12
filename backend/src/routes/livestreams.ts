@@ -62,13 +62,13 @@ router.get('/', validateQuery(getLivestreamsQuerySchema), asyncHandler(async (re
     .from('livestreams')
     .select(`
       *,
-      coach:users!user_id(
+      coach:profiles!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified,
-        sports_categories
+        sports_category
       )
     `, { count: 'exact' })
     .eq('is_active', true)
@@ -122,13 +122,13 @@ router.get('/:id', validateParams(livestreamIdSchema), asyncHandler(async (req: 
     .from('livestreams')
     .select(`
       *,
-      coach:users!user_id(
+      coach:profiles!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified,
-        sports_categories
+        sports_category
       )
     `)
     .eq('id', id)
@@ -202,13 +202,13 @@ router.post('/', authenticateToken, validate(createLivestreamSchema), asyncHandl
     })
     .select(`
       *,
-      coach:users!user_id(
+      coach:profiles!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified,
-        sports_categories
+        sports_category
       )
     `)
     .single();
@@ -296,13 +296,13 @@ router.put('/:id', authenticateToken, validateParams(livestreamIdSchema), valida
     .eq('id', id)
     .select(`
       *,
-      coach:users!user_id(
+      coach:profiles!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified,
-        sports_categories
+        sports_category
       )
     `)
     .single();
@@ -431,13 +431,13 @@ router.get('/coach/:coachId', validateParams(Joi.object({ coachId: Joi.string().
     .from('livestreams')
     .select(`
       *,
-      coach:users!user_id(
+      coach:profiles!user_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified,
-        sports_categories
+        sports_category
       )
     `)
     .eq('user_id', coachId)

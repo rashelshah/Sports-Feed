@@ -161,17 +161,7 @@ router.get('/:id', authenticateToken, validateParams(notificationIdSchema), asyn
 
   const { data: notification, error } = await supabaseAdmin
     .from('notifications')
-    .select(`
-      *,
-      from_user:users!from_user_id(
-        id,
-        name,
-        avatar_url,
-        role,
-        is_verified,
-        bio
-      )
-    `)
+    .select('*')
     .eq('id', id)
     .eq('user_id', req.user!.id)
     .single();

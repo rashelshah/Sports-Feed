@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Image, Video, Send, Mic, Square } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -219,11 +219,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Share your training tips, techniques, or motivation..."
-              className={`w-full p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                darkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'border-gray-300'
-              }`}
+              className={`w-full p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkMode ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' : 'border-gray-300 bg-white'}`}
               rows={4}
             />
 
@@ -274,9 +270,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                 />
                 <label
                   htmlFor="image-upload"
-                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${
-                    darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'
-                  }`}
+                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}
                 >
                   <Image className="h-5 w-5" />
                   <span className="text-sm">Photo</span>
@@ -294,9 +288,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                 />
                 <label
                   htmlFor="video-upload"
-                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${
-                    darkMode ? 'text-gray-400 hover:text-purple-400' : 'text-gray-500 hover:text-purple-500'
-                  }`}
+                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${darkMode ? 'text-gray-400 hover:text-purple-400' : 'text-gray-500 hover:text-purple-500'}`}
                 >
                   <Video className="h-5 w-5" />
                   <span className="text-sm">Video</span>

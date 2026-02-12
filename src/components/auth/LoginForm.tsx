@@ -1,3 +1,4 @@
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -85,7 +86,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       </Button>
 
       <div className="text-center">
-        <a href="#" className={`text-sm ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'}`}>
+        <a href="#" className="text-sm text-blue-600 hover:text-blue-500">
           Forgot your password?
         </a>
       </div>

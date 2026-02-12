@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Plus } from 'lucide-react';
 import { Conversation } from '../../types';
@@ -13,7 +13,7 @@ interface MessageListProps {
 }
 
 export function MessageList({ onConversationSelect }: MessageListProps) {
-  const { user, darkMode } = useAuthStore();
+  const { user } = useAuthStore();
   const { getConversations } = useAppStore();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,10 +36,10 @@ export function MessageList({ onConversationSelect }: MessageListProps) {
 
   return (
     <>
-      <div className={`h-full border-r ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-      <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+      <div className="h-full bg-white border-r border-gray-200">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Messages</h2>
+          <h2 className="text-xl font-bold text-gray-900">Messages</h2>
           <Button
             size="sm"
             variant="outline"
@@ -50,17 +50,13 @@ export function MessageList({ onConversationSelect }: MessageListProps) {
         </div>
         
         <div className="relative">
-          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
             placeholder="Search conversations..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              darkMode 
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'border-gray-300'
-            }`}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
@@ -72,9 +68,9 @@ export function MessageList({ onConversationSelect }: MessageListProps) {
           return (
             <motion.div
               key={conversation.id}
-              whileHover={{ backgroundColor: darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)' }}
+              whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
               onClick={() => onConversationSelect(conversation)}
-              className={`p-4 border-b cursor-pointer ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}
+              className="p-4 border-b border-gray-100 cursor-pointer"
             >
               <div className="flex items-center space-x-3">
                 <div className="relative">
@@ -92,7 +88,7 @@ export function MessageList({ onConversationSelect }: MessageListProps) {
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-1">
-                    <p className={`text-sm font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{otherUser.fullName}</p>
+                    <p className="font-medium text-gray-900 truncate">{otherUser.fullName}</p>
                     {otherUser.isVerified && (
                       <svg className={`w-4 h-4 ${otherUser.role === 'coach' ? 'text-purple-500' : 'text-blue-500'}`} fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />

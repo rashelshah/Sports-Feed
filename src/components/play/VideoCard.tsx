@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Clock, Eye, Heart, Lock, Coins, Share } from 'lucide-react';
 import { Video, UserTokens } from '../../types';
@@ -98,19 +98,19 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'beginner': return 'bg-green-100 text-green-800';
-      case 'intermediate': return 'bg-yellow-100 text-yellow-800';
-      case 'advanced': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'beginner': return darkMode ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800';
+      case 'intermediate': return darkMode ? 'bg-yellow-900/50 text-yellow-300' : 'bg-yellow-100 text-yellow-800';
+      case 'advanced': return darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-800';
+      default: return darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800';
     }
   };
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'coco': return 'bg-orange-100 text-orange-800';
-      case 'martial-arts': return 'bg-red-100 text-red-800';
-      case 'calorie-fight': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'coco': return darkMode ? 'bg-orange-900/50 text-orange-300' : 'bg-orange-100 text-orange-800';
+      case 'martial-arts': return darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-800';
+      case 'calorie-fight': return darkMode ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800';
+      default: return darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -134,9 +134,9 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
           <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
             <button
               onClick={handlePlay}
-              className="bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110"
+              className={`bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-4 transition-all transform hover:scale-110 ${darkMode ? 'bg-gray-800 bg-opacity-90' : ''}`}
             >
-              <Play className="h-8 w-8 text-gray-800 ml-1" />
+              <Play className={`h-8 w-8 ml-1 ${darkMode ? 'text-white' : 'text-gray-800'}`} />
             </button>
           </div>
           
@@ -205,7 +205,7 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
               <button
                 onClick={handleLike}
                 className={`flex items-center space-x-1 transition-colors ${
-                  isLiked ? 'text-red-500' : 'hover:text-red-500'
+                  isLiked ? 'text-red-500' : darkMode ? 'hover:text-red-400' : 'hover:text-red-500'
                 }`}
               >
                 <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
@@ -213,7 +213,7 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
               </button>
               <button
                 onClick={handleShare}
-                className="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors"
+                className={`flex items-center space-x-1 transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}
               >
                 <Share className="h-4 w-4" />
                 <span>Share</span>

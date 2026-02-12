@@ -69,34 +69,121 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
         return;
       }
 
-      // Mock upload process
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to upload videos');
+        setIsUploading(false);
+        return;
+      }
 
+      // First, upload files to get URLs
+      // Create form data for file upload
+      const videoFormData = new FormData();
+      videoFormData.append('file', videoFile);
+      videoFormData.append('type', 'video');
+
+      const thumbnailFormData = new FormData();
+      thumbnailFormData.append('file', thumbnailFile);
+      thumbnailFormData.append('type', 'image');
+
+      // Upload video file
+      const videoUploadRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/upload/single`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: videoFormData
+      });
+
+      if (!videoUploadRes.ok) {
+        throw new Error('Failed to upload video file');
+      }
+      const videoUploadData = await videoUploadRes.json();
+      console.log('Video upload response:', videoUploadData);
+
+      // Upload thumbnail
+      const thumbnailUploadRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/upload/single`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: thumbnailFormData
+      });
+
+      if (!thumbnailUploadRes.ok) {
+        throw new Error('Failed to upload thumbnail');
+      }
+      const thumbnailUploadData = await thumbnailUploadRes.json();
+      console.log('Thumbnail upload response:', thumbnailUploadData);
+
+      // Get video duration (mock for now - would use actual video metadata)
+      const duration = 600; // 10 minutes default
+
+      // Create video in database
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/videos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          thumbnailUrl: thumbnailUploadData.file?.url || thumbnailUploadData.url,
+          videoUrl: videoUploadData.file?.url || videoUploadData.url,
+          duration: duration,
+          category: formData.category,
+          difficulty: formData.difficulty,
+          type: formData.type,
+          tokenCost: formData.type === 'premium' ? formData.tokenCost : 0,
+          tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create video');
+      }
+
+      // Map the backend response to frontend format
       const newVideo = {
-        id: Date.now().toString(),
-        title: formData.title,
-        description: formData.description,
-        thumbnailUrl: URL.createObjectURL(thumbnailFile),
-        videoUrl: URL.createObjectURL(videoFile),
-        duration: 600, // Mock duration
-        coachId: user.id,
-        coach: user,
-        category: formData.category as 'coco' | 'martial-arts' | 'calorie-fight',
-        difficulty: formData.difficulty as 'beginner' | 'intermediate' | 'advanced',
-        type: formData.type as 'free' | 'premium',
-        tokenCost: formData.type === 'premium' ? formData.tokenCost : 0,
-        views: 0,
-        likes: 0,
+        id: data.video.id,
+        title: data.video.title,
+        description: data.video.description,
+        thumbnailUrl: data.video.thumbnail_url,
+        videoUrl: data.video.video_url,
+        duration: data.video.duration,
+        coachId: data.video.coach_id,
+        coach: data.video.coach ? {
+          id: data.video.coach.id,
+          username: data.video.coach.full_name,
+          fullName: data.video.coach.full_name,
+          email: '',
+          profileImage: data.video.coach.profile_image,
+          sportsCategory: data.video.coach.sports_category || 'coco',
+          gender: 'prefer-not-to-say' as const,
+          role: data.video.coach.role || 'coach',
+          isVerified: data.video.coach.is_verified || false,
+          bio: '',
+          followers: 0,
+          following: 0,
+          posts: 0,
+          createdAt: data.video.coach.created_at || new Date().toISOString(),
+        } : user,
+        category: data.video.category,
+        difficulty: data.video.difficulty,
+        type: data.video.type,
+        tokenCost: data.video.token_cost,
+        views: data.video.views_count || 0,
+        likes: data.video.likes_count || 0,
         isLiked: false,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        createdAt: new Date().toISOString(),
+        tags: data.video.tags || [],
+        createdAt: data.video.created_at
       };
 
       addVideo(newVideo);
       toast.success('Video uploaded successfully!');
       onClose();
-    } catch (error) {
-      toast.error('Failed to upload video. Please try again.');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Failed to upload video. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -172,7 +259,6 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
                   onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
                   className="hidden"
                   id="video-upload"
-                  required
                 />
                 <label htmlFor="video-upload" className="cursor-pointer">
                   <Video className={`h-8 w-8 mx-auto mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
@@ -194,7 +280,6 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
                   onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
                   className="hidden"
                   id="thumbnail-upload"
-                  required
                 />
                 <label htmlFor="thumbnail-upload" className="cursor-pointer">
                   <Upload className={`h-8 w-8 mx-auto mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Clock, Eye, Heart, Star, Filter, Coins, Radio } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -16,7 +16,7 @@ import { Button } from '../ui/Button';
 
 export function PlayPage() {
   const { user, darkMode } = useAuthStore();
-  const { videos, memberships, livestreams, getVideosByCategory, getMembershipsByCoach, getUserTokens, getLivestreams } = useAppStore();
+  const { videos, memberships, livestreams, getVideosByCategory, getMembershipsByCoach, getUserTokens, getLivestreams, fetchLivestreams, fetchVideos } = useAppStore();
   const [activeTab, setActiveTab] = useState<'videos' | 'memberships' | 'livestreams' | 'upload' | 'womens-lounge'>('videos');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'coco' | 'martial-arts' | 'calorie-fight'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'free' | 'premium'>('all');
@@ -24,6 +24,21 @@ export function PlayPage() {
   const [showCreateMembershipModal, setShowCreateMembershipModal] = useState(false);
   const [showCreateLivestreamModal, setShowCreateLivestreamModal] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(true);
+  const [isLoadingLivestreams, setIsLoadingLivestreams] = useState(true);
+
+  // Fetch livestreams and videos from database on mount
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoadingVideos(true);
+      setIsLoadingLivestreams(true);
+      await Promise.all([
+        fetchLivestreams().finally(() => setIsLoadingLivestreams(false)),
+        fetchVideos().finally(() => setIsLoadingVideos(false))
+      ]);
+    };
+    loadData();
+  }, [fetchLivestreams, fetchVideos]);
 
   if (!user) return null;
 
@@ -178,16 +193,25 @@ export function PlayPage() {
       <div className="space-y-6">
         {activeTab === 'videos' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredVideos.map((video) => (
-              <VideoCard key={video.id} video={video} userTokens={userTokens} />
-            ))}
-            
-            {filteredVideos.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <Play className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
-                <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No videos found</h3>
-                <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Try adjusting your filters or check back later for new content.</p>
+            {isLoadingVideos ? (
+              <div className="col-span-full flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading videos...</p>
               </div>
+            ) : (
+              <>
+                {filteredVideos.map((video) => (
+                  <VideoCard key={video.id} video={video} userTokens={userTokens} />
+                ))}
+                
+                {filteredVideos.length === 0 && (
+                  <div className="col-span-full text-center py-12">
+                    <Play className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                    <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No videos found</h3>
+                    <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Try adjusting your filters or check back later for new content.</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -252,31 +276,40 @@ export function PlayPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayLivestreams.map((livestream: any) => (
-                <LivestreamCard key={livestream.id} livestream={livestream} />
-              ))}
-
-              {displayLivestreams.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <Radio className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
-                  <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                    No livestreams available
-                  </h3>
-                  <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                    {user.role === 'coach'
-                      ? 'Start your first livestream to connect with your audience.'
-                      : 'Check back later for live training sessions.'}
-                  </p>
-                  {user.role === 'coach' && (
-                    <Button
-                      onClick={() => setShowCreateLivestreamModal(true)}
-                      className="mt-4 bg-red-600 hover:bg-red-700"
-                    >
-                      <Radio className="h-4 w-4 mr-2" />
-                      Start Livestream
-                    </Button>
-                  )}
+              {isLoadingLivestreams ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mb-4"></div>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading livestreams...</p>
                 </div>
+              ) : (
+                <>
+                  {displayLivestreams.map((livestream: any) => (
+                    <LivestreamCard key={livestream.id} livestream={livestream} />
+                  ))}
+
+                  {displayLivestreams.length === 0 && (
+                    <div className="col-span-full text-center py-12">
+                      <Radio className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                      <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        No livestreams available
+                      </h3>
+                      <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                        {user.role === 'coach'
+                          ? 'Start your first livestream to connect with your audience.'
+                          : 'Check back later for live training sessions.'}
+                      </p>
+                      {user.role === 'coach' && (
+                        <Button
+                          onClick={() => setShowCreateLivestreamModal(true)}
+                          className="mt-4 bg-red-600 hover:bg-red-700"
+                        >
+                          <Radio className="h-4 w-4 mr-2" />
+                          Start Livestream
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
