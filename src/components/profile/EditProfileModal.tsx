@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Upload } from 'lucide-react';
 import { User as UserType } from '../../types';
@@ -14,7 +14,7 @@ interface EditProfileModalProps {
 }
 
 export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
-  const { updateUser } = useAuthStore();
+  const { updateUser, darkMode } = useAuthStore();
   const { updateUserInStore } = useAppStore();
   const [formData, setFormData] = useState({
     fullName: user.fullName,
@@ -90,14 +90,14 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        className={`rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Edit Profile</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
@@ -110,7 +110,7 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
               <img
                 src={previewImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
                 alt="Profile"
-                className="h-24 w-24 rounded-full object-cover border-4 border-gray-200"
+                className={`h-24 w-24 rounded-full object-cover border-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
               />
               <label
                 htmlFor="profile-image"
@@ -126,7 +126,7 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
                 onChange={handleImageChange}
               />
             </div>
-            <p className="text-sm text-gray-500 mt-2">Click to change profile picture</p>
+            <p className={`text-sm mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Click to change profile picture</p>
           </div>
 
           {/* Form Fields */}
@@ -147,18 +147,22 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Bio
             </label>
             <textarea
               value={formData.bio}
               onChange={(e) => handleInputChange('bio', e.target.value)}
               placeholder="Tell us about yourself..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                darkMode 
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  : 'border border-gray-300 text-gray-900'
+              }`}
               rows={4}
               maxLength={200}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
               {formData.bio.length}/200 characters
             </p>
           </div>

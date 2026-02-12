@@ -7,11 +7,14 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isInitialized: boolean;
+  darkMode: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
   initSession: () => Promise<void>;
+  toggleDarkMode: () => void;
+  setDarkMode: (value: boolean) => void;
 }
 
 interface RegisterData {
@@ -61,6 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isLoading: false,
   isInitialized: false,
+  darkMode: localStorage.getItem('darkMode') === 'true',
 
   initSession: async () => {
     try {
@@ -270,6 +274,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error: any) {
       console.error('Error updating user:', error);
       throw error;
+    }
+  },
+
+  toggleDarkMode: () => {
+    const newDarkMode = !get().darkMode;
+    localStorage.setItem('darkMode', String(newDarkMode));
+    set({ darkMode: newDarkMode });
+    // Apply dark mode class to document
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  },
+
+  setDarkMode: (value: boolean) => {
+    localStorage.setItem('darkMode', String(value));
+    set({ darkMode: value });
+    // Apply dark mode class to document
+    if (value) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
   },
 }));

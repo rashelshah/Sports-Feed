@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   MapPin, 
@@ -40,7 +40,7 @@ interface MapLocation {
 }
 
 export function MapPage() {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { getUserTokens, addTokens } = useAppStore();
   const [activeTab, setActiveTab] = useState<'map' | 'checkins' | 'safety'>('map');
   const [mapType, setMapType] = useState<'standard' | 'heatmap' | 'safety'>('standard');
@@ -285,20 +285,20 @@ export function MapPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className={`max-w-7xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}>
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sports Map</h1>
-            <p className="text-gray-600">Discover sports locations, check in, and mark safe spaces</p>
+            <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Sports Map</h1>
+            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Discover sports locations, check in, and mark safe spaces</p>
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
+            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               <span className="font-medium">{userCheckIns.length}</span> check-ins today
             </div>
-            <div className="text-sm text-gray-600">
+            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               <span className="font-medium">{safeLocations.length}</span> safe locations
             </div>
           </div>
@@ -306,7 +306,7 @@ export function MapPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
+      <div className={`flex space-x-1 rounded-lg p-1 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
         {[
           { id: 'map', label: 'Map View', icon: MapPin },
           { id: 'checkins', label: 'My Check-ins', icon: CheckCircle },
@@ -317,8 +317,8 @@ export function MapPage() {
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
               activeTab === tab.id
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? (darkMode ? 'bg-gray-700 text-blue-400 shadow-sm' : 'bg-white text-blue-600 shadow-sm')
+                : (darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900')
             }`}
           >
             <tab.icon className="h-4 w-4" />
@@ -331,11 +331,11 @@ export function MapPage() {
       {activeTab === 'map' && (
         <div className="space-y-6">
           {/* Map Controls */}
-          <div className="bg-white rounded-lg shadow-md p-4">
+          <div className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Map Type:</span>
+                <Filter className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Map Type:</span>
               </div>
               
               {[
@@ -348,8 +348,8 @@ export function MapPage() {
                   onClick={() => setMapType(type.id as any)}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     mapType === type.id
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
+                      : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
                   }`}
                 >
                   {type.label}
@@ -358,7 +358,7 @@ export function MapPage() {
 
               {mapType === 'heatmap' && (
                 <div className="flex items-center space-x-2 ml-4">
-                  <span className="text-sm text-gray-600">Heat Type:</span>
+                  <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Heat Type:</span>
                   {[
                     { id: 'activity', label: 'Activity' },
                     { id: 'women-safe', label: 'Women Safe' },
@@ -369,8 +369,8 @@ export function MapPage() {
                       onClick={() => setHeatMapType(type.id as any)}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                         heatMapType === type.id
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
+                          : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
                       }`}
                     >
                       {type.label}
@@ -442,15 +442,15 @@ export function MapPage() {
                 key={location.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                className={`rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
                 onClick={() => setSelectedLocation(location)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-2">
                     <span className="text-2xl">{getLocationIcon(location.type)}</span>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{location.name}</h3>
-                      <p className="text-sm text-gray-600">{location.address}</p>
+                      <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
                     </div>
                   </div>
                   
@@ -460,7 +460,7 @@ export function MapPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                <div className={`flex items-center justify-between text-sm mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   <div className="flex items-center space-x-1">
                     <Users className="h-4 w-4" />
                     <span>{location.currentUsers} active</span>
@@ -472,13 +472,13 @@ export function MapPage() {
 
                 <div className="flex flex-wrap gap-1 mb-3">
                   {location.safetyFeatures.slice(0, 3).map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-1 bg-gray-100 px-2 py-1 rounded text-xs">
+                    <div key={index} className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                       {getSafetyIcon(feature)}
-                      <span className="capitalize">{feature.replace('-', ' ')}</span>
+                      <span className={`capitalize ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{feature.replace('-', ' ')}</span>
                     </div>
                   ))}
                   {location.safetyFeatures.length > 3 && (
-                    <span className="text-xs text-gray-500">+{location.safetyFeatures.length - 3} more</span>
+                    <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>+{location.safetyFeatures.length - 3} more</span>
                   )}
                 </div>
 
@@ -503,13 +503,13 @@ export function MapPage() {
       {/* Check-ins Tab */}
       {activeTab === 'checkins' && (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">My Check-ins</h2>
+          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>My Check-ins</h2>
           
           {userCheckIns.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <CheckCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No check-ins yet</h3>
-              <p className="text-gray-600 mb-4">Start exploring and check in at sports locations to earn tokens!</p>
+            <div className={`rounded-lg shadow-md p-8 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <CheckCircle className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No check-ins yet</h3>
+              <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Start exploring and check in at sports locations to earn tokens!</p>
               <Button onClick={() => setActiveTab('map')}>
                 Explore Map
               </Button>
@@ -521,16 +521,16 @@ export function MapPage() {
                   key={checkIn.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-lg shadow-md p-4"
+                  className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="bg-green-100 p-2 rounded-full">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      <div className={`p-2 rounded-full ${darkMode ? 'bg-green-900/30' : 'bg-green-100'}`}>
+                        <CheckCircle className={`h-5 w-5 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{checkIn.locationName}</h3>
-                        <p className="text-sm text-gray-600">
+                        <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{checkIn.locationName}</h3>
+                        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           {new Date(checkIn.createdAt).toLocaleDateString()} at{' '}
                           {new Date(checkIn.createdAt).toLocaleTimeString()}
                         </p>
@@ -538,8 +538,8 @@ export function MapPage() {
                     </div>
                     
                     <div className="text-right">
-                      <div className="text-sm text-green-600 font-medium">+5 tokens</div>
-                      <div className="text-xs text-gray-500">Check-in</div>
+                      <div className={`text-sm font-medium ${darkMode ? 'text-green-400' : 'text-green-600'}`}>+5 tokens</div>
+                      <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Check-in</div>
                     </div>
                   </div>
                 </motion.div>
@@ -553,7 +553,7 @@ export function MapPage() {
       {activeTab === 'safety' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900">Safe Locations</h2>
+            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Safe Locations</h2>
             <Button
               onClick={() => setShowSafetyModal(true)}
               size="sm"
@@ -569,12 +569,12 @@ export function MapPage() {
                 key={location.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg shadow-md p-4"
+                className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{location.name}</h3>
-                    <p className="text-sm text-gray-600">{location.address}</p>
+                    <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
                   </div>
                   
                   <div className="flex items-center space-x-1">
@@ -585,14 +585,14 @@ export function MapPage() {
 
                 <div className="flex flex-wrap gap-1 mb-3">
                   {location.safetyFeatures.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded text-xs">
+                    <div key={index} className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${darkMode ? 'bg-green-900/30' : 'bg-green-100'}`}>
                       {getSafetyIcon(feature)}
-                      <span className="capitalize">{feature.replace('-', ' ')}</span>
+                      <span className={`capitalize ${darkMode ? 'text-green-300' : 'text-green-800'}`}>{feature.replace('-', ' ')}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="text-xs text-gray-500">
+                <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                   Verified by {location.verifiedBy.length} users
                 </div>
               </motion.div>
@@ -607,25 +607,25 @@ export function MapPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            className={`rounded-lg p-6 max-w-md w-full mx-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Check in at {selectedLocation.name}
             </h3>
             
             <div className="space-y-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <MapPin className="h-4 w-4" />
                 <span>{selectedLocation.address}</span>
               </div>
               
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <Users className="h-4 w-4" />
                 <span>{selectedLocation.currentUsers} people currently here</span>
               </div>
 
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
                   <strong>Reward:</strong> Earn 5 tokens for checking in!
                 </p>
               </div>
@@ -657,14 +657,14 @@ export function MapPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            className={`rounded-lg p-6 max-w-md w-full mx-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Mark Location as Safe
             </h3>
             
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Select the safety features available at this location:
               </p>
               
@@ -681,17 +681,17 @@ export function MapPage() {
                   <label key={feature} className="flex items-center space-x-2">
                     <input
                       type="checkbox"
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className={`rounded text-blue-600 focus:ring-blue-500 ${darkMode ? 'border-gray-600 bg-gray-700' : 'border-gray-300'}`}
                     />
-                    <span className="text-sm text-gray-700 capitalize">
+                    <span className={`text-sm capitalize ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       {feature.replace('-', ' ')}
                     </span>
                   </label>
                 ))}
               </div>
 
-              <div className="bg-green-50 p-3 rounded-lg">
-                <p className="text-sm text-green-800">
+              <div className={`p-3 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
                   <strong>Reward:</strong> Earn 10 tokens for marking a safe location!
                 </p>
               </div>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { Home, Search, Bell, MessageCircle, User, LogOut, MapPin } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -36,7 +35,7 @@ export function Header() {
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white border-b border-gray-200 sticky top-0 z-50"
+      className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -54,7 +53,7 @@ export function Header() {
               <button 
                 onClick={() => setCurrentView('expert')}
                 className={`flex items-center space-x-2 transition-colors ${
-                  currentView === 'expert' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+                  currentView === 'expert' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400'
                 }`}
               >
                 <User className="h-5 w-5" />
@@ -62,11 +61,10 @@ export function Header() {
               </button>
             )}
             
-            
             <button 
               onClick={() => setCurrentView('home')}
               className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'home' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+                currentView === 'home' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
               }`}
             >
               <Home className="h-5 w-5" />
@@ -76,7 +74,7 @@ export function Header() {
             <button 
               onClick={() => setCurrentView('discover')}
               className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'discover' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+                currentView === 'discover' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
               }`}
             >
               <Search className="h-5 w-5" />
@@ -86,7 +84,7 @@ export function Header() {
             <button 
               onClick={() => setCurrentView('notifications')}
               className={`flex items-center space-x-2 transition-colors relative ${
-                currentView === 'notifications' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+                currentView === 'notifications' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
               }`}
             >
               <Bell className="h-5 w-5" />
@@ -101,7 +99,7 @@ export function Header() {
             <button
               onClick={() => setCurrentView('messages')}
               className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'messages' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+                currentView === 'messages' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
               }`}
             >
               <MessageCircle className="h-5 w-5" />
@@ -111,7 +109,7 @@ export function Header() {
             <button
               onClick={() => setCurrentView('play')}
               className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'play' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+                currentView === 'play' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
               }`}
             >
               <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
@@ -123,7 +121,7 @@ export function Header() {
             <button
               onClick={() => setCurrentView('map')}
               className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'map' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+                currentView === 'map' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
               }`}
             >
               <MapPin className="h-5 w-5" />
@@ -135,7 +133,7 @@ export function Header() {
           <div className="flex items-center space-x-4">
             <button 
               onClick={() => setCurrentView('profile')}
-              className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+              className="flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 transition-colors"
             >
               <img
                 src={user?.profileImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
@@ -144,18 +142,18 @@ export function Header() {
               />
               <div className="hidden sm:block">
                 <div className="flex items-center space-x-1">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {user?.fullName}
                   </p>
                   {getVerificationBadge()}
                 </div>
-                <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role}</p>
               </div>
             </button>
             
             <button
               onClick={handleLogout}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               title="Logout"
             >
               <LogOut className="h-5 w-5" />
