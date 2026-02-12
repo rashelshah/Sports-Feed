@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, CreditCard as Edit, Users, UserPlus, Share, Shield, Upload, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -11,25 +11,21 @@ import { EvidenceUpload } from '../verification/EvidenceUpload';
 import { Button } from '../ui/Button';
 import { User } from '../../types';
 import toast from 'react-hot-toast';
+import { useFollowers, useFollowing } from '../../hooks/useFollow';
 
 export function UserProfile() {
   const { user } = useAuthStore();
-  const { posts, getUserPosts, getSharedPosts, getUserFollowers, getUserFollowing } = useAppStore();
+  const { posts, getUserPosts, getSharedPosts } = useAppStore();
   const [activeTab, setActiveTab] = useState<'posts' | 'shared'>('posts');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [followersModalType, setFollowersModalType] = useState<'followers' | 'following'>('followers');
   const [showSettings, setShowSettings] = useState(false);
   const [showEvidenceUpload, setShowEvidenceUpload] = useState(false);
-  const [followers, setFollowers] = useState<User[]>([]);
-  const [following, setFollowing] = useState<User[]>([]);
 
-  useEffect(() => {
-    if (user) {
-      getUserFollowers(user.id).then(setFollowers);
-      getUserFollowing(user.id).then(setFollowing);
-    }
-  }, [user?.id]);
+  // Use hooks for followers/following - provides instant counts from API
+  const { followers, isLoading: followersLoading } = useFollowers(user?.id, 50);
+  const { following, isLoading: followingLoading } = useFollowing(user?.id, 50);
 
   if (!user) return null;
 
@@ -126,14 +122,18 @@ export function UserProfile() {
                 onClick={handleFollowersClick}
                 className="text-center hover:bg-gray-50 px-2 py-1 rounded transition-colors"
               >
-                <p className="text-xl font-bold text-gray-900">{followers.length}</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {followersLoading ? '...' : followers.length}
+                </p>
                 <p className="text-sm text-gray-500">Followers</p>
               </button>
               <button
                 onClick={handleFollowingClick}
                 className="text-center hover:bg-gray-50 px-2 py-1 rounded transition-colors"
               >
-                <p className="text-xl font-bold text-gray-900">{following.length}</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {followingLoading ? '...' : following.length}
+                </p>
                 <p className="text-sm text-gray-500">Following</p>
               </button>
             </div>
@@ -293,6 +293,12 @@ export function UserProfile() {
           users={followersModalType === 'followers' ? followers : following}
           type={followersModalType}
           onClose={() => setShowFollowersModal(false)}
+          onUserUnfollowed={(userId) => {
+            // Refresh the following list when someone is unfollowed
+            if (followersModalType === 'following') {
+              // The useFollowing hook will auto-refresh
+            }
+          }}
         />
       )}
 
