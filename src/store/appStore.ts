@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, Post, Comment, Message, Conversation, Video, Membership, UserTokens, TokenTransaction, LocationCheckIn, SafeLocation, HeatMapData, Event } from '../types';
+import { User, Post, Comment, Message, Conversation, Video, Membership, UserTokens, TokenTransaction } from '../types';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -121,17 +121,6 @@ interface AppState {
   livestreams: any[];
   addLivestream: (livestream: any) => void;
   getLivestreams: (category: string) => any[];
-  // Map and location features
-  locationCheckIns: LocationCheckIn[];
-  safeLocations: SafeLocation[];
-  heatMapData: HeatMapData[];
-  events: Event[];
-  addLocationCheckIn: (checkIn: LocationCheckIn) => void;
-  addSafeLocation: (location: SafeLocation) => void;
-  updateHeatMapData: (data: HeatMapData) => void;
-  addEvent: (event: Event) => void;
-  getEventsByLocation: (locationId: string) => Event[];
-  getEventsByCategory: (category: string) => Event[];
 }
 
 interface Notification {
@@ -159,10 +148,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   userTokens: [],
   userFollowing: [],
   livestreams: [],
-  locationCheckIns: [],
-  safeLocations: [],
-  heatMapData: [],
-  events: [],
 
   setCurrentView: (view) => set({ currentView: view }),
 
@@ -868,41 +853,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     return livestreams.filter(stream => stream.category === category);
   },
 
-  // Map and location functions
-  addLocationCheckIn: (checkIn) => set((state) => ({
-    locationCheckIns: [checkIn, ...state.locationCheckIns]
-  })),
 
-  addSafeLocation: (location) => set((state) => ({
-    safeLocations: [location, ...state.safeLocations]
-  })),
-
-  updateHeatMapData: (data) => set((state) => {
-    const existingIndex = state.heatMapData.findIndex(
-      item => item.latitude === data.latitude && item.longitude === data.longitude && item.type === data.type
-    );
-
-    if (existingIndex >= 0) {
-      const updatedData = [...state.heatMapData];
-      updatedData[existingIndex] = data;
-      return { heatMapData: updatedData };
-    } else {
-      return { heatMapData: [...state.heatMapData, data] };
-    }
-  }),
-
-  addEvent: (event) => set((state) => ({
-    events: [event, ...state.events]
-  })),
-
-  getEventsByLocation: (locationId) => {
-    const { events } = get();
-    return events.filter(event => event.location.latitude && event.location.longitude);
-  },
-
-  getEventsByCategory: (category) => {
-    const { events } = get();
-    if (category === 'all') return events;
-    return events.filter(event => event.category === category);
-  },
 }));
