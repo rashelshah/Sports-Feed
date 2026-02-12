@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
 
 export function NotificationsPage() {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { notifications, markNotificationAsRead, fetchNotifications } = useAppStore();
 
   // Fetch notifications from API on mount
@@ -47,20 +47,20 @@ export function NotificationsPage() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-2xl mx-auto"
     >
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+      <div className={`rounded-lg shadow-md ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className={`p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h1 className={`text-2xl font-bold flex items-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             <Bell className="h-6 w-6 mr-3 text-blue-600" />
             Notifications
           </h1>
         </div>
 
-        <div className="divide-y divide-gray-100">
+        <div className={`divide-y ${darkMode ? 'divide-gray-700' : 'divide-gray-100'}`}>
           {userNotifications.length === 0 ? (
             <div className="p-8 text-center">
-              <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications</h3>
-              <p className="text-gray-600">You're all caught up!</p>
+              <Bell className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No notifications</h3>
+              <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>You're all caught up!</p>
             </div>
           ) : (
             userNotifications.map((notification) => (
@@ -68,9 +68,9 @@ export function NotificationsPage() {
                 key={notification.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
+                whileHover={{ backgroundColor: darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)' }}
                 onClick={() => handleNotificationClick(notification.id)}
-                className={`p-4 cursor-pointer transition-colors ${!notification.isRead ? 'bg-blue-50' : ''
+                className={`p-4 cursor-pointer transition-colors ${!notification.isRead ? (darkMode ? 'bg-blue-900/20' : 'bg-blue-50') : ''
                   }`}
               >
                 <div className="flex items-start space-x-3">
@@ -82,17 +82,17 @@ export function NotificationsPage() {
                         className="h-10 w-10 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                         {getNotificationIcon(notification.type)}
                       </div>
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${!notification.isRead ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                    <p className={`text-sm ${!notification.isRead ? 'font-medium' : ''} ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                       {notification.message}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                       {new Date(notification.createdAt).toLocaleString('en-US', {
                         month: 'short',
                         day: 'numeric',
