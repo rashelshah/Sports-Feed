@@ -39,13 +39,13 @@ import { setupSocketHandlers } from './socket/socketHandlers';
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware, optionalAuthMiddleware } from './middleware/auth';
-import { 
-  httpsEnforcement, 
-  createUserRateLimit, 
-  securityHeaders, 
-  requestId, 
+import {
+  httpsEnforcement,
+  createUserRateLimit,
+  securityHeaders,
+  requestId,
   securityMonitoring,
-  apiVersioning 
+  apiVersioning
 } from './middleware/security';
 
 // Initialize Supabase client
@@ -293,10 +293,18 @@ process.on('uncaughtException', (error) => {
 
 const PORT = config.port || 3000;
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`📱 Environment: ${config.env}`);
   logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
+
+  // Run migrations
+  try {
+    const { createNotificationsTable } = await import('./migrations/create_notifications_table');
+    await createNotificationsTable();
+  } catch (err) {
+    logger.error('Migration error:', err);
+  }
 });
 
 export { io };

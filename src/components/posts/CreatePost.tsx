@@ -143,8 +143,39 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
         throw new Error(data.error || 'Failed to create post');
       }
 
-      // Call the callback with the new post
-      onPostCreated(data.post);
+      // Map backend post (snake_case) to frontend Post type (camelCase)
+      const p = data.post;
+      const mappedPost = {
+        id: p.id,
+        userId: p.author_id,
+        user: {
+          id: p.author?.id || p.author_id,
+          username: p.author?.username || p.author?.full_name || 'Unknown',
+          fullName: p.author?.full_name || p.author?.name || 'Unknown',
+          email: p.author?.email || '',
+          profileImage: p.author?.profile_image || p.author?.avatar_url || null,
+          sportsCategory: p.author?.sports_category || 'unstructured-sports',
+          gender: 'prefer-not-to-say' as const,
+          role: p.author?.role || 'coach',
+          isVerified: p.author?.is_verified || false,
+          bio: '',
+          followers: 0,
+          following: 0,
+          posts: 0,
+          createdAt: p.created_at
+        },
+        content: p.content,
+        mediaUrl: p.media_urls && p.media_urls.length > 0 ? p.media_urls[0] : null,
+        mediaType: 'image' as const,
+        likes: p.likes_count || 0,
+        shares: p.shares_count || 0,
+        comments: p.comments_count || 0,
+        isLiked: false,
+        createdAt: p.created_at
+      };
+
+      // Call the callback with the mapped post
+      onPostCreated(mappedPost);
 
       setContent('');
       setMediaFile(null);

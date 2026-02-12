@@ -1,15 +1,20 @@
-import React from 'react';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Heart, UserPlus, Shield, MessageCircle } from 'lucide-react';
+import { Bell, Heart, UserPlus, UserMinus, Shield, MessageCircle, Share2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
 
 export function NotificationsPage() {
   const { user } = useAuthStore();
-  const { notifications, markNotificationAsRead } = useAppStore();
+  const { notifications, markNotificationAsRead, fetchNotifications } = useAppStore();
+
+  // Fetch notifications from API on mount
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   // Filter notifications for current user
-  const userNotifications = notifications.filter(notification => 
+  const userNotifications = notifications.filter(notification =>
     notification.userId === user?.id
   );
 
@@ -19,8 +24,12 @@ export function NotificationsPage() {
         return <Heart className="h-5 w-5 text-red-500" />;
       case 'follow':
         return <UserPlus className="h-5 w-5 text-blue-500" />;
+      case 'unfollow':
+        return <UserMinus className="h-5 w-5 text-orange-500" />;
       case 'comment':
         return <MessageCircle className="h-5 w-5 text-green-500" />;
+      case 'share':
+        return <Share2 className="h-5 w-5 text-indigo-500" />;
       case 'verification':
         return <Shield className="h-5 w-5 text-purple-500" />;
       default:
@@ -61,15 +70,14 @@ export function NotificationsPage() {
                 animate={{ opacity: 1, x: 0 }}
                 whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
                 onClick={() => handleNotificationClick(notification.id)}
-                className={`p-4 cursor-pointer transition-colors ${
-                  !notification.isRead ? 'bg-blue-50' : ''
-                }`}
+                className={`p-4 cursor-pointer transition-colors ${!notification.isRead ? 'bg-blue-50' : ''
+                  }`}
               >
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
                     {notification.fromUser ? (
                       <img
-                        src={notification.fromUser.profileImage}
+                        src={notification.fromUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(notification.fromUser.fullName || 'U')}&background=random`}
                         alt={notification.fromUser.fullName}
                         className="h-10 w-10 rounded-full object-cover"
                       />
@@ -79,7 +87,7 @@ export function NotificationsPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm ${!notification.isRead ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
                       {notification.message}
@@ -93,11 +101,11 @@ export function NotificationsPage() {
                       })}
                     </p>
                   </div>
-                  
+
                   <div className="flex-shrink-0">
                     {getNotificationIcon(notification.type)}
                   </div>
-                  
+
                   {!notification.isRead && (
                     <div className="flex-shrink-0">
                       <div className="h-2 w-2 bg-blue-500 rounded-full"></div>

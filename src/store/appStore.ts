@@ -98,6 +98,9 @@ interface AppState {
   getConversations: (userId: string, userSportsCategory: string | 'all') => Conversation[];
   addNotification: (notification: Notification) => void;
   markNotificationAsRead: (notificationId: string) => void;
+  removeNotification: (notificationId: string) => void;
+  clearNotifications: () => void;
+  fetchNotifications: () => Promise<void>;
   updateUserInStore: (updatedUser: User) => void;
   followUser: (userId: string, targetUserId: string) => Promise<void>;
   unfollowUser: (userId: string, targetUserId: string) => Promise<void>;
@@ -134,7 +137,7 @@ interface AppState {
 interface Notification {
   id: string;
   userId: string;
-  type: 'like' | 'comment' | 'follow' | 'verification';
+  type: 'like' | 'comment' | 'follow' | 'unfollow' | 'share' | 'verification' | 'system' | string;
   message: string;
   isRead: boolean;
   createdAt: string;
@@ -408,10 +411,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addNotification: (notification) => {
+    // Avoid duplicates
+    const existing = get().notifications.find(n => n.id === notification.id);
+    if (existing) return;
     set((state) => ({ notifications: [notification, ...state.notifications] }));
   },
 
-  markNotificationAsRead: (notificationId) => {
+  markNotificationAsRead: async (notificationId) => {
+    // Optimistically update local state
     set((state) => ({
       notifications: state.notifications.map(notification =>
         notification.id === notificationId
@@ -419,6 +426,76 @@ export const useAppStore = create<AppState>((set, get) => ({
           : notification
       ),
     }));
+    // Persist to backend
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/notifications/${notificationId}/read`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  },
+
+  removeNotification: (notificationId) => {
+    set((state) => ({
+      notifications: state.notifications.filter(n => n.id !== notificationId),
+    }));
+  },
+
+  clearNotifications: () => {
+    set({ notifications: [] });
+  },
+
+  fetchNotifications: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/notifications?limit=50`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        console.error('Failed to fetch notifications:', response.status, response.statusText, errorBody);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success && data.notifications) {
+        const mapped: Notification[] = data.notifications.map((n: any) => ({
+          id: n.id,
+          userId: n.user_id,
+          type: n.type || 'system',
+          message: n.message || n.title || 'New notification',
+          isRead: n.is_read || false,
+          createdAt: n.created_at || new Date().toISOString(),
+          fromUser: n.from_user ? {
+            id: n.from_user.id,
+            username: n.from_user.username || n.from_user.name || '',
+            fullName: n.from_user.name || n.from_user.full_name || '',
+            email: '',
+            profileImage: n.from_user.avatar_url || n.from_user.profile_image || null,
+            sportsCategory: 'unstructured-sports' as const,
+            gender: 'prefer-not-to-say' as const,
+            role: n.from_user.role || 'athlete',
+            isVerified: n.from_user.is_verified || false,
+            bio: '',
+            followers: 0,
+            following: 0,
+            posts: 0,
+            createdAt: n.created_at || '',
+          } : undefined,
+        }));
+        set({ notifications: mapped });
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
   },
 
   updateUserInStore: (updatedUser: User) => {
