@@ -53,16 +53,7 @@ router.get('/', authenticateToken, validateQuery(getNotificationsQuerySchema), a
 
   let query = supabaseAdmin
     .from('notifications')
-    .select(`
-      *,
-      from_user:users!from_user_id(
-        id,
-        name,
-        avatar_url,
-        role,
-        is_verified
-      )
-    `, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .eq('user_id', req.user!.id)
     .range(offset, offset + limit - 1)
     .order('created_at', { ascending: false });
@@ -87,6 +78,7 @@ router.get('/', authenticateToken, validateQuery(getNotificationsQuerySchema), a
   const { data: notifications, error, count } = await query;
 
   if (error) {
+    console.error('Failed to fetch notifications:', error);
     res.status(400).json({
       success: false,
       error: 'Failed to fetch notifications'
@@ -94,11 +86,54 @@ router.get('/', authenticateToken, validateQuery(getNotificationsQuerySchema), a
     return;
   }
 
+  // Enrich notifications with from_user details from profiles table
+  const enrichedNotifications = await Promise.all(
+    (notifications || []).map(async (notif: any) => {
+      if (notif.from_user_id) {
+        // Try profiles table first (primary user table), fall back to users table
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('id, username, full_name, profile_image, role, verification_status')
+          .eq('id', notif.from_user_id)
+          .single();
+
+        if (profile) {
+          return {
+            ...notif,
+            from_user: {
+              id: profile.id,
+              name: profile.full_name || profile.username || 'Unknown',
+              username: profile.username || '',
+              avatar_url: profile.profile_image || null,
+              role: profile.role || 'user',
+              is_verified: profile.verification_status === 'approved'
+            }
+          };
+        }
+
+        // Fallback to users table
+        const { data: user } = await supabaseAdmin
+          .from('users')
+          .select('id, name, username, avatar_url, role, is_verified')
+          .eq('id', notif.from_user_id)
+          .single();
+
+        if (user) {
+          return {
+            ...notif,
+            from_user: user
+          };
+        }
+      }
+      return { ...notif, from_user: null };
+    })
+  );
+
   const totalPages = Math.ceil((count || 0) / limit);
 
   res.json({
     success: true,
-    notifications: notifications || [],
+    notifications: enrichedNotifications,
     pagination: {
       currentPage: page,
       totalPages,
@@ -165,17 +200,7 @@ router.get('/:id', authenticateToken, validateParams(notificationIdSchema), asyn
 
   const { data: notification, error } = await supabaseAdmin
     .from('notifications')
-    .select(`
-      *,
-      from_user:users!from_user_id(
-        id,
-        name,
-        avatar_url,
-        role,
-        is_verified,
-        bio
-      )
-    `)
+    .select('*')
     .eq('id', id)
     .eq('user_id', req.user!.id)
     .single();
@@ -188,9 +213,30 @@ router.get('/:id', authenticateToken, validateParams(notificationIdSchema), asyn
     return;
   }
 
+  // Enrich with from_user details
+  let enriched: any = { ...notification, from_user: null };
+  if (notification.from_user_id) {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, username, full_name, profile_image, role, verification_status')
+      .eq('id', notification.from_user_id)
+      .single();
+
+    if (profile) {
+      enriched.from_user = {
+        id: profile.id,
+        name: profile.full_name || profile.username || 'Unknown',
+        username: profile.username || '',
+        avatar_url: profile.profile_image || null,
+        role: profile.role || 'user',
+        is_verified: profile.verification_status === 'approved'
+      };
+    }
+  }
+
   res.json({
     success: true,
-    notification
+    notification: enriched
   });
 }));
 

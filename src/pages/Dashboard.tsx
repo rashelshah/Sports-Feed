@@ -15,14 +15,15 @@ import { useAppStore } from '../store/appStore';
 export function Dashboard() {
   const { user } = useAuthStore();
   const { connect } = useSocketStore();
-  const { currentView } = useAppStore();
+  const { currentView, fetchNotifications } = useAppStore();
 
 
   useEffect(() => {
     if (user) {
       connect(user.id);
+      fetchNotifications();
     }
-  }, [user, connect]);
+  }, [user, connect, fetchNotifications]);
 
   const renderContent = () => {
     try {

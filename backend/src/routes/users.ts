@@ -110,10 +110,10 @@ router.get('/', validateQuery(getUsersQuerySchema), asyncHandler(async (req: Req
 
   if (error) {
     res.status(400).json({
-       success: false,
-       error: 'Failed to fetch users'
-     });
-     return;
+      success: false,
+      error: 'Failed to fetch users'
+    });
+    return;
   }
 
   const totalPages = Math.ceil((count || 0) / limit);
@@ -169,10 +169,10 @@ router.get('/username/:username', validateParams(usernameSchema), asyncHandler(a
 
   if (!user) {
     res.status(404).json({
-       success: false,
-       error: 'User not found'
-     });
-     return;
+      success: false,
+      error: 'User not found'
+    });
+    return;
   }
 
   // Check if profile is private and user is not authenticated or not following
@@ -180,10 +180,10 @@ router.get('/username/:username', validateParams(usernameSchema), asyncHandler(a
     const authUser = req.user;
     if (!authUser) {
       res.status(403).json({
-           success: false,
-           error: 'This profile is private'
-         });
-          return;
+        success: false,
+        error: 'This profile is private'
+      });
+      return;
     }
 
     if (authUser.id !== user.id) {
@@ -269,10 +269,10 @@ router.post('/follow', authenticateToken, validate(followUserSchema), asyncHandl
 
   if (followerId === userId) {
     res.status(400).json({
-       success: false,
-       error: 'Cannot follow yourself'
-     });
-     return;
+      success: false,
+      error: 'Cannot follow yourself'
+    });
+    return;
   }
 
   // Check if user exists
@@ -385,10 +385,10 @@ router.get('/:id/posts', validateParams(userIdSchema), validateQuery(getUsersQue
 
   if (error) {
     res.status(400).json({
-       success: false,
-       error: 'Failed to fetch user posts'
-     });
-     return;
+      success: false,
+      error: 'Failed to fetch user posts'
+    });
+    return;
   }
 
   const totalPages = Math.ceil((count || 0) / limit);
@@ -590,6 +590,33 @@ router.delete('/follow/:id', authenticateToken, validateParams(userIdSchema), as
       error: error?.message || unfollowResult?.error || 'Failed to unfollow user'
     });
     return;
+  }
+
+  // Get unfollower's name for notification
+  const { data: unfollowerData } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', followerId)
+    .single();
+
+  // Create notification for the unfollowed user
+  const { data: unfollowNotif } = await supabaseAdmin
+    .from('notifications')
+    .insert({
+      user_id: userId,
+      type: 'unfollow',
+      title: 'Lost a Follower',
+      message: `${unfollowerData?.full_name || 'Someone'} unfollowed you`,
+      data: { followerId },
+      from_user_id: followerId,
+      created_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+
+  const socketHandlers = (req as any).app?.locals?.socketHandlers;
+  if (socketHandlers && unfollowNotif) {
+    socketHandlers.sendNotificationToUser(userId, unfollowNotif);
   }
 
   res.json({
@@ -899,11 +926,11 @@ router.get('/:id/stats', validateParams(userIdSchema), asyncHandler(async (req: 
     const likesReceived = likesReceivedResult.count || 0;
     const commentsReceived = commentsReceivedResult.count || 0;
     const sharesReceived = sharesReceivedResult.count || 0;
-    
+
     // Calculate streak (simplified - posts in last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     const { count: recentPostsCount } = await supabase
       .from('posts')
       .select('id', { count: 'exact' })
@@ -978,7 +1005,7 @@ router.get('/:id/dashboard', authenticateToken, validateParams(userIdSchema), as
     // Calculate streak
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     const { count: recentPostsCount } = await supabase
       .from('posts')
       .select('id', { count: 'exact' })
@@ -1075,10 +1102,10 @@ router.get('/:id', validateParams(userIdSchema), asyncHandler(async (req: Reques
 
     if (error || !user) {
       res.status(404).json({
-         success: false,
-         error: 'User not found'
-       });
-       return;
+        success: false,
+        error: 'User not found'
+      });
+      return;
     }
 
     // Private profile checks remain the same below
@@ -1115,10 +1142,10 @@ router.get('/:id', validateParams(userIdSchema), asyncHandler(async (req: Reques
 
   if (error || !user) {
     res.status(404).json({
-       success: false,
-       error: 'User not found'
-     });
-     return;
+      success: false,
+      error: 'User not found'
+    });
+    return;
   }
 
   // Check if profile is private and user is not authenticated or not following
@@ -1126,10 +1153,10 @@ router.get('/:id', validateParams(userIdSchema), asyncHandler(async (req: Reques
     const authUser = req.user;
     if (!authUser) {
       res.status(403).json({
-           success: false,
-           error: 'This profile is private'
-         });
-          return;
+        success: false,
+        error: 'This profile is private'
+      });
+      return;
     }
 
     if (authUser.id !== id) {
