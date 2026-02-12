@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Gift, Copy, Share, Users } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
+import { useAuthStore } from '../../store/authStore';
 import { Button } from '../ui/Button';
 import toast from 'react-hot-toast';
 
@@ -12,6 +13,7 @@ interface ReferralModalProps {
 
 export function ReferralModal({ onClose, userId }: ReferralModalProps) {
   const { addTokens } = useAppStore();
+  const { darkMode } = useAuthStore();
   const [referralCode] = useState(`SPORT${userId.slice(-4).toUpperCase()}`);
   const referralLink = `${window.location.origin}/signup?ref=${referralCode}`;
 
@@ -54,14 +56,14 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-md w-full"
+        className={`rounded-lg shadow-xl max-w-md w-full ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Refer Friends</h2>
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Refer Friends</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
@@ -72,10 +74,10 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
             <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-full p-4 w-16 h-16 mx-auto mb-4">
               <Gift className="h-8 w-8 text-white" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Earn 50 Tokens per Referral!
             </h3>
-            <p className="text-gray-600 text-sm">
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Invite friends to join SportsFeed and both of you get 50 tokens when they sign up.
             </p>
           </div>
@@ -83,7 +85,7 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
           <div className="space-y-4">
             {/* Referral Code */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Your Referral Code
               </label>
               <div className="flex items-center space-x-2">
@@ -91,7 +93,11 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
                   type="text"
                   value={referralCode}
                   readOnly
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-center font-mono font-bold"
+                  className={`flex-1 px-3 py-2 border rounded-lg text-center font-mono font-bold ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'border-gray-300 bg-gray-50'
+                  }`}
                 />
                 <Button
                   onClick={() => copyToClipboard(referralCode)}
@@ -105,7 +111,7 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
 
             {/* Referral Link */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Referral Link
               </label>
               <div className="flex items-center space-x-2">
@@ -113,7 +119,11 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
                   type="text"
                   value={referralLink}
                   readOnly
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                  className={`flex-1 px-3 py-2 border rounded-lg text-sm ${
+                    darkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'border-gray-300 bg-gray-50'
+                  }`}
                 />
                 <Button
                   onClick={() => copyToClipboard(referralLink)}
@@ -147,9 +157,9 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
             </Button>
           </div>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h4 className="font-semibold text-blue-900 mb-2">How it works:</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
+          <div className={`mt-6 p-4 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+            <h4 className={`font-semibold mb-2 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>How it works:</h4>
+            <ul className={`text-sm space-y-1 ${darkMode ? 'text-blue-400' : 'text-blue-800'}`}>
               <li>1. Share your referral code or link</li>
               <li>2. Friend signs up using your code</li>
               <li>3. Both of you get 50 tokens instantly!</li>

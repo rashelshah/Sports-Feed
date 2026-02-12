@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Search, UserPlus } from 'lucide-react';
 import { FollowUser } from '../../hooks/useFollow';
-import { FollowButtonCompact } from './FollowButton';
+import { useAuthStore } from '../../store/authStore';
 
 interface FollowersModalProps {
   users: FollowUser[];
@@ -12,6 +12,7 @@ interface FollowersModalProps {
 }
 
 export function FollowersModal({ users, type, onClose, onUserUnfollowed }: FollowersModalProps) {
+  const { darkMode } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredUsers = users.filter(user =>
@@ -35,31 +36,35 @@ export function FollowersModal({ users, type, onClose, onUserUnfollowed }: Follo
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden"
+        className={`rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 capitalize">
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-xl font-bold capitalize ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             {type} ({users.length})
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
         {/* Search */}
-        <div className="p-4 border-b border-gray-100">
+        <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
             <input
               type="text"
               placeholder={`Search ${type}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                darkMode 
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  : 'border-gray-300'
+              }`}
             />
           </div>
         </div>

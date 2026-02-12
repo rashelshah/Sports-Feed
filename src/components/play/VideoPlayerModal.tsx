@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Heart, Share } from 'lucide-react';
 import { Video } from '../../types';
@@ -13,7 +13,7 @@ interface VideoPlayerModalProps {
 }
 
 export function VideoPlayerModal({ video, onClose }: VideoPlayerModalProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { likeVideo } = useAppStore();
   const [isLiked, setIsLiked] = useState(video.isLiked);
   const [likesCount, setLikesCount] = useState(video.likes);
@@ -71,15 +71,15 @@ export function VideoPlayerModal({ video, onClose }: VideoPlayerModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+        className={`rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 truncate">{video.title}</h2>
+        <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-xl font-bold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{video.title}</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
@@ -102,8 +102,8 @@ export function VideoPlayerModal({ video, onClose }: VideoPlayerModalProps) {
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{video.title}</h3>
-              <p className="text-gray-600 mb-3">{video.description}</p>
+              <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{video.title}</h3>
+              <p className={`mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{video.description}</p>
               
               {/* Coach Info */}
               <div className="flex items-center space-x-3">
@@ -114,14 +114,14 @@ export function VideoPlayerModal({ video, onClose }: VideoPlayerModalProps) {
                 />
                 <div>
                   <div className="flex items-center space-x-1">
-                    <p className="font-semibold text-gray-900">{video.coach.fullName}</p>
+                    <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{video.coach.fullName}</p>
                     {video.coach.isVerified && (
                       <svg className="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 capitalize">{video.coach.sportsCategory.replace('-', ' ')}</p>
+                  <p className={`text-sm capitalize ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{video.coach.sportsCategory.replace('-', ' ')}</p>
                 </div>
               </div>
             </div>
@@ -152,7 +152,7 @@ export function VideoPlayerModal({ video, onClose }: VideoPlayerModalProps) {
             {video.tags.map((tag, index) => (
               <span
                 key={index}
-                className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                className={`px-2 py-1 rounded-full text-sm ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
               >
                 #{tag}
               </span>
@@ -160,7 +160,7 @@ export function VideoPlayerModal({ video, onClose }: VideoPlayerModalProps) {
           </div>
 
           {/* Stats */}
-          <div className="flex items-center space-x-6 text-sm text-gray-500 border-t border-gray-200 pt-4">
+          <div className={`flex items-center space-x-6 text-sm border-t pt-4 ${darkMode ? 'text-gray-400 border-gray-700' : 'text-gray-500 border-gray-200'}`}>
             <span>{video.views.toLocaleString()} views</span>
             <span>{video.likes} likes</span>
             <span className="capitalize">{video.difficulty} level</span>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -20,7 +19,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onLoginSuccess }: LoginFormProps) {
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, darkMode } = useAuthStore();
   
   const {
     register,
@@ -55,7 +54,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       className="space-y-6"
     >
       <div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Welcome Back</h2>
+        <h2 className={`text-3xl font-bold mb-6 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>Welcome Back</h2>
         
         <Input
           label="Email"
@@ -86,7 +85,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       </Button>
 
       <div className="text-center">
-        <a href="#" className="text-sm text-blue-600 hover:text-blue-500">
+        <a href="#" className={`text-sm ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'}`}>
           Forgot your password?
         </a>
       </div>

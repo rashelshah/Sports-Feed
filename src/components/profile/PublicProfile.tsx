@@ -31,7 +31,7 @@ interface ProfileData {
 }
 
 export function PublicProfile({ userId }: PublicProfileProps) {
-  const { user: currentUser } = useAuthStore();
+  const { user: currentUser, darkMode } = useAuthStore();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'posts'>('posts');
@@ -141,7 +141,7 @@ export function PublicProfile({ userId }: PublicProfileProps) {
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 flex items-center justify-center min-h-[400px]">
+      <div className={`max-w-4xl mx-auto p-6 flex items-center justify-center min-h-[400px] ${darkMode ? 'bg-gray-900' : ''}`}>
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     );
@@ -149,9 +149,9 @@ export function PublicProfile({ userId }: PublicProfileProps) {
 
   if (!profile) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <p className="text-gray-500">Profile not found</p>
+      <div className={`max-w-4xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}>
+        <div className={`rounded-lg shadow-md p-8 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Profile not found</p>
         </div>
       </div>
     );
@@ -160,12 +160,12 @@ export function PublicProfile({ userId }: PublicProfileProps) {
   const isOwnProfile = currentUser?.id === userId;
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className={`max-w-4xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}>
       {/* Profile Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-lg shadow-md p-6 mb-6"
+        className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
       >
         <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
           {/* Profile Image */}
@@ -173,53 +173,53 @@ export function PublicProfile({ userId }: PublicProfileProps) {
             <img
               src={profile.profile_image || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
               alt={profile.full_name}
-              className="h-24 w-24 rounded-full object-cover border-4 border-gray-100"
+              className={`h-24 w-24 rounded-full object-cover border-4 ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}
             />
           </div>
 
           {/* Profile Info */}
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-2">
-              <h1 className="text-2xl font-bold text-gray-900">{profile.full_name}</h1>
+              <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{profile.full_name}</h1>
               {getVerificationBadge()}
             </div>
-            <p className="text-gray-600 mb-1">@{profile.username}</p>
-            <p className="text-sm text-gray-500 capitalize mb-3">{profile.sports_category.replace('-', ' ')}</p>
+            <p className={darkMode ? 'text-gray-400 mb-1' : 'text-gray-600 mb-1'}>@{profile.username}</p>
+            <p className={`text-sm capitalize mb-3 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{profile.sports_category.replace('-', ' ')}</p>
             {profile.bio && (
-              <p className="text-gray-700 mb-4">{profile.bio}</p>
+              <p className={darkMode ? 'text-gray-300 mb-4' : 'text-gray-700 mb-4'}>{profile.bio}</p>
             )}
 
             {/* Stats */}
             <div className="flex items-center space-x-6 mb-4">
               <div className="text-center">
-                <p className="text-xl font-bold text-gray-900">{profile.posts}</p>
-                <p className="text-sm text-gray-500">Posts</p>
+                <p className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{profile.posts}</p>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Posts</p>
               </div>
               <button
                 onClick={handleFollowersClick}
-                className="text-center hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                className={`text-center px-2 py-1 rounded transition-colors ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
               >
-                <p className="text-xl font-bold text-gray-900">{profile.followers}</p>
-                <p className="text-sm text-gray-500">Followers</p>
+                <p className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{profile.followers}</p>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Followers</p>
               </button>
               <button
                 onClick={handleFollowingClick}
-                className="text-center hover:bg-gray-50 px-2 py-1 rounded transition-colors"
+                className={`text-center px-2 py-1 rounded transition-colors ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
               >
-                <p className="text-xl font-bold text-gray-900">{profile.following}</p>
-                <p className="text-sm text-gray-500">Following</p>
+                <p className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{profile.following}</p>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Following</p>
               </button>
             </div>
 
             {/* Sport Interests for Fans */}
             {profile.role === 'fan' && profile.sport_interests && profile.sport_interests.length > 0 && (
               <div className="mb-4">
-                <h3 className="text-sm font-medium text-gray-900 mb-2">Sport Interests</h3>
+                <h3 className={`text-sm font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Sport Interests</h3>
                 <div className="flex flex-wrap gap-2">
                   {profile.sport_interests.map((interest, index) => (
                     <span
                       key={index}
-                      className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                      className={`px-2 py-1 text-xs rounded-full ${darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-800'}`}
                     >
                       {interest}
                     </span>
@@ -263,7 +263,11 @@ export function PublicProfile({ userId }: PublicProfileProps) {
                   <button
                     onClick={handleMessageClick}
                     disabled={isStartingChat}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-medium bg-gray-100 text-gray-800 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 ${
+                      darkMode 
+                        ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' 
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}
                   >
                     {isStartingChat ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -277,7 +281,11 @@ export function PublicProfile({ userId }: PublicProfileProps) {
               
               <button
                 onClick={handleShareProfile}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium border transition-colors ${
+                  darkMode 
+                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
               >
                 <Share className="h-5 w-5" />
                 <span>Share</span>
@@ -288,15 +296,15 @@ export function PublicProfile({ userId }: PublicProfileProps) {
       </motion.div>
 
       {/* Content Tabs */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className={`rounded-lg shadow-md overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         {/* Tab Headers */}
-        <div className="border-b border-gray-200">
+        <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <nav className="flex">
             <button
               onClick={() => setActiveTab('posts')}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'posts'
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : (darkMode ? 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')
                 }`}
             >
               Posts ({profile.posts})
@@ -308,11 +316,11 @@ export function PublicProfile({ userId }: PublicProfileProps) {
         <div className="p-6">
           {/* Posts would be fetched and displayed here */}
           <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
+            <div className={darkMode ? 'text-gray-600 mb-4' : 'text-gray-400 mb-4'}>
               <Users className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Posts</h3>
-            <p className="text-gray-500">
+            <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Posts</h3>
+            <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>
               View all posts from this user
             </p>
           </div>

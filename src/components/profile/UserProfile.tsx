@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import { useFollowers, useFollowing } from '../../hooks/useFollow';
 
 export function UserProfile() {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { posts, getUserPosts, getSharedPosts } = useAppStore();
   const [activeTab, setActiveTab] = useState<'posts' | 'shared'>('posts');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -83,12 +83,12 @@ export function UserProfile() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 dark:bg-gray-900 min-h-screen">
+    <div className={`max-w-4xl mx-auto p-6 min-h-screen ${darkMode ? 'bg-gray-900' : ''}`}>
       {/* Profile Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6"
+        className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
       >
         <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
           {/* Profile Image */}
@@ -96,7 +96,7 @@ export function UserProfile() {
             <img
               src={user.profileImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
               alt={user.fullName}
-              className="h-24 w-24 rounded-full object-cover border-4 border-gray-100 dark:border-gray-700"
+              className={`h-24 w-24 rounded-full object-cover border-4 ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}
             />
           </div>
 

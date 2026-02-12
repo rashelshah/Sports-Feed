@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Image, Smile, Share, MoreVertical, Archive, Check, CheckCheck } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -24,7 +24,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ conversationId, conversation, onBack, onArchive }: ChatWindowProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { addNotification } = useAppStore();
   const { 
     messages, 
@@ -246,14 +246,14 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
   // Show loading overlay when switching conversations
   if (isLoading && messages.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-white">
+      <div className={`flex flex-col h-full ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         {/* Chat Header - Show immediately with available data */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
           <div className="flex items-center space-x-3">
             {onBack && (
               <button
                 onClick={onBack}
-                className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+                className={`md:hidden p-2 -ml-2 rounded-full ${darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -269,9 +269,9 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
               />
               <div>
                 <div className="flex items-center space-x-1">
-                  <h3 className="font-semibold text-gray-900">{otherParticipant?.full_name || 'Loading...'}</h3>
+                  <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{otherParticipant?.full_name || 'Loading...'}</h3>
                 </div>
-                <p className="text-sm text-gray-500 capitalize">
+                <p className={`text-sm capitalize ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   {otherParticipant?.role || 'User'}
                 </p>
               </div>
@@ -282,16 +282,16 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
         {/* Loading Content */}
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          <p className="mt-4 text-gray-500">Loading messages...</p>
+          <p className={`mt-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading messages...</p>
         </div>
 
         {/* Message Input - Disabled while loading */}
-        <div className="p-4 border-t border-gray-200 bg-white">
+        <div className={`p-4 border-t ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
           <div className="flex items-center space-x-3">
             <button
               type="button"
               disabled
-              className="p-2 text-gray-300 rounded-full"
+              className={`p-2 rounded-full ${darkMode ? 'text-gray-600' : 'text-gray-300'}`}
             >
               <Image className="h-5 w-5" />
             </button>
@@ -301,14 +301,14 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
                 type="text"
                 disabled
                 placeholder="Loading messages..."
-                className="w-full px-4 py-2 border border-gray-200 rounded-full bg-gray-100 text-gray-400"
+                className={`w-full px-4 py-2 border rounded-full ${darkMode ? 'border-gray-600 bg-gray-700 text-gray-400' : 'border-gray-200 bg-gray-100 text-gray-400'}`}
               />
             </div>
             
             <button
               type="button"
               disabled
-              className="bg-gray-300 text-white p-2 rounded-full"
+              className={`p-2 rounded-full ${darkMode ? 'bg-gray-600 text-gray-400' : 'bg-gray-300 text-white'}`}
             >
               <Send className="h-5 w-5" />
             </button>
@@ -319,14 +319,14 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className={`flex flex-col h-full ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
       {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+      <div className={`flex items-center justify-between p-4 border-b ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
         <div className="flex items-center space-x-3">
           {onBack && (
             <button
               onClick={onBack}
-              className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+              className={`md:hidden p-2 -ml-2 rounded-full ${darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -342,10 +342,10 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
             />
             <div>
               <div className="flex items-center space-x-1">
-                <h3 className="font-semibold text-gray-900">{otherParticipant?.full_name || 'Loading...'}</h3>
+                <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{otherParticipant?.full_name || 'Loading...'}</h3>
                 {getVerificationBadge()}
               </div>
-              <p className="text-sm text-gray-500 capitalize">
+              <p className={`text-sm capitalize ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 {otherParticipant?.role || 'User'}
               </p>
             </div>
@@ -362,7 +362,7 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
           
           <button
             onClick={handleShareProfile}
-            className="p-2 text-gray-400 hover:text-blue-500 hover:bg-gray-100 rounded-full transition-colors"
+            className={`p-2 rounded-full transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' : 'text-gray-400 hover:text-blue-500 hover:bg-gray-100'}`}
             title="Share Profile"
           >
             <Share className="h-5 w-5" />
@@ -371,7 +371,7 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+              className={`p-2 rounded-full transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
             >
               <MoreVertical className="h-5 w-5" />
             </button>
@@ -382,11 +382,11 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                  className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg border py-1 z-50 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
                 >
                   <button
                     onClick={handleArchive}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`}
                   >
                     <Archive className="h-4 w-4" />
                     Archive Conversation
@@ -402,14 +402,14 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className={`flex-1 overflow-y-auto p-4 space-y-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
       >
         {hasMore && (
           <div className="flex justify-center py-2">
             <button
               onClick={loadMore}
               disabled={isLoading}
-              className="text-sm text-blue-500 hover:text-blue-600 disabled:text-gray-400"
+              className={`text-sm ${isLoading ? (darkMode ? 'text-gray-600' : 'text-gray-400') : 'text-blue-500 hover:text-blue-600'}`}
             >
               {isLoading ? 'Loading...' : 'Load more messages'}
             </button>
@@ -417,7 +417,7 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
         )}
 
         {messages.length === 0 && !isLoading && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+          <div className={`flex flex-col items-center justify-center h-full ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
             <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
@@ -450,14 +450,14 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
                     className={`px-4 py-2 rounded-2xl ${
                       isOwn
                         ? 'bg-blue-500 text-white rounded-br-md'
-                        : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                        : (darkMode ? 'bg-gray-700 text-white rounded-bl-md' : 'bg-gray-100 text-gray-900 rounded-bl-md')
                     }`}
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   </div>
 
                   <div className={`flex items-center gap-2 mt-1 px-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                    <span className={`text-xs ${isOwn ? 'text-blue-300' : 'text-gray-400'}`}>
+                    <span className={`text-xs ${isOwn ? 'text-blue-300' : (darkMode ? 'text-gray-500' : 'text-gray-400')}`}>
                       {new Date(message.created_at).toLocaleTimeString('en-US', {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -483,11 +483,11 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
       </div>
 
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
+      <form onSubmit={handleSendMessage} className={`p-4 border-t ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
         <div className="flex items-center space-x-3">
           <button
             type="button"
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className={`p-2 rounded-full transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
             title="Upload image"
           >
             <Image className="h-5 w-5" />
@@ -501,26 +501,30 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isValidating}
-                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+                className={`w-full px-4 py-2 pr-10 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    : 'border-gray-300'
+                }`}
               />
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Add emoji"
               >
                 <Smile className="h-5 w-5" />
               </button>
               
               {showEmojiPicker && (
-                <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 p-3 z-50 w-64">
+                <div className={`absolute bottom-full right-0 mb-2 rounded-lg shadow-lg border p-3 z-50 w-64 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                   <div className="grid grid-cols-6 gap-2">
                     {commonEmojis.map((emoji, index) => (
                       <button
                         key={index}
                         type="button"
                         onClick={() => handleEmojiSelect(emoji)}
-                        className="text-2xl hover:bg-gray-100 rounded p-1 transition-colors"
+                        className={`text-2xl rounded p-1 transition-colors ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                       >
                         {emoji}
                       </button>
@@ -539,7 +543,11 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
           <button
             type="submit"
             disabled={!newMessage.trim() || isValidating}
-            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white p-2 rounded-full transition-colors"
+            className={`p-2 rounded-full transition-colors ${
+              !newMessage.trim() || isValidating
+                ? (darkMode ? 'bg-gray-600 text-gray-400' : 'bg-gray-300 text-white')
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
             title="Send message"
           >
             <Send className="h-5 w-5" />

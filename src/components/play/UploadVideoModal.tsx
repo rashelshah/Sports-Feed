@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Upload, Video } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
@@ -14,7 +14,7 @@ interface UploadVideoModalProps {
 }
 
 export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { addVideo } = useAppStore();
   const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -114,14 +114,14 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className={`rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Upload Video</h2>
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Upload Video</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
             title="Close"
             aria-label="Close upload modal"
           >
@@ -141,14 +141,18 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
             />
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Description
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 placeholder="Describe your video content..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    : 'border-gray-300'
+                }`}
                 rows={4}
                 required
               />
@@ -158,10 +162,10 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
           {/* File Uploads */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Video File
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <div className={`border-2 border-dashed rounded-lg p-4 text-center ${darkMode ? 'border-gray-600' : 'border-gray-300'}`}>
                 <input
                   type="file"
                   accept="video/*"
@@ -171,8 +175,8 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
                   required
                 />
                 <label htmlFor="video-upload" className="cursor-pointer">
-                  <Video className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">
+                  <Video className={`h-8 w-8 mx-auto mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     {videoFile ? videoFile.name : 'Click to upload video'}
                   </p>
                 </label>
@@ -180,10 +184,10 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Thumbnail
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              <div className={`border-2 border-dashed rounded-lg p-4 text-center ${darkMode ? 'border-gray-600' : 'border-gray-300'}`}>
                 <input
                   type="file"
                   accept="image/*"
@@ -193,8 +197,8 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
                   required
                 />
                 <label htmlFor="thumbnail-upload" className="cursor-pointer">
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">
+                  <Upload className={`h-8 w-8 mx-auto mb-2 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     {thumbnailFile ? thumbnailFile.name : 'Click to upload thumbnail'}
                   </p>
                 </label>
@@ -205,7 +209,7 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
           {/* Video Settings */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="category-select" className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Category
               </label>
               <select
@@ -213,7 +217,11 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
                 aria-label="Video category"
                 value={formData.category}
                 onChange={(e) => handleInputChange('category', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'border-gray-300'
+                }`}
               >
                 <option value="coco">Coco</option>
                 <option value="martial-arts">Martial Arts</option>
@@ -222,7 +230,7 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
             </div>
 
             <div>
-              <label htmlFor="difficulty-select" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="difficulty-select" className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Difficulty
               </label>
               <select
@@ -230,7 +238,11 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
                 aria-label="Video difficulty level"
                 value={formData.difficulty}
                 onChange={(e) => handleInputChange('difficulty', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'border-gray-300'
+                }`}
               >
                 <option value="beginner">Beginner</option>
                 <option value="intermediate">Intermediate</option>
@@ -242,27 +254,27 @@ export function UploadVideoModal({ onClose, coachId }: UploadVideoModalProps) {
           {/* Pricing */}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Video Type
               </label>
               <div className="flex space-x-4">
-                <label className="flex items-center">
+                <label className={`flex items-center ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   <input
                     type="radio"
                     value="free"
                     checked={formData.type === 'free'}
                     onChange={(e) => handleInputChange('type', e.target.value)}
-                    className="mr-2"
+                    className={`mr-2 ${darkMode ? 'bg-gray-700 border-gray-600' : ''}`}
                   />
                   Free
                 </label>
-                <label className="flex items-center">
+                <label className={`flex items-center ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   <input
                     type="radio"
                     value="premium"
                     checked={formData.type === 'premium'}
                     onChange={(e) => handleInputChange('type', e.target.value)}
-                    className="mr-2"
+                    className={`mr-2 ${darkMode ? 'bg-gray-700 border-gray-600' : ''}`}
                   />
                   Premium
                 </label>
