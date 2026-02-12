@@ -1,46 +1,86 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Send, Image, Smile, Share } from 'lucide-react';
-import { Conversation, Message } from '../../types';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Image, Smile, Share, MoreVertical, Archive, Check, CheckCheck } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
 import { aiService } from '../../services/aiService';
 import { VoiceMessageButton } from './VoiceMessageButton';
+import { 
+  useMessages, 
+  sendMessage, 
+  markMessagesAsRead, 
+  archiveConversation,
+  leaveConversation,
+  addReaction,
+  MessageWithSender 
+} from '../../hooks/useMessaging';
+import { ProfileFollowButton } from '../profile/FollowButton';
+import { useCanMessage } from '../../hooks/useFollow';
 import toast from 'react-hot-toast';
 
 interface ChatWindowProps {
-  conversation: Conversation;
+  conversationId: string;
+  onBack?: () => void;
+  onArchive?: () => void;
 }
 
-export function ChatWindow({ conversation }: ChatWindowProps) {
+export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProps) {
   const { user } = useAuthStore();
-  const { addMessage, addNotification, messages } = useAppStore();
+  const { addNotification } = useAppStore();
+  const { 
+    messages, 
+    isLoading, 
+    hasMore, 
+    loadMore 
+  } = useMessages(conversationId);
+  
   const [newMessage, setNewMessage] = useState('');
   const [isValidating, setIsValidating] = useState(false);
-  const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
+  const [showMenu, setShowMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const otherUser = conversation.participants[0];
+  const userId = user?.id;
 
+  // Get other participant info from first message's sender
+  const otherParticipant = messages.find(m => m.sender_id !== userId)?.sender;
+
+  // Check if users can still message each other
+  const { canMessage, isLoading: canMessageLoading } = useCanMessage(otherParticipant?.id || null);
+
+  // Scroll to bottom on new messages
   useEffect(() => {
-    if (user) {
-      const filteredMessages = messages.filter(msg =>
-        (msg.senderId === user.id && msg.receiverId === otherUser.id) ||
-        (msg.senderId === otherUser.id && msg.receiverId === user.id)
-      ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      
-      setConversationMessages(filteredMessages);
+    if (messages.length > 0 && !isLoading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, user, otherUser.id]);
+  }, [messages.length, isLoading]);
 
+  // Mark messages as read when conversation opens
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversationMessages]);
+    if (userId && conversationId) {
+      markMessagesAsRead(conversationId, userId);
+    }
+  }, [conversationId, userId, messages.length]);
+
+  // Handle scroll to load more messages
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container || isLoading || !hasMore) return;
+
+    if (container.scrollTop < 100) {
+      loadMore();
+    }
+  }, [isLoading, hasMore, loadMore]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !userId || !conversationId) return;
+
+    if (!canMessage && !canMessageLoading) {
+      toast.error('You cannot message this user. You need to follow each other.');
+      return;
+    }
 
     // AI Content Moderation
     setIsValidating(true);
@@ -62,30 +102,28 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
       setIsValidating(false);
     }
 
-    const message: Message = {
-      id: Date.now().toString(),
-      senderId: user.id,
-      receiverId: otherUser.id,
-      content: newMessage,
-      type: 'text',
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    };
+    const content = newMessage.trim();
 
-    addMessage(message);
-    
-    // Add notification for the receiver
-    addNotification({
-      id: Date.now().toString(),
-      userId: otherUser.id,
-      type: 'comment',
-      message: `${user.fullName} sent you a message`,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-      fromUser: user,
-    });
-    
     setNewMessage('');
+
+    const messageId = await sendMessage(conversationId, content, 'text');
+
+    if (!messageId) {
+      setNewMessage(content);
+      return;
+    }
+
+    if (otherParticipant) {
+      addNotification({
+        id: Date.now().toString(),
+        userId: otherParticipant.id,
+        type: 'comment',
+        message: `${user?.fullName} sent you a message`,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        fromUser: user,
+      });
+    }
   };
 
   const handleVoiceTranscript = (transcript: string) => {
@@ -94,12 +132,14 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
   };
 
   const handleShareProfile = () => {
-    const shareUrl = `${window.location.origin}/profile/${otherUser.id}`;
-    const shareText = `Connect with ${otherUser.fullName} (@${otherUser.username}) - ${otherUser.role} specializing in ${otherUser.sportsCategory.replace('-', ' ')} on SportsFeed!`;
+    if (!otherParticipant) return;
+
+    const shareUrl = `${window.location.origin}/profile/${otherParticipant.id}`;
+    const shareText = `Connect with ${otherParticipant.full_name} (@${otherParticipant.username}) on SportsFeed!`;
     
     if (navigator.share) {
       navigator.share({
-        title: `${otherUser.fullName} - SportsFeed`,
+        title: `${otherParticipant.full_name} - SportsFeed`,
         text: shareText,
         url: shareUrl,
       }).then(() => {
@@ -112,62 +152,188 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
     } else {
       navigator.clipboard.writeText(`${shareText} ${shareUrl}`).then(() => {
         toast.success('Profile link copied to clipboard!');
-      }).catch(() => {
-        toast.success('Profile shared!');
       });
     }
   };
 
-  const getVerificationBadge = () => {
-    if (!otherUser.isVerified) return null;
-    
-    const badgeColor = otherUser.role === 'coach' ? 'text-purple-500' : 'text-blue-500';
-    
-    return (
-      <svg className={`w-4 h-4 ${badgeColor}`} fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fillRule="evenodd"
-          d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-          clipRule="evenodd"
-        />
-      </svg>
-    );
+  const handleArchive = async () => {
+    if (!userId || !conversationId) return;
+
+    const success = await archiveConversation(conversationId, userId);
+    if (success) {
+      onArchive?.();
+    }
+    setShowMenu(false);
   };
+
+  const handleLeave = async () => {
+    if (!userId || !conversationId) return;
+
+    if (window.confirm('Are you sure you want to leave this conversation?')) {
+      const success = await leaveConversation(conversationId, userId);
+      if (success) {
+        onBack?.();
+      }
+    }
+    setShowMenu(false);
+  };
+
+  const getVerificationBadge = () => null;
+
+  const groupMessagesByDate = (msgs: MessageWithSender[]) => {
+    const groups: { date: string; messages: MessageWithSender[] }[] = [];
+    let currentDate = '';
+    let currentGroup: MessageWithSender[] = [];
+
+    msgs.forEach((msg) => {
+      const msgDate = new Date(msg.created_at).toDateString();
+      if (msgDate !== currentDate) {
+        if (currentGroup.length > 0) {
+          groups.push({ date: currentDate, messages: currentGroup });
+        }
+        currentDate = msgDate;
+        currentGroup = [msg];
+      } else {
+        currentGroup.push(msg);
+      }
+    });
+
+    if (currentGroup.length > 0) {
+      groups.push({ date: currentDate, messages: currentGroup });
+    }
+
+    return groups;
+  };
+
+  const messageGroups = groupMessagesByDate(messages);
+
+  if (!otherParticipant && messages.length === 0 && !isLoading) {
+    return (
+      <div className="flex flex-col h-full bg-white items-center justify-center">
+        <p className="text-gray-500">Select a conversation to start messaging</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Chat Header */}
-      <div className="flex items-center space-x-3 p-4 border-b border-gray-200">
-        <div className="flex items-center space-x-3 flex-1">
-          <img
-            src={otherUser.profileImage}
-            alt={otherUser.fullName}
-            className="h-10 w-10 rounded-full object-cover"
-          />
-          <div>
-            <div className="flex items-center space-x-1">
-              <h3 className="font-semibold text-gray-900">{otherUser.fullName}</h3>
-              {getVerificationBadge()}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center space-x-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+          
+          <div className="flex items-center space-x-3">
+            <img
+              src={otherParticipant?.profile_image || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
+              alt={otherParticipant?.full_name}
+              className="h-10 w-10 rounded-full object-cover"
+            />
+            <div>
+              <div className="flex items-center space-x-1">
+                <h3 className="font-semibold text-gray-900">{otherParticipant?.full_name || 'Loading...'}</h3>
+                {getVerificationBadge()}
+              </div>
+              <p className="text-sm text-gray-500 capitalize">
+                {otherParticipant?.role || 'User'}
+              </p>
             </div>
-            <p className="text-sm text-gray-500 capitalize">
-              {otherUser.role} • {otherUser.sportsCategory.replace('-', ' ')}
-            </p>
           </div>
         </div>
-        
-        <button
-          onClick={handleShareProfile}
-          className="text-gray-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-gray-100"
-          title="Share Profile"
-        >
-          <Share className="h-5 w-5" />
-        </button>
+
+        <div className="flex items-center space-x-1">
+          {otherParticipant && (
+            <ProfileFollowButton
+              targetUserId={otherParticipant.id}
+              targetUserName={otherParticipant.full_name}
+            />
+          )}
+          
+          <button
+            onClick={handleShareProfile}
+            className="p-2 text-gray-400 hover:text-blue-500 hover:bg-gray-100 rounded-full transition-colors"
+            title="Share Profile"
+          >
+            <Share className="h-5 w-5" />
+          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <MoreVertical className="h-5 w-5" />
+            </button>
+
+            <AnimatePresence>
+              {showMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                >
+                  <button
+                    onClick={handleArchive}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Archive className="h-4 w-4" />
+                    Archive Conversation
+                  </button>
+                  <button
+                    onClick={handleLeave}
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Leave Conversation
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {conversationMessages.map((message) => {
-          const isOwn = message.senderId === user?.id;
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
+        {hasMore && (
+          <div className="flex justify-center py-2">
+            <button
+              onClick={loadMore}
+              disabled={isLoading}
+              className="text-sm text-blue-500 hover:text-blue-600 disabled:text-gray-400"
+            >
+              {isLoading ? 'Loading...' : 'Load more messages'}
+            </button>
+          </div>
+        )}
+
+        {messages.length === 0 && !isLoading && (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <p>No messages yet</p>
+            <p className="text-sm">Start the conversation!</p>
+          </div>
+        )}
+
+        {messages.map((message: MessageWithSender) => {
+          const isOwn = message.sender_id === user?.id;
           
           return (
             <motion.div
@@ -176,20 +342,45 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
               animate={{ opacity: 1, y: 0 }}
               className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  isOwn
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-900'
-                }`}
-              >
-                <p className="text-sm">{message.content}</p>
-                <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-500'}`}>
-                  {new Date(message.createdAt).toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
+              <div className={`flex items-end gap-2 max-w-[70%] ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                {!isOwn && (
+                  <img
+                    src={message.sender?.profile_image || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
+                    alt={message.sender?.full_name}
+                    className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                  />
+                )}
+
+                <div className="flex flex-col">
+                  <div
+                    className={`px-4 py-2 rounded-2xl ${
+                      isOwn
+                        ? 'bg-blue-500 text-white rounded-br-md'
+                        : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  </div>
+
+                  <div className={`flex items-center gap-2 mt-1 px-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    <span className={`text-xs ${isOwn ? 'text-blue-300' : 'text-gray-400'}`}>
+                      {new Date(message.created_at).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                    
+                    {isOwn && (
+                      <span className="text-blue-300">
+                        {message.read_by && message.read_by.length > 0 ? (
+                          <CheckCheck className="h-3 w-3" />
+                        ) : (
+                          <Check className="h-3 w-3" />
+                        )}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           );
@@ -198,13 +389,12 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
       </div>
 
       {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
+      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
         <div className="flex items-center space-x-3">
           <button
             type="button"
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
             title="Upload image"
-            aria-label="Upload image"
           >
             <Image className="h-5 w-5" />
           </button>
@@ -214,14 +404,14 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder={canMessage || canMessageLoading ? "Type a message..." : "You cannot message this user"}
+              disabled={!canMessage && !canMessageLoading}
+              className="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
             />
             <button
               type="button"
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               title="Add emoji"
-              aria-label="Add emoji"
             >
               <Smile className="h-5 w-5" />
             </button>
@@ -229,16 +419,14 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
           
           <VoiceMessageButton
             onTranscript={handleVoiceTranscript}
-            disabled={isValidating}
-            className="mr-2"
+            disabled={isValidating || (!canMessage && !canMessageLoading)}
           />
           
           <button
             type="submit"
-            disabled={!newMessage.trim() || isValidating}
+            disabled={!newMessage.trim() || isValidating || (!canMessage && !canMessageLoading)}
             className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white p-2 rounded-full transition-colors"
             title="Send message"
-            aria-label="Send message"
           >
             <Send className="h-5 w-5" />
           </button>

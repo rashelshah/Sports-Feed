@@ -277,8 +277,8 @@ router.post('/follow', authenticateToken, validate(followUserSchema), asyncHandl
 
   // Check if user exists
   const { data: userToFollow, error: userError } = await supabase
-    .from('users')
-    .select('id, name')
+    .from('profiles')
+    .select('id, full_name')
     .eq('id', userId)
     .single();
 
@@ -306,27 +306,24 @@ router.post('/follow', authenticateToken, validate(followUserSchema), asyncHandl
     return;
   }
 
-  // Create follow relationship
-  const { error: followError } = await supabaseAdmin
-    .from('user_following')
-    .insert({
-      follower_id: followerId,
-      following_id: userId,
-      created_at: new Date().toISOString()
-    });
+  // Use the follow_user RPC function which handles both the follow record and counter updates
+  const { data: followResult, error: followError } = await supabaseAdmin.rpc('follow_user', {
+    p_follower_id: followerId,
+    p_following_id: userId
+  });
 
-  if (followError) {
+  if (followError || !followResult?.success) {
     res.status(400).json({
       success: false,
-      error: 'Failed to follow user'
+      error: followError?.message || followResult?.error || 'Failed to follow user'
     });
     return;
   }
 
   // Get follower's name for notification
   const { data: followerData } = await supabase
-    .from('users')
-    .select('name')
+    .from('profiles')
+    .select('full_name')
     .eq('id', followerId)
     .single();
 
@@ -337,7 +334,7 @@ router.post('/follow', authenticateToken, validate(followUserSchema), asyncHandl
       user_id: userId,
       type: 'follow',
       title: 'New Follower',
-      message: `${followerData?.name || 'Someone'} started following you`,
+      message: `${followerData?.full_name || 'Someone'} started following you`,
       data: { followerId },
       from_user_id: followerId,
       created_at: new Date().toISOString()
@@ -357,108 +354,9 @@ router.post('/follow', authenticateToken, validate(followUserSchema), asyncHandl
 
   res.json({
     success: true,
-    message: `Now following ${userToFollow.name}`
+    message: `Now following ${userToFollow.full_name}`
   });
 }));
-
-// Get user by ID
-router.get('/:id', validateParams(userIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params;
-  const authUserId = (req as any).user?.id;
-  const isSelf = !!authUserId && authUserId === id;
-
-  if (isSelf) {
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error || !user) {
-      res.status(404).json({
-         success: false,
-         error: 'User not found'
-       });
-       return;
-    }
-
-    // Private profile checks remain the same below
-    if (user.is_private) {
-      const authUser = req.user;
-      if (!authUser) {
-        res.status(403).json({ success: false, error: 'This profile is private' });
-        return;
-      }
-      if (authUser.id !== id) {
-        const { data: following } = await supabase
-          .from('user_following')
-          .select('id')
-          .eq('follower_id', authUser.id)
-          .eq('following_id', id)
-          .single();
-        if (!following) {
-          res.status(403).json({ success: false, error: 'This profile is private' });
-          return;
-        }
-      }
-    }
-
-    res.json({ success: true, user });
-    return;
-  }
-
-  // Not self: fetch without tokens to avoid RLS issues
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error || !user) {
-    res.status(404).json({
-       success: false,
-       error: 'User not found'
-     });
-     return;
-  }
-
-  // Check if profile is private and user is not authenticated or not following
-  if (user.is_private) {
-    const authUser = req.user;
-    if (!authUser) {
-      res.status(403).json({
-           success: false,
-           error: 'This profile is private'
-         });
-          return;
-    }
-
-    if (authUser.id !== id) {
-      // Check if authenticated user is following this user
-      const { data: following } = await supabase
-        .from('user_following')
-        .select('follower_id')
-        .eq('follower_id', authUser.id)
-        .eq('following_id', id)
-        .single();
-
-      if (!following) {
-        res.status(403).json({
-          success: false,
-          error: 'This profile is private'
-        });
-        return;
-      }
-    }
-  }
-
-  res.json({
-    success: true,
-    user
-  });
-}));
-
-
 
 // Get user's posts
 router.get('/:id/posts', validateParams(userIdSchema), validateQuery(getUsersQuerySchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -592,8 +490,8 @@ router.get('/:id/followers', validateParams(userIdSchema), validateQuery(getUser
   let followers: any[] = [];
   if (followerIds.length > 0) {
     const { data: usersData, error: usersError } = await supabase
-      .from('users')
-      .select('id, name, username, avatar_url, role, bio, is_verified')
+      .from('profiles')
+      .select('id, full_name, username, profile_image, role, bio, is_verified')
       .in('id', followerIds);
 
     if (usersError) {
@@ -645,8 +543,8 @@ router.get('/:id/following', validateParams(userIdSchema), validateQuery(getUser
   let following: any[] = [];
   if (followingIds.length > 0) {
     const { data: usersData, error: usersError } = await supabase
-      .from('users')
-      .select('id, name, username, avatar_url, role, bio, is_verified')
+      .from('profiles')
+      .select('id, full_name, username, profile_image, role, bio, is_verified')
       .in('id', followingIds);
 
     if (usersError) {
@@ -680,16 +578,16 @@ router.delete('/follow/:id', authenticateToken, validateParams(userIdSchema), as
   const { id: userId } = req.params;
   const followerId = req.user!.id;
 
-  const { error } = await supabaseAdmin
-    .from('user_following')
-    .delete()
-    .eq('follower_id', followerId)
-    .eq('following_id', userId);
+  // Use the unfollow_user RPC function which handles both the unfollow and counter updates
+  const { data: unfollowResult, error } = await supabaseAdmin.rpc('unfollow_user', {
+    p_follower_id: followerId,
+    p_following_id: userId
+  });
 
-  if (error) {
+  if (error || !unfollowResult?.success) {
     res.status(400).json({
       success: false,
-      error: 'Failed to unfollow user'
+      error: error?.message || unfollowResult?.error || 'Failed to unfollow user'
     });
     return;
   }
@@ -715,8 +613,8 @@ router.get('/follow-status/:id', authenticateToken, validateParams(userIdSchema)
 
   // First check if both users exist
   const [targetUserResult, followerUserResult] = await Promise.all([
-    supabase.from('users').select('id, name').eq('id', userId).single(),
-    supabase.from('users').select('id, name').eq('id', followerId).single()
+    supabase.from('profiles').select('id, full_name').eq('id', userId).single(),
+    supabase.from('profiles').select('id, full_name').eq('id', followerId).single()
   ]);
 
   if (targetUserResult.error) {
@@ -1160,6 +1058,103 @@ router.get('/:id/dashboard', authenticateToken, validateParams(userIdSchema), as
       error: 'Failed to fetch dashboard data'
     });
   }
+}));
+
+// Get user by ID - MUST BE LAST to avoid catching other routes
+router.get('/:id', validateParams(userIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const authUserId = (req as any).user?.id;
+  const isSelf = !!authUserId && authUserId === id;
+
+  if (isSelf) {
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !user) {
+      res.status(404).json({
+         success: false,
+         error: 'User not found'
+       });
+       return;
+    }
+
+    // Private profile checks remain the same below
+    if (user.is_private) {
+      const authUser = req.user;
+      if (!authUser) {
+        res.status(403).json({ success: false, error: 'This profile is private' });
+        return;
+      }
+      if (authUser.id !== id) {
+        const { data: following } = await supabase
+          .from('user_following')
+          .select('id')
+          .eq('follower_id', authUser.id)
+          .eq('following_id', id)
+          .single();
+        if (!following) {
+          res.status(403).json({ success: false, error: 'This profile is private' });
+          return;
+        }
+      }
+    }
+
+    res.json({ success: true, user });
+    return;
+  }
+
+  // Not self: fetch without tokens to avoid RLS issues
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !user) {
+    res.status(404).json({
+       success: false,
+       error: 'User not found'
+     });
+     return;
+  }
+
+  // Check if profile is private and user is not authenticated or not following
+  if (user.is_private) {
+    const authUser = req.user;
+    if (!authUser) {
+      res.status(403).json({
+           success: false,
+           error: 'This profile is private'
+         });
+          return;
+    }
+
+    if (authUser.id !== id) {
+      // Check if authenticated user is following this user
+      const { data: following } = await supabase
+        .from('user_following')
+        .select('follower_id')
+        .eq('follower_id', authUser.id)
+        .eq('following_id', id)
+        .single();
+
+      if (!following) {
+        res.status(403).json({
+          success: false,
+          error: 'This profile is private'
+        });
+        return;
+      }
+    }
+  }
+
+  res.json({
+    success: true,
+    user
+  });
 }));
 
 export default router;

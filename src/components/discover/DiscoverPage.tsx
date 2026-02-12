@@ -1,28 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Users, TrendingUp } from 'lucide-react';
+import { Search, Users, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
 import { User } from '../../types';
-import { Button } from '../ui/Button';
+import { FollowButton } from '../profile/FollowButton';
 
 export function DiscoverPage() {
   const { user } = useAuthStore();
-  const { users, isFollowing, followUser, unfollowUser, fetchUsers, isLoadingUsers } = useAppStore();
+  const { users, fetchUsers } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'coaches' | 'users'>('all');
   const [sportFilter, setSportFilter] = useState<'all' | 'coco' | 'martial-arts' | 'calorie-fight'>('all');
+  // Track optimistic follower counts locally
+  const [followerCounts, setFollowerCounts] = useState<Record<string, number>>({});
 
   // Fetch real users from Supabase on mount
   useEffect(() => {
     fetchUsers();
   }, []);
 
+  // Initialize follower counts when users load - only for users not already in state
+  useEffect(() => {
+    if (users.length === 0) return;
+    
+    setFollowerCounts(prev => {
+      const newCounts = { ...prev };
+      users.forEach(u => {
+        // Only set if not already in state (preserves optimistic updates)
+        if (!(u.id in newCounts)) {
+          newCounts[u.id] = u.followers;
+        }
+      });
+      return newCounts;
+    });
+  }, [users]);
+
   if (!user) return null;
 
-  const allUsers = users.filter(u => u.id !== user.id);
+  const allUsers = users.filter((u: User) => u.id !== user.id);
 
-  const searchResults = allUsers.filter(u => {
+  const searchResults = allUsers.filter((u: User) => {
     const matchesSearch = u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.bio?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -35,16 +53,6 @@ export function DiscoverPage() {
 
     return matchesSearch && matchesFilter && matchesSport;
   });
-
-  const handleFollow = (userId: string) => {
-    if (!user) return;
-
-    if (isFollowing(user.id, userId)) {
-      unfollowUser(user.id, userId);
-    } else {
-      followUser(user.id, userId);
-    }
-  };
 
   const getVerificationBadge = (targetUser: User) => {
     if (!targetUser.isVerified) return null;
@@ -238,7 +246,7 @@ export function DiscoverPage() {
                   <p className="text-gray-600">Posts</p>
                 </div>
                 <div className="text-center">
-                  <p className="font-bold text-gray-900">{targetUser.followers}</p>
+                  <p className="font-bold text-gray-900">{followerCounts[targetUser.id] ?? targetUser.followers}</p>
                   <p className="text-gray-600">Followers</p>
                 </div>
                 <div className="text-center">
@@ -247,14 +255,25 @@ export function DiscoverPage() {
                 </div>
               </div>
 
-              <Button
-                onClick={() => handleFollow(targetUser.id)}
-                size="sm"
-                className="w-full"
+              <FollowButton
+                targetUserId={targetUser.id}
+                targetUserName={targetUser.fullName}
                 variant={targetUser.role === 'coach' ? 'secondary' : 'primary'}
-              >
-                {user && isFollowing(user.id, targetUser.id) ? 'Following' : 'Follow'}
-              </Button>
+                className="w-full"
+                onFollowChange={(isFollowing) => {
+                  // Optimistically update follower count immediately
+                  setFollowerCounts(prev => {
+                    const currentCount = prev[targetUser.id] ?? targetUser.followers;
+                    const newCount = isFollowing ? currentCount + 1 : Math.max(0, currentCount - 1);
+                    return {
+                      ...prev,
+                      [targetUser.id]: newCount
+                    };
+                  });
+                  // Refresh from database after a short delay to sync
+                  setTimeout(() => fetchUsers(), 500);
+                }}
+              />
             </div>
           </motion.div>
         ))}
