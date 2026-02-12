@@ -71,10 +71,10 @@ router.get('/', optionalAuthMiddleware, validateQuery(getVideosQuerySchema), asy
     .from('videos')
     .select(`
       *,
-      coach:users!coach_id(
+      coach:profiles!coach_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       )
@@ -159,10 +159,10 @@ router.get('/:id', optionalAuthMiddleware, validateParams(videoIdSchema), asyncH
     .from('videos')
     .select(`
       *,
-      coach:users!coach_id(
+      coach:profiles!coach_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified,
         bio
@@ -252,10 +252,10 @@ router.post('/', authenticateToken, validate(createVideoSchema), asyncHandler(as
     .insert(videoData)
     .select(`
       *,
-      coach:users!coach_id(
+      coach:profiles!coach_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       )
@@ -316,10 +316,10 @@ router.put('/:id', authenticateToken, validateParams(videoIdSchema), validate(up
     .eq('id', id)
     .select(`
       *,
-      coach:users!coach_id(
+      coach:profiles!coach_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       )
@@ -490,8 +490,8 @@ router.post('/:id/like', authenticateToken, validateParams(videoIdSchema), async
     // Create notification for video owner
     if (video.coach_id !== userId) {
       const { data: userData } = await supabaseAdmin
-        .from('users')
-        .select('name')
+        .from('profiles')
+        .select('full_name')
         .eq('id', userId)
         .single();
 
@@ -501,7 +501,7 @@ router.post('/:id/like', authenticateToken, validateParams(videoIdSchema), async
           user_id: video.coach_id,
           type: 'like',
           title: 'Video Liked',
-          message: `${userData?.name || 'Someone'} liked your video`,
+          message: `${userData?.full_name || 'Someone'} liked your video`,
           data: { videoId: id, userId },
           from_user_id: userId,
           created_at: new Date().toISOString()
@@ -638,10 +638,10 @@ router.get('/coach/:coachId', optionalAuthMiddleware, validateParams(Joi.object(
     .from('videos')
     .select(`
       *,
-      coach:users!coach_id(
+      coach:profiles!coach_id(
         id,
-        name,
-        avatar_url,
+        full_name,
+        profile_image,
         role,
         is_verified
       )

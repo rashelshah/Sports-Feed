@@ -112,6 +112,7 @@ interface AppState {
   getVideosByCoach: (coachId: string) => Video[];
   likeVideo: (videoId: string, userId: string) => void;
   watchVideo: (videoId: string, userId: string) => void;
+  fetchVideos: (category?: string, coachId?: string) => Promise<void>;
   getUserTokens: (userId: string) => UserTokens;
   addTokens: (userId: string, amount: number, reason: string, description: string) => void;
   spendTokens: (userId: string, amount: number, reason: string, description: string) => boolean;
@@ -121,6 +122,7 @@ interface AppState {
   livestreams: any[];
   addLivestream: (livestream: any) => void;
   getLivestreams: (category: string) => any[];
+  fetchLivestreams: (category?: string) => Promise<void>;
   // Map and location features
   locationCheckIns: LocationCheckIn[];
   safeLocations: SafeLocation[];
@@ -752,38 +754,149 @@ export const useAppStore = create<AppState>((set, get) => ({
     return videos.filter(video => video.coachId === coachId);
   },
 
-  likeVideo: (videoId, userId) => {
-    const { addTokens } = get();
+  likeVideo: async (videoId, userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-    // Award tokens for liking videos
-    addTokens(userId, 2, 'earned', 'Liked video');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/videos/${videoId}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-    set((state) => ({
-      videos: state.videos.map(video =>
-        video.id === videoId
-          ? {
-            ...video,
-            likes: video.isLiked ? video.likes - 1 : video.likes + 1,
-            isLiked: !video.isLiked
-          }
-          : video
-      ),
-    }));
+      const data = await response.json();
+      if (!data.success) {
+        console.error('Failed to like video:', data.error);
+        return;
+      }
+
+      // Update local state after successful API call
+      set((state) => ({
+        videos: state.videos.map(video =>
+          video.id === videoId
+            ? {
+              ...video,
+              likes: data.liked ? video.likes + 1 : video.likes - 1,
+              isLiked: data.liked
+            }
+            : video
+        ),
+      }));
+
+      // Award tokens for liking
+      if (data.liked) {
+        const { addTokens } = get();
+        addTokens(userId, 2, 'earned', 'Liked video');
+      }
+    } catch (err) {
+      console.error('Error liking video:', err);
+    }
   },
 
-  watchVideo: (videoId, userId) => {
-    // Award tokens for watching videos
-    const { addTokens } = get();
-    addTokens(userId, 5, 'earned', 'Watched video');
+  watchVideo: async (videoId, userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-    // Increment view count
-    set((state) => ({
-      videos: state.videos.map(video =>
-        video.id === videoId
-          ? { ...video, views: video.views + 1 }
-          : video
-      ),
-    }));
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/videos/${videoId}/watch`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        console.error('Failed to watch video:', data.error);
+        return;
+      }
+
+      // Only update view count if it's a new view (backend returns isNewView)
+      if (data.isNewView) {
+        set((state) => ({
+          videos: state.videos.map(video =>
+            video.id === videoId
+              ? { ...video, views: video.views + 1 }
+              : video
+          ),
+        }));
+
+        // Award tokens for watching
+        const { addTokens } = get();
+        addTokens(userId, 5, 'earned', 'Watched video');
+      }
+    } catch (err) {
+      console.error('Error watching video:', err);
+    }
+  },
+
+  fetchVideos: async (category?: string, coachId?: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      let url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/videos?limit=50`;
+      if (category && category !== 'all') {
+        url += `&category=${category}`;
+      }
+      if (coachId) {
+        url += `&coachId=${coachId}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        console.error('Failed to fetch videos:', response.statusText);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success && data.videos) {
+        const mappedVideos = data.videos.map((v: any) => ({
+          id: v.id,
+          title: v.title,
+          description: v.description,
+          thumbnailUrl: v.thumbnail_url,
+          videoUrl: v.video_url,
+          duration: v.duration,
+          coachId: v.coach_id,
+          coach: v.coach ? {
+            id: v.coach.id,
+            username: v.coach.full_name,
+            fullName: v.coach.full_name,
+            email: '',
+            profileImage: v.coach.profile_image,
+            sportsCategory: v.coach.sports_category || 'coco',
+            gender: 'prefer-not-to-say' as const,
+            role: v.coach.role || 'coach',
+            isVerified: v.coach.is_verified || false,
+            bio: '',
+            followers: 0,
+            following: 0,
+            posts: 0,
+            createdAt: v.coach.created_at || new Date().toISOString(),
+          } : undefined,
+          category: v.category,
+          difficulty: v.difficulty,
+          type: v.type,
+          tokenCost: v.token_cost || 0,
+          views: v.views_count || 0,
+          likes: v.likes_count || 0,
+          isLiked: v.isLiked || false,
+          tags: v.tags || [],
+          createdAt: v.created_at
+        }));
+        set({ videos: mappedVideos });
+      }
+    } catch (err) {
+      console.error('Error fetching videos:', err);
+    }
   },
 
   // Token functions
@@ -918,6 +1031,63 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { livestreams } = get();
     if (category === 'all') return livestreams;
     return livestreams.filter(stream => stream.category === category);
+  },
+
+  fetchLivestreams: async (category?: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      let url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/livestreams?limit=50`;
+      if (category && category !== 'all') {
+        url += `&category=${category}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        console.error('Failed to fetch livestreams:', response.statusText);
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success && data.livestreams) {
+        const mappedLivestreams = data.livestreams.map((ls: any) => ({
+          id: ls.id,
+          title: ls.title,
+          description: ls.description,
+          youtubeUrl: ls.youtube_url,
+          coach: ls.coach ? {
+            id: ls.coach.id,
+            username: ls.coach.full_name,
+            fullName: ls.coach.full_name,
+            email: '',
+            profileImage: ls.coach.profile_image,
+            sportsCategory: ls.coach.sports_category || 'coco',
+            gender: 'prefer-not-to-say' as const,
+            role: ls.coach.role || 'coach',
+            isVerified: ls.coach.is_verified || false,
+            bio: '',
+            followers: 0,
+            following: 0,
+            posts: 0,
+            createdAt: ls.coach.created_at || new Date().toISOString(),
+          } : undefined,
+          isLive: ls.is_live,
+          scheduledTime: ls.scheduled_time,
+          viewers: ls.viewers_count || 0,
+          category: ls.category,
+          createdAt: ls.created_at
+        }));
+        set({ livestreams: mappedLivestreams });
+      }
+    } catch (err) {
+      console.error('Error fetching livestreams:', err);
+    }
   },
 
   // Map and location functions

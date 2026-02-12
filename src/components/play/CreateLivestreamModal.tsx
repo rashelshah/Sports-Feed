@@ -53,25 +53,63 @@ export function CreateLivestreamModal({ onClose }: CreateLivestreamModalProps) {
     setIsCreating(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to create a livestream');
+        setIsCreating(false);
+        return;
+      }
 
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/livestreams`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          youtubeUrl: formData.youtubeUrl,
+          thumbnailUrl: '',
+          category: user.sportsCategory || 'coco',
+          scheduledTime: formData.scheduledTime || null,
+          isLive: formData.isLive
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create livestream');
+      }
+
+      // Map the backend response to frontend format
       const newLivestream = {
-        id: Date.now().toString(),
-        title: formData.title,
-        description: formData.description,
-        youtubeUrl: formData.youtubeUrl,
-        coach: user,
-        isLive: formData.isLive,
-        scheduledTime: formData.scheduledTime || undefined,
-        viewers: formData.isLive ? Math.floor(Math.random() * 100) + 10 : 0,
-        category: user.sportsCategory,
+        id: data.livestream.id,
+        title: data.livestream.title,
+        description: data.livestream.description,
+        youtubeUrl: data.livestream.youtube_url,
+        coach: data.livestream.coach ? {
+          ...data.livestream.coach,
+          username: data.livestream.coach.full_name,
+          fullName: data.livestream.coach.full_name,
+          profileImage: data.livestream.coach.profile_image,
+          sportsCategory: data.livestream.coach.sports_category || 'coco',
+          isVerified: data.livestream.coach.is_verified
+        } : user,
+        isLive: data.livestream.is_live,
+        scheduledTime: data.livestream.scheduled_time,
+        viewers: data.livestream.viewers_count || 0,
+        category: data.livestream.category,
+        createdAt: data.livestream.created_at
       };
 
       addLivestream(newLivestream);
       toast.success(`Livestream "${formData.title}" ${formData.isLive ? 'started' : 'scheduled'} successfully!`);
       onClose();
-    } catch (error) {
-      toast.error('Failed to create livestream. Please try again.');
+    } catch (error: any) {
+      console.error('Error creating livestream:', error);
+      toast.error(error.message || 'Failed to create livestream. Please try again.');
     } finally {
       setIsCreating(false);
     }
