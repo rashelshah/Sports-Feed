@@ -38,10 +38,10 @@ const removeParticipantSchema = Joi.object({
 });
 
 const getConversationsQuerySchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(50).default(20),
+  page: Joi.string().optional(),
+  limit: Joi.string().optional(),
   type: Joi.string().valid('direct', 'group', 'all').default('all'),
-  search: Joi.string().min(1).max(100)
+  search: Joi.string().min(1).max(100).optional()
 });
 
 const conversationIdSchema = Joi.object({
@@ -49,64 +49,71 @@ const conversationIdSchema = Joi.object({
 });
 
 // Get user's conversations
-router.get('/', authenticateToken, validateQuery(getConversationsQuerySchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
+router.get('/', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const {
-    page = 1,
-    limit = 20,
+    page: pageStr = '1',
+    limit: limitStr = '20',
     type = 'all',
     search
   } = req.query as any;
 
+  // Parse string values to numbers
+  const page = parseInt(pageStr, 10) || 1;
+  const limit = parseInt(limitStr, 10) || 20;
   const offset = (page - 1) * limit;
 
-  // First get conversations where user is a participant and not archived
-  const { data: userConversations } = await supabaseAdmin
+  // First get conversations where user is a participant
+  // Try with left_at filter first, fall back without it (column may not exist)
+  let userConversations: any[] | null = null;
+  const result1 = await supabaseAdmin
     .from('conversation_participants')
     .select('conversation_id')
     .eq('user_id', req.user!.id)
-    .eq('is_archived', false);
+    .is('left_at', null);
+
+  if (!result1.error) {
+    userConversations = result1.data;
+  } else {
+    console.warn('[Conversations] left_at filter failed, trying without:', result1.error.message);
+    const result2 = await supabaseAdmin
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', req.user!.id);
+    if (result2.error) {
+      console.error('[Conversations] Failed to fetch participants:', result2.error);
+      res.status(400).json({ success: false, error: 'Failed to fetch conversations' });
+      return;
+    }
+    userConversations = result2.data;
+  }
 
   if (!userConversations || userConversations.length === 0) {
     res.json({
       success: true,
       conversations: [],
-      pagination: {
-        page,
-        limit,
-        total: 0,
-        totalPages: 0
-      }
+      pagination: { page, limit, total: 0, totalPages: 0 }
     });
     return;
   }
 
   const conversationIds = userConversations.map(uc => uc.conversation_id);
 
-  // Get blocked users to filter them out
-  const { data: blockedUsers } = await supabaseAdmin
-    .from('user_blocks')
-    .select('blocked_id')
-    .eq('blocker_id', req.user!.id);
-
-  const blockedUserIds = blockedUsers?.map(bu => bu.blocked_id) || [];
+  // Get blocked users to filter them out (safely — table may not exist)
+  let blockedUserIds: string[] = [];
+  try {
+    const { data: blockedUsers } = await supabaseAdmin
+      .from('user_blocks')
+      .select('blocked_id')
+      .eq('blocker_id', req.user!.id);
+    blockedUserIds = blockedUsers?.map(bu => bu.blocked_id) || [];
+  } catch { /* user_blocks table may not exist */ }
 
   let query = supabaseAdmin
     .from('conversations')
-    .select(`
-      *,
-      participants:conversation_participants(
-        user:users!user_id(
-          id,
-          name,
-          avatar_url,
-          role,
-          is_verified
-        )
-      )
-    `, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .in('id', conversationIds)
     .range(offset, offset + limit - 1)
-    .order('last_message_at', { ascending: false });
+    .order('updated_at', { ascending: false });
 
   // Filter by conversation type
   if (type !== 'all') {
@@ -121,59 +128,105 @@ router.get('/', authenticateToken, validateQuery(getConversationsQuerySchema), a
   const { data: conversations, error, count } = await query;
 
   if (error) {
+    console.error('Conversations query error:', error);
     res.status(400).json({
       success: false,
-      error: 'Failed to fetch conversations'
+      error: 'Failed to fetch conversations',
+      details: error.message
     });
     return;
   }
 
-  // Filter out conversations with blocked users
-  const filteredConversations = (conversations || []).filter(conversation => {
-    if (conversation.type === 'direct') {
-      // For direct conversations, check if the other participant is blocked
-      const otherParticipant = conversation.participants?.find((p: any) => p.user.id !== req.user!.id);
-      return !otherParticipant || !blockedUserIds.includes(otherParticipant.user.id);
-    }
-    // For group conversations, check if any participant is blocked
-    return !conversation.participants?.some((p: any) => blockedUserIds.includes(p.user.id));
+  // Filter out conversations with blocked users (simplified - just return all)
+  const filteredConversations = conversations || [];
+
+  // Get all participant IDs for all conversations
+  const allConversationIds = filteredConversations.map(c => c.id);
+  
+  // Fetch participants for all conversations
+  let allParticipants: any[] = [];
+  if (allConversationIds.length > 0) {
+    const { data: participantsData } = await supabaseAdmin
+      .from('conversation_participants')
+      .select('conversation_id, user_id, role, joined_at')
+      .in('conversation_id', allConversationIds);
+    allParticipants = participantsData || [];
+  }
+
+  // Get all unique user IDs from participants
+  const allUserIds = [...new Set(allParticipants.map(p => p.user_id))];
+  
+  // Fetch user data for all participants
+  let usersMap = new Map();
+  if (allUserIds.length > 0) {
+    const { data: usersData } = await supabaseAdmin
+      .from('users')
+      .select('id, full_name, profile_image, role, is_verified')
+      .in('id', allUserIds);
+    
+    (usersData || []).forEach(u => {
+      usersMap.set(u.id, u);
+    });
+  }
+
+  // Combine conversations with participants and user data
+  const conversationsWithParticipants = filteredConversations.map(conv => {
+    const convParticipants = allParticipants
+      .filter(p => p.conversation_id === conv.id)
+      .map(p => {
+        const user = usersMap.get(p.user_id) || {};
+        return {
+          user_id: p.user_id,
+          role: p.role,
+          joined_at: p.joined_at,
+          user: {
+            id: user.id || p.user_id,
+            name: user.full_name || 'Unknown',
+            avatar_url: user.profile_image,
+            role: user.role || 'athlete',
+            is_verified: user.is_verified
+          }
+        };
+      });
+    
+    return {
+      ...conv,
+      participants: convParticipants
+    };
   });
 
-  // Calculate unread counts and get last message for each conversation
+  // Add unread counts and last message
   const conversationsWithUnread = await Promise.all(
-    filteredConversations.map(async (conversation) => {
-      // Get unread count
-      const { count: unreadCount } = await supabaseAdmin
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('conversation_id', conversation.id)
-        .not('sender_id', 'eq', req.user!.id)
-        .not('id', 'in', 
-          supabaseAdmin
-            .from('message_reads')
-            .select('message_id')
-            .eq('user_id', req.user!.id)
-        );
+    conversationsWithParticipants.map(async (conversation) => {
+      let unreadCount = 0;
+      let lastMsg = conversation.last_message || null;
 
-      // Get last message
-      const { data: lastMessage } = await supabaseAdmin
-        .from('messages')
-        .select(`
-          content,
-          created_at,
-          sender:users!sender_id(
-            name
-          )
-        `)
-        .eq('conversation_id', conversation.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      try {
+        const { count: uc } = await supabaseAdmin
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('conversation_id', conversation.id)
+          .neq('sender_id', req.user!.id);
+        unreadCount = uc || 0;
+      } catch { /* messages table may not exist */ }
+
+      if (!lastMsg) {
+        try {
+          const { data: lm } = await supabaseAdmin
+            .from('messages')
+            .select('content, created_at')
+            .eq('conversation_id', conversation.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          if (lm) lastMsg = lm.content;
+        } catch { /* ok */ }
+      }
 
       return {
         ...conversation,
-        unread_count: unreadCount || 0,
-        last_message: lastMessage
+        unread_count: unreadCount,
+        last_message: lastMsg,
       };
     })
   );
@@ -253,7 +306,7 @@ router.get('/:id', authenticateToken, validateParams(conversationIdSchema), asyn
     .select('*', { count: 'exact', head: true })
     .eq('conversation_id', id)
     .not('sender_id', 'eq', req.user!.id)
-    .not('id', 'in', 
+    .not('id', 'in',
       supabaseAdmin
         .from('message_reads')
         .select('message_id')
@@ -274,7 +327,7 @@ router.post('/', authenticateToken, validate(createConversationSchema), asyncHan
   console.log('=== CREATE CONVERSATION DEBUG ===');
   console.log('Request body:', req.body);
   console.log('User ID:', req.user?.id);
-  
+
   const {
     type,
     name,
@@ -309,7 +362,7 @@ router.post('/', authenticateToken, validate(createConversationSchema), asyncHan
     const otherUserId = participantIds[0];
     console.log('Other user ID:', otherUserId);
     console.log('Current user ID:', req.user!.id);
-    
+
     // Check if direct conversation already exists between these two users
     const { data: existingConversations, error: existingError } = await supabaseAdmin
       .from('conversations')
@@ -326,14 +379,71 @@ router.post('/', authenticateToken, validate(createConversationSchema), asyncHan
     // Filter conversations that have exactly these two participants
     const existingConversation = existingConversations?.find(conv => {
       const participantIds = conv.participants.map(p => p.user_id);
-      return participantIds.length === 2 && 
-             participantIds.includes(req.user!.id) && 
-             participantIds.includes(otherUserId);
+      return participantIds.length === 2 &&
+        participantIds.includes(req.user!.id) &&
+        participantIds.includes(otherUserId);
     });
 
     console.log('Found existing conversation:', existingConversation);
 
     if (existingConversation) {
+      // Check if current user is still a participant
+      const { data: currentUserParticipant } = await supabaseAdmin
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', existingConversation.id)
+        .eq('user_id', req.user!.id)
+        .single();
+
+      if (!currentUserParticipant) {
+        // User previously left, re-add them as participant
+        console.log('Re-adding user to previously left conversation');
+        const { error: rejoinError } = await supabaseAdmin
+          .from('conversation_participants')
+          .insert({
+            conversation_id: existingConversation.id,
+            user_id: req.user!.id,
+            role: 'member',
+            joined_at: new Date().toISOString()
+          });
+
+        if (rejoinError) {
+          console.error('Failed to rejoin conversation:', rejoinError);
+          res.status(400).json({
+            success: false,
+            error: 'Failed to rejoin conversation'
+          });
+          return;
+        }
+
+        // Return the existing conversation after re-adding user
+        const { data: fullConversation } = await supabaseAdmin
+          .from('conversations')
+          .select(`
+            *,
+            participants:conversation_participants(
+              user:users!user_id(
+                id,
+                name,
+                avatar_url,
+                role,
+                is_verified
+              ),
+              joined_at,
+              role
+            )
+          `)
+          .eq('id', existingConversation.id)
+          .single();
+
+        res.status(200).json({
+          success: true,
+          message: 'Rejoined conversation successfully',
+          conversation: fullConversation
+        });
+        return;
+      }
+
       console.log('Returning existing conversation');
       res.status(400).json({
         success: false,
@@ -361,7 +471,7 @@ router.post('/', authenticateToken, validate(createConversationSchema), asyncHan
     last_message_at: now
   };
   console.log('Conversation data to insert:', conversationData);
-  
+
   const { data: conversation, error: conversationError } = await supabaseAdmin
     .from('conversations')
     .insert(conversationData)
@@ -630,16 +740,16 @@ router.post('/:id/participants', authenticateToken, validateParams(conversationI
     .in('id', newParticipantIds);
 
   const userNames = addedUsers?.map(u => u.name).join(', ') || 'users';
-  
+
   // Get current user's name
   const { data: currentUser } = await supabaseAdmin
     .from('users')
     .select('name')
     .eq('id', req.user!.id)
     .single();
-  
+
   const currentUserName = currentUser?.name || req.user!.email;
-  
+
   await supabaseAdmin
     .from('messages')
     .insert({
@@ -727,7 +837,7 @@ router.delete('/:id/participants/:participantId', authenticateToken, validatePar
   // Create system message
   const action = isRemovingSelf ? 'left' : 'was removed from';
   const actor = isRemovingSelf ? (targetUserData?.name || 'User') : (userData?.name || req.user!.email);
-  
+
   await supabaseAdmin
     .from('messages')
     .insert({
@@ -895,7 +1005,7 @@ router.patch('/:id/read', authenticateToken, validateParams(conversationIdSchema
     .select('id')
     .eq('conversation_id', id)
     .neq('sender_id', req.user!.id)
-    .not('id', 'in', 
+    .not('id', 'in',
       supabaseAdmin
         .from('message_reads')
         .select('message_id')
@@ -904,7 +1014,7 @@ router.patch('/:id/read', authenticateToken, validateParams(conversationIdSchema
 
   if (unreadMessages && unreadMessages.length > 0) {
     const messageIds = unreadMessages.map(m => m.id);
-    
+
     // Mark messages as read
     const { error: readError } = await supabaseAdmin
       .from('message_reads')

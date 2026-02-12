@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MessageCircle, Users, Search, Plus, Inbox } from 'lucide-react';
+import { MessageCircle, Users, Search, Plus, Inbox, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { useConversations } from '../../hooks/useMessaging';
+import { useConversations, markMessagesAsRead } from '../../hooks/useMessaging';
 import { ChatWindow } from './ChatWindow';
 import { StartConversationModal } from './StartConversationModal';
 
@@ -20,10 +20,11 @@ const formatTimeAgo = (date: Date): string => {
 
 export function MessagesPage() {
   const { user } = useAuthStore();
-  const { conversations, isLoading } = useConversations();
+  const { conversations, isLoading, refresh, setConversations } = useConversations();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [showStartModal, setShowStartModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSwitchingConversation, setIsSwitchingConversation] = useState(false);
 
   const userId = user?.id;
 
@@ -117,7 +118,29 @@ export function MessagesPage() {
                     <motion.button
                       key={conversation.id}
                       whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
-                      onClick={() => setSelectedConversationId(conversation.id)}
+                      onClick={async () => {
+                        // Show loading state immediately
+                        setIsSwitchingConversation(true);
+                        setSelectedConversationId(conversation.id);
+                        
+                        // Clear unread count immediately in UI for better UX
+                        if (conversation.unread_count > 0) {
+                          // Optimistically update local state to remove badge immediately
+                          setConversations((prev: typeof conversations) => prev.map((c: typeof conversations[0]) => 
+                            c.id === conversation.id 
+                              ? { ...c, unread_count: 0 }
+                              : c
+                          ));
+                          // Then sync with backend
+                          await markMessagesAsRead(conversation.id, userId!);
+                          refresh(); // Refresh conversations to ensure sync
+                        }
+                        
+                        // Keep loading state for a short time to ensure messages are loaded
+                        setTimeout(() => {
+                          setIsSwitchingConversation(false);
+                        }, 500);
+                      }}
                       className={`w-full p-4 flex items-start space-x-3 transition-colors ${
                         isActive ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50'
                       }`}
@@ -171,9 +194,15 @@ export function MessagesPage() {
 
         {/* Chat Window */}
         <div className="flex-1 bg-white">
-          {selectedConversation ? (
+          {isSwitchingConversation ? (
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8">
+              <Loader2 className="h-12 w-12 mb-4 animate-spin text-blue-500" />
+              <h3 className="text-lg font-medium text-gray-600">Loading messages...</h3>
+            </div>
+          ) : selectedConversation ? (
             <ChatWindow
               conversationId={selectedConversation.id}
+              conversation={selectedConversation}
               onBack={() => setSelectedConversationId(null)}
               onArchive={() => setSelectedConversationId(null)}
             />
