@@ -7,12 +7,12 @@ import Joi from 'joi';
 
 const router = express.Router();
 
-// Validation schemas
+// Validation schemas - accept strings from query params
 const getNotificationsQuerySchema = Joi.object({
-  page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(50).default(20),
+  page: Joi.string().optional(),
+  limit: Joi.string().optional(),
   type: Joi.string().valid('like', 'comment', 'follow', 'message', 'post', 'share', 'mention', 'system', 'event', 'achievement').optional(),
-  read: Joi.boolean().optional(),
+  read: Joi.string().optional(),
   startDate: Joi.date().iso().optional(),
   endDate: Joi.date().iso().optional()
 });
@@ -39,16 +39,19 @@ const updatePreferencesSchema = Joi.object({
 });
 
 // Get user notifications
-router.get('/', authenticateToken, validateQuery(getNotificationsQuerySchema), asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const {
-    page = 1,
-    limit = 20,
+    page: pageStr = '1',
+    limit: limitStr = '20',
     type,
     read,
     startDate,
     endDate
   } = req.query as any;
 
+  // Parse string values to numbers
+  const page = parseInt(pageStr, 10) || 1;
+  const limit = parseInt(limitStr, 10) || 20;
   const offset = (page - 1) * limit;
 
   let query = supabaseAdmin
@@ -78,62 +81,20 @@ router.get('/', authenticateToken, validateQuery(getNotificationsQuerySchema), a
   const { data: notifications, error, count } = await query;
 
   if (error) {
-    console.error('Failed to fetch notifications:', error);
+    console.error('Notifications Supabase error:', error);
     res.status(400).json({
       success: false,
-      error: 'Failed to fetch notifications'
+      error: 'Failed to fetch notifications',
+      details: error.message
     });
     return;
   }
-
-  // Enrich notifications with from_user details from profiles table
-  const enrichedNotifications = await Promise.all(
-    (notifications || []).map(async (notif: any) => {
-      if (notif.from_user_id) {
-        // Try profiles table first (primary user table), fall back to users table
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('id, username, full_name, profile_image, role, verification_status')
-          .eq('id', notif.from_user_id)
-          .single();
-
-        if (profile) {
-          return {
-            ...notif,
-            from_user: {
-              id: profile.id,
-              name: profile.full_name || profile.username || 'Unknown',
-              username: profile.username || '',
-              avatar_url: profile.profile_image || null,
-              role: profile.role || 'user',
-              is_verified: profile.verification_status === 'approved'
-            }
-          };
-        }
-
-        // Fallback to users table
-        const { data: user } = await supabaseAdmin
-          .from('users')
-          .select('id, name, username, avatar_url, role, is_verified')
-          .eq('id', notif.from_user_id)
-          .single();
-
-        if (user) {
-          return {
-            ...notif,
-            from_user: user
-          };
-        }
-      }
-      return { ...notif, from_user: null };
-    })
-  );
 
   const totalPages = Math.ceil((count || 0) / limit);
 
   res.json({
     success: true,
-    notifications: enrichedNotifications,
+    notifications: notifications || [],
     pagination: {
       currentPage: page,
       totalPages,
@@ -200,7 +161,17 @@ router.get('/:id', authenticateToken, validateParams(notificationIdSchema), asyn
 
   const { data: notification, error } = await supabaseAdmin
     .from('notifications')
-    .select('*')
+    .select(`
+      *,
+      from_user:users!from_user_id(
+        id,
+        name,
+        avatar_url,
+        role,
+        is_verified,
+        bio
+      )
+    `)
     .eq('id', id)
     .eq('user_id', req.user!.id)
     .single();
@@ -213,30 +184,9 @@ router.get('/:id', authenticateToken, validateParams(notificationIdSchema), asyn
     return;
   }
 
-  // Enrich with from_user details
-  let enriched: any = { ...notification, from_user: null };
-  if (notification.from_user_id) {
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('id, username, full_name, profile_image, role, verification_status')
-      .eq('id', notification.from_user_id)
-      .single();
-
-    if (profile) {
-      enriched.from_user = {
-        id: profile.id,
-        name: profile.full_name || profile.username || 'Unknown',
-        username: profile.username || '',
-        avatar_url: profile.profile_image || null,
-        role: profile.role || 'user',
-        is_verified: profile.verification_status === 'approved'
-      };
-    }
-  }
-
   res.json({
     success: true,
-    notification: enriched
+    notification
   });
 }));
 

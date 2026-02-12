@@ -110,10 +110,10 @@ router.get('/', validateQuery(getUsersQuerySchema), asyncHandler(async (req: Req
 
   if (error) {
     res.status(400).json({
-      success: false,
-      error: 'Failed to fetch users'
-    });
-    return;
+       success: false,
+       error: 'Failed to fetch users'
+     });
+     return;
   }
 
   const totalPages = Math.ceil((count || 0) / limit);
@@ -169,10 +169,10 @@ router.get('/username/:username', validateParams(usernameSchema), asyncHandler(a
 
   if (!user) {
     res.status(404).json({
-      success: false,
-      error: 'User not found'
-    });
-    return;
+       success: false,
+       error: 'User not found'
+     });
+     return;
   }
 
   // Check if profile is private and user is not authenticated or not following
@@ -180,10 +180,10 @@ router.get('/username/:username', validateParams(usernameSchema), asyncHandler(a
     const authUser = req.user;
     if (!authUser) {
       res.status(403).json({
-        success: false,
-        error: 'This profile is private'
-      });
-      return;
+           success: false,
+           error: 'This profile is private'
+         });
+          return;
     }
 
     if (authUser.id !== user.id) {
@@ -269,10 +269,10 @@ router.post('/follow', authenticateToken, validate(followUserSchema), asyncHandl
 
   if (followerId === userId) {
     res.status(400).json({
-      success: false,
-      error: 'Cannot follow yourself'
-    });
-    return;
+       success: false,
+       error: 'Cannot follow yourself'
+     });
+     return;
   }
 
   // Check if user exists
@@ -306,19 +306,28 @@ router.post('/follow', authenticateToken, validate(followUserSchema), asyncHandl
     return;
   }
 
-  // Use the follow_user RPC function which handles both the follow record and counter updates
-  const { data: followResult, error: followError } = await supabaseAdmin.rpc('follow_user', {
-    p_follower_id: followerId,
-    p_following_id: userId
-  });
+  // Create follow relationship
+  const { error: followError } = await supabaseAdmin
+    .from('user_following')
+    .insert({
+      follower_id: followerId,
+      following_id: userId,
+      created_at: new Date().toISOString()
+    });
 
-  if (followError || !followResult?.success) {
+  if (followError) {
     res.status(400).json({
       success: false,
-      error: followError?.message || followResult?.error || 'Failed to follow user'
+      error: 'Failed to follow user'
     });
     return;
   }
+
+  // Update follower count for the target user (user being followed)
+  await supabaseAdmin.rpc('increment_follower_count', { user_id: userId });
+
+  // Update following count for the follower
+  await supabaseAdmin.rpc('increment_following_count', { user_id: followerId });
 
   // Get follower's name for notification
   const { data: followerData } = await supabase
@@ -385,10 +394,10 @@ router.get('/:id/posts', validateParams(userIdSchema), validateQuery(getUsersQue
 
   if (error) {
     res.status(400).json({
-      success: false,
-      error: 'Failed to fetch user posts'
-    });
-    return;
+       success: false,
+       error: 'Failed to fetch user posts'
+     });
+     return;
   }
 
   const totalPages = Math.ceil((count || 0) / limit);
@@ -467,9 +476,11 @@ router.get('/:id/shared-posts', validateParams(userIdSchema), validateQuery(getU
 }));
 
 // Get user's followers
-router.get('/:id/followers', validateParams(userIdSchema), validateQuery(getUsersQuerySchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
+router.get('/:id/followers', validateParams(userIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
-  const { page = 1, limit = 20 } = req.query as any;
+  const { page: pageStr = '1', limit: limitStr = '20' } = req.query as any;
+  const page = parseInt(pageStr, 10) || 1;
+  const limit = parseInt(limitStr, 10) || 20;
   const offset = (page - 1) * limit;
 
   // First get follower IDs
@@ -520,9 +531,11 @@ router.get('/:id/followers', validateParams(userIdSchema), validateQuery(getUser
 }));
 
 // Get user's following
-router.get('/:id/following', validateParams(userIdSchema), validateQuery(getUsersQuerySchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
+router.get('/:id/following', validateParams(userIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
-  const { page = 1, limit = 20 } = req.query as any;
+  const { page: pageStr = '1', limit: limitStr = '20' } = req.query as any;
+  const page = parseInt(pageStr, 10) || 1;
+  const limit = parseInt(limitStr, 10) || 20;
   const offset = (page - 1) * limit;
 
   // First get following IDs
@@ -578,46 +591,25 @@ router.delete('/follow/:id', authenticateToken, validateParams(userIdSchema), as
   const { id: userId } = req.params;
   const followerId = req.user!.id;
 
-  // Use the unfollow_user RPC function which handles both the unfollow and counter updates
-  const { data: unfollowResult, error } = await supabaseAdmin.rpc('unfollow_user', {
-    p_follower_id: followerId,
-    p_following_id: userId
-  });
+  const { error } = await supabaseAdmin
+    .from('user_following')
+    .delete()
+    .eq('follower_id', followerId)
+    .eq('following_id', userId);
 
-  if (error || !unfollowResult?.success) {
+  if (error) {
     res.status(400).json({
       success: false,
-      error: error?.message || unfollowResult?.error || 'Failed to unfollow user'
+      error: 'Failed to unfollow user'
     });
     return;
   }
 
-  // Get unfollower's name for notification
-  const { data: unfollowerData } = await supabase
-    .from('profiles')
-    .select('full_name')
-    .eq('id', followerId)
-    .single();
+  // Update follower count for the target user (user being unfollowed)
+  await supabaseAdmin.rpc('decrement_follower_count', { user_id: userId });
 
-  // Create notification for the unfollowed user
-  const { data: unfollowNotif } = await supabaseAdmin
-    .from('notifications')
-    .insert({
-      user_id: userId,
-      type: 'unfollow',
-      title: 'Lost a Follower',
-      message: `${unfollowerData?.full_name || 'Someone'} unfollowed you`,
-      data: { followerId },
-      from_user_id: followerId,
-      created_at: new Date().toISOString()
-    })
-    .select()
-    .single();
-
-  const socketHandlers = (req as any).app?.locals?.socketHandlers;
-  if (socketHandlers && unfollowNotif) {
-    socketHandlers.sendNotificationToUser(userId, unfollowNotif);
-  }
+  // Update following count for the follower
+  await supabaseAdmin.rpc('decrement_following_count', { user_id: followerId });
 
   res.json({
     success: true,
@@ -926,11 +918,11 @@ router.get('/:id/stats', validateParams(userIdSchema), asyncHandler(async (req: 
     const likesReceived = likesReceivedResult.count || 0;
     const commentsReceived = commentsReceivedResult.count || 0;
     const sharesReceived = sharesReceivedResult.count || 0;
-
+    
     // Calculate streak (simplified - posts in last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
+    
     const { count: recentPostsCount } = await supabase
       .from('posts')
       .select('id', { count: 'exact' })
@@ -1005,7 +997,7 @@ router.get('/:id/dashboard', authenticateToken, validateParams(userIdSchema), as
     // Calculate streak
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
+    
     const { count: recentPostsCount } = await supabase
       .from('posts')
       .select('id', { count: 'exact' })
@@ -1102,10 +1094,10 @@ router.get('/:id', validateParams(userIdSchema), asyncHandler(async (req: Reques
 
     if (error || !user) {
       res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
-      return;
+         success: false,
+         error: 'User not found'
+       });
+       return;
     }
 
     // Private profile checks remain the same below
@@ -1142,10 +1134,10 @@ router.get('/:id', validateParams(userIdSchema), asyncHandler(async (req: Reques
 
   if (error || !user) {
     res.status(404).json({
-      success: false,
-      error: 'User not found'
-    });
-    return;
+       success: false,
+       error: 'User not found'
+     });
+     return;
   }
 
   // Check if profile is private and user is not authenticated or not following
@@ -1153,10 +1145,10 @@ router.get('/:id', validateParams(userIdSchema), asyncHandler(async (req: Reques
     const authUser = req.user;
     if (!authUser) {
       res.status(403).json({
-        success: false,
-        error: 'This profile is private'
-      });
-      return;
+           success: false,
+           error: 'This profile is private'
+         });
+          return;
     }
 
     if (authUser.id !== id) {

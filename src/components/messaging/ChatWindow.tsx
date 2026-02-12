@@ -10,28 +10,29 @@ import {
   sendMessage, 
   markMessagesAsRead, 
   archiveConversation,
-  leaveConversation,
-  addReaction,
-  MessageWithSender 
+  MessageWithSender,
+  ConversationWithParticipants
 } from '../../hooks/useMessaging';
 import { ProfileFollowButton } from '../profile/FollowButton';
-import { useCanMessage } from '../../hooks/useFollow';
 import toast from 'react-hot-toast';
 
 interface ChatWindowProps {
   conversationId: string;
+  conversation?: ConversationWithParticipants;
   onBack?: () => void;
   onArchive?: () => void;
 }
 
-export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProps) {
+export function ChatWindow({ conversationId, conversation, onBack, onArchive }: ChatWindowProps) {
   const { user } = useAuthStore();
   const { addNotification } = useAppStore();
   const { 
     messages, 
+    setMessages,
     isLoading, 
     hasMore, 
-    loadMore 
+    loadMore,
+    refresh 
   } = useMessages(conversationId);
   
   const [newMessage, setNewMessage] = useState('');
@@ -40,15 +41,37 @@ export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProp
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
   const userId = user?.id;
 
+  const commonEmojis = ['😀', '😂', '😍', '🥳', '😎', '🤔', '👍', '👎', '❤️', '🎉', '🔥', '👏', '🙏', '✅', '❌', '🤝', '🏆', '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉'];
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleEmojiSelect = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
   // Get other participant info from first message's sender
-  const otherParticipant = messages.find(m => m.sender_id !== userId)?.sender;
+  // Get other participant from conversation participants if no messages yet
+  const otherParticipantFromConv = conversation?.participants?.find(
+    (p: { user_id: string; profile?: any }) => p.user_id !== userId
+  )?.profile;
 
-  // Check if users can still message each other
-  const { canMessage, isLoading: canMessageLoading } = useCanMessage(otherParticipant?.id || null);
+  const otherParticipant = messages.find(m => m.sender_id !== userId)?.sender || otherParticipantFromConv;
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (messages.length > 0 && !isLoading) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -77,11 +100,6 @@ export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProp
     
     if (!newMessage.trim() || !userId || !conversationId) return;
 
-    if (!canMessage && !canMessageLoading) {
-      toast.error('You cannot message this user. You need to follow each other.');
-      return;
-    }
-
     // AI Content Moderation
     setIsValidating(true);
     try {
@@ -103,15 +121,45 @@ export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProp
     }
 
     const content = newMessage.trim();
-
     setNewMessage('');
+
+    // Create optimistic message for instant UI update
+    const optimisticMessage: MessageWithSender = {
+      id: `temp-${Date.now()}`,
+      conversation_id: conversationId,
+      sender_id: userId,
+      content,
+      type: 'text',
+      created_at: new Date().toISOString(),
+      sender: {
+        id: userId,
+        username: user?.fullName || 'You',
+        full_name: user?.fullName || 'You',
+        profile_image: user?.profileImage,
+        role: user?.role || 'user',
+      },
+      reactions: [],
+      read_by: [],
+      is_edited: false,
+      is_deleted: false,
+    };
+
+    // Add optimistic message immediately
+    setMessages(prev => [...prev, optimisticMessage]);
 
     const messageId = await sendMessage(conversationId, content, 'text');
 
     if (!messageId) {
       setNewMessage(content);
+      // Remove optimistic message on failure
+      setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
       return;
     }
+
+    // Replace optimistic message with real one (or let real-time update handle it)
+    setMessages(prev => prev.map(m => 
+      m.id === optimisticMessage.id ? { ...m, id: messageId } : m
+    ));
 
     if (otherParticipant) {
       addNotification({
@@ -166,18 +214,6 @@ export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProp
     setShowMenu(false);
   };
 
-  const handleLeave = async () => {
-    if (!userId || !conversationId) return;
-
-    if (window.confirm('Are you sure you want to leave this conversation?')) {
-      const success = await leaveConversation(conversationId, userId);
-      if (success) {
-        onBack?.();
-      }
-    }
-    setShowMenu(false);
-  };
-
   const getVerificationBadge = () => null;
 
   const groupMessagesByDate = (msgs: MessageWithSender[]) => {
@@ -207,10 +243,77 @@ export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProp
 
   const messageGroups = groupMessagesByDate(messages);
 
-  if (!otherParticipant && messages.length === 0 && !isLoading) {
+  // Show loading overlay when switching conversations
+  if (isLoading && messages.length === 0) {
     return (
-      <div className="flex flex-col h-full bg-white items-center justify-center">
-        <p className="text-gray-500">Select a conversation to start messaging</p>
+      <div className="flex flex-col h-full bg-white">
+        {/* Chat Header - Show immediately with available data */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+          <div className="flex items-center space-x-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            
+            <div className="flex items-center space-x-3">
+              <img
+                src={otherParticipant?.profile_image || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
+                alt={otherParticipant?.full_name}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+              <div>
+                <div className="flex items-center space-x-1">
+                  <h3 className="font-semibold text-gray-900">{otherParticipant?.full_name || 'Loading...'}</h3>
+                </div>
+                <p className="text-sm text-gray-500 capitalize">
+                  {otherParticipant?.role || 'User'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading Content */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <p className="mt-4 text-gray-500">Loading messages...</p>
+        </div>
+
+        {/* Message Input - Disabled while loading */}
+        <div className="p-4 border-t border-gray-200 bg-white">
+          <div className="flex items-center space-x-3">
+            <button
+              type="button"
+              disabled
+              className="p-2 text-gray-300 rounded-full"
+            >
+              <Image className="h-5 w-5" />
+            </button>
+            
+            <div className="flex-1">
+              <input
+                type="text"
+                disabled
+                placeholder="Loading messages..."
+                className="w-full px-4 py-2 border border-gray-200 rounded-full bg-gray-100 text-gray-400"
+              />
+            </div>
+            
+            <button
+              type="button"
+              disabled
+              className="bg-gray-300 text-white p-2 rounded-full"
+            >
+              <Send className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -287,15 +390,6 @@ export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProp
                   >
                     <Archive className="h-4 w-4" />
                     Archive Conversation
-                  </button>
-                  <button
-                    onClick={handleLeave}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Leave Conversation
                   </button>
                 </motion.div>
               )}
@@ -400,31 +494,51 @@ export function ChatWindow({ conversationId, onBack, onArchive }: ChatWindowProp
           </button>
           
           <div className="flex-1 relative">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={canMessage || canMessageLoading ? "Type a message..." : "You cannot message this user"}
-              disabled={!canMessage && !canMessageLoading}
-              className="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              title="Add emoji"
-            >
-              <Smile className="h-5 w-5" />
-            </button>
+            <div className="relative" ref={emojiPickerRef}>
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type a message..."
+                disabled={isValidating}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Add emoji"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+              
+              {showEmojiPicker && (
+                <div className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 p-3 z-50 w-64">
+                  <div className="grid grid-cols-6 gap-2">
+                    {commonEmojis.map((emoji, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleEmojiSelect(emoji)}
+                        className="text-2xl hover:bg-gray-100 rounded p-1 transition-colors"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           
           <VoiceMessageButton
             onTranscript={handleVoiceTranscript}
-            disabled={isValidating || (!canMessage && !canMessageLoading)}
+            disabled={isValidating}
           />
           
           <button
             type="submit"
-            disabled={!newMessage.trim() || isValidating || (!canMessage && !canMessageLoading)}
+            disabled={!newMessage.trim() || isValidating}
             className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white p-2 rounded-full transition-colors"
             title="Send message"
           >
