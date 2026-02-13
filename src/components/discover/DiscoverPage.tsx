@@ -18,8 +18,21 @@ export function DiscoverPage() {
 
   // Fetch real users from Supabase on mount
   useEffect(() => {
+    let mounted = true;
     setIsLoadingUsers(true);
-    fetchUsers().finally(() => setIsLoadingUsers(false));
+    fetchUsers().then(() => {
+      // Small delay to ensure store is updated
+      setTimeout(() => {
+        if (mounted) {
+          setIsLoadingUsers(false);
+        }
+      }, 100);
+    }).catch(() => {
+      if (mounted) {
+        setIsLoadingUsers(false);
+      }
+    });
+    return () => { mounted = false; };
   }, []);
 
   // Initialize follower counts when users load - only for users not already in state

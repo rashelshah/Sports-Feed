@@ -162,6 +162,7 @@ export function MapPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [ratingId, setRatingId] = useState<string | null>(null);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   // Default map center — overridden by user geolocation
   const defaultCenter: [number, number] = [20.2961, 85.8245];
@@ -265,6 +266,9 @@ export function MapPage() {
     loadAll();
   }, [fetchLocations, fetchCheckIns, fetchHeatMap, fetchUserStats]);
 
+  // State to track just-checked-in locations for immediate UI feedback
+  const [justCheckedIn, setJustCheckedIn] = useState<Set<string>>(new Set());
+
   // ─── Check-in handler ───────────────────────────────────────────
   // Build a set of location names the user has recently checked in to
   const checkedInLocationNames = new Set(
@@ -272,7 +276,7 @@ export function MapPage() {
   );
 
   const isLocationCheckedIn = (loc: SafeLocationResponse) => {
-    return checkedInLocationNames.has(loc.name?.toLowerCase());
+    return checkedInLocationNames.has(loc.name?.toLowerCase()) || justCheckedIn.has(loc.id);
   };
 
   const handleCheckIn = async () => {
@@ -313,10 +317,10 @@ export function MapPage() {
       }
       const tokensEarned = data.tokensEarned || 0;
       toast.success(`Checked in at ${selectedLocation.name}! +${tokensEarned} tokens earned 🎉`);
+      setJustCheckedIn(prev => new Set(prev).add(selectedLocation.id));
       setShowCheckInModal(false);
-      // Refresh data + token UI
+      // Refresh data
       await Promise.all([fetchCheckIns(), fetchUserStats(), fetchHeatMap()]);
-      await initSession();
     } catch (err: any) {
       toast.error(err.message || 'Failed to check in');
     } finally {
@@ -367,7 +371,6 @@ export function MapPage() {
       setShowSafetyModal(false);
       setSafetyFeatures([]);
       await Promise.all([fetchLocations(), fetchUserStats()]);
-      await initSession();
     } catch (err: any) {
       toast.error(err.message || 'Failed to mark safe');
     } finally {
@@ -375,7 +378,30 @@ export function MapPage() {
     }
   };
 
-  // ─── Rate location handler ──────────────────────────────────────
+  // ─── Verify location handler ────────────────────────────────────
+  const handleVerifyLocation = async () => {
+    if (!selectedLocation || !user) return;
+    setIsSubmitting(true);
+    try {
+      // Use mark-safe endpoint which handles verification
+      const res = await fetch(`${API_BASE}/api/locations/safe-locations/${selectedLocation.id}/mark-safe`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ safetyFeatures: [] }), // Empty safety features for simple verification
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to verify location');
+      }
+      toast.success(`Location verified! +${data.tokensEarned || 5} tokens earned ✅`);
+      setShowVerifyModal(false);
+      await fetchLocations();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to verify location');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const handleRateLocation = async (locationId: string, rating: number) => {
     if (!user || ratingId) return;
     setRatingId(locationId);
@@ -532,12 +558,12 @@ export function MapPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${activeTab === tab.id
-                ? darkMode
-                  ? 'bg-gray-700 text-blue-400 shadow-sm'
-                  : 'bg-white text-blue-600 shadow-sm'
-                : darkMode
-                  ? 'text-gray-400 hover:text-gray-200'
-                  : 'text-gray-600 hover:text-gray-900'
+              ? darkMode
+                ? 'bg-gray-700 text-blue-400 shadow-sm'
+                : 'bg-white text-blue-600 shadow-sm'
+              : darkMode
+                ? 'text-gray-400 hover:text-gray-200'
+                : 'text-gray-600 hover:text-gray-900'
               }`}
           >
             <tab.icon className="h-4 w-4" />
@@ -570,7 +596,7 @@ export function MapPage() {
 
       {/* ═══ MAP VIEW TAB ═══ */}
       {!isLoading && !error && activeTab === 'map' && (
-        <div className="space-y-6">
+        <div className="space-y-6 relative z-0">
           {/* Map Controls */}
           <div className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="flex flex-wrap gap-4 items-center">
@@ -587,8 +613,8 @@ export function MapPage() {
                   key={type.id}
                   onClick={() => setMapType(type.id as any)}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${mapType === type.id
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   {type.label}
@@ -607,8 +633,8 @@ export function MapPage() {
                       key={type.id}
                       onClick={() => setHeatMapType(type.id)}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${heatMapType === type.id
-                          ? 'bg-purple-100 text-purple-700'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-purple-100 text-purple-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       {type.label}
@@ -620,7 +646,7 @@ export function MapPage() {
           </div>
 
           {/* Leaflet Map */}
-          <div className={`rounded-xl shadow-md overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className={`rounded-xl shadow-md overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'} relative z-0`}>
             <MapContainer
               center={userLocation || defaultCenter}
               zoom={13}
@@ -746,14 +772,25 @@ export function MapPage() {
                   <div className="flex items-center space-x-2">
                     <span className="text-2xl">{getCategoryEmoji(location.category)}</span>
                     <div>
-                      <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
+                        {location.is_verified && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Verified
+                          </span>
+                        )}
+                      </div>
                       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-1">
-                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{(location.average_rating || 0).toFixed(1)}</span>
+                  <div className="flex flex-col items-end space-y-1">
+                    <div className="flex items-center space-x-1">
+                      <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                      <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{(location.average_rating || 0).toFixed(1)}</span>
+                      <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>({location.total_ratings || 0})</span>
+                    </div>
                   </div>
                 </div>
 
@@ -779,24 +816,77 @@ export function MapPage() {
                   )}
                 </div>
 
-                <Button
-                  onClick={() => {
-                    setSelectedLocation(location);
-                    if (isLocationCheckedIn(location)) {
-                      toast('You have already checked in at this location', { icon: 'ℹ️' });
-                    } else {
-                      setShowCheckInModal(true);
-                    }
-                  }}
-                  size="sm"
-                  className={`w-full ${isLocationCheckedIn(location)
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : ''
-                    }`}
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  {isLocationCheckedIn(location) ? 'Checked In ✓' : 'Check In'}
-                </Button>
+                {/* Rating Stars */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-1">
+                    <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Rate:</span>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          handleRateLocation(location.id, star);
+                        }}
+                        disabled={ratingId === location.id}
+                        className="p-0.5 hover:scale-110 transition-transform disabled:opacity-50"
+                      >
+                        <Star
+                          className={`h-4 w-4 ${
+                            star <= (location.average_rating || 0)
+                              ? 'text-yellow-400 fill-current'
+                              : darkMode
+                                ? 'text-gray-600'
+                                : 'text-gray-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center space-x-1 text-xs">
+                    <Users className="h-3 w-3" />
+                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>{location.verifications_count || 0} verified</span>
+                  </div>
+                </div>
+
+                {/* Verify Button */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setSelectedLocation(location);
+                      if (location.userHasVerified) {
+                        toast('You have already verified this location', { icon: 'ℹ️' });
+                      } else {
+                        setShowVerifyModal(true);
+                      }
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className={`flex-1 ${location.userHasVerified ? 'bg-green-100 text-green-700 border-green-300' : ''}`}
+                    disabled={location.userHasVerified}
+                  >
+                    <Shield className="h-4 w-4 mr-1" />
+                    {location.userHasVerified ? 'Verified ✓' : 'Verify'}
+                  </Button>
+
+                  <Button
+                    onClick={() => {
+                      setSelectedLocation(location);
+                      if (isLocationCheckedIn(location)) {
+                        toast('You have already checked in at this location', { icon: 'ℹ️' });
+                      } else {
+                        setShowCheckInModal(true);
+                      }
+                    }}
+                    size="sm"
+                    className={`flex-1 ${isLocationCheckedIn(location)
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : ''
+                      }`}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    {isLocationCheckedIn(location) ? 'Checked In ✓' : 'Check In'}
+                  </Button>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -955,6 +1045,55 @@ export function MapPage() {
                 {isSubmitting ? 'Checking in...' : 'Check In'}
               </Button>
               <Button variant="outline" onClick={() => setShowCheckInModal(false)} className="flex-1" disabled={isSubmitting}>
+                Cancel
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ═══ VERIFY MODAL ═══ */}
+      {showVerifyModal && selectedLocation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`rounded-lg p-6 max-w-md w-full mx-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+          >
+            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Verify Safety Location
+            </h3>
+
+            <div className="space-y-4">
+              <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <MapPin className="h-4 w-4" />
+                <span>{selectedLocation.name}</span>
+              </div>
+
+              <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <Shield className="h-4 w-4" />
+                <span>Current verifications: {selectedLocation.verifications_count || 0}</span>
+              </div>
+
+              <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                  <strong>Verify this location?</strong> Confirm that this is a safe and accessible sports location.
+                </p>
+              </div>
+
+              <div className={`p-3 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
+                  <strong>Reward:</strong> Earn 5 tokens for verifying a safe location!
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button onClick={handleVerifyLocation} className="flex-1" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Shield className="h-4 w-4 mr-1" />}
+                {isSubmitting ? 'Verifying...' : 'Verify Location'}
+              </Button>
+              <Button variant="outline" onClick={() => setShowVerifyModal(false)} className="flex-1" disabled={isSubmitting}>
                 Cancel
               </Button>
             </div>
