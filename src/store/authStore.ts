@@ -22,7 +22,7 @@ interface RegisterData {
   password: string;
   username: string;
   fullName: string;
-  role: 'user' | 'coach' | 'fan' | 'aspirant' | 'administrator';
+  role: 'user' | 'coach' | 'fan' | 'aspirant';
   sportsCategory: 'coco' | 'martial-arts' | 'calorie-fight' | 'adaptive-sports' | 'unstructured-sports';
   gender: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
   accessibilityNeeds?: string[];
@@ -129,7 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (userData: RegisterData) => {
     set({ isLoading: true });
     try {
-      const role = userData.role === 'administrator' ? 'user' : userData.role;
+      const role = userData.role;
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,

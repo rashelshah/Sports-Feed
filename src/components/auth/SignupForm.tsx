@@ -16,7 +16,7 @@ const schema = yup.object({
   confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Confirm password is required'),
   username: yup.string().min(3, 'Username must be at least 3 characters').required('Username is required'),
   fullName: yup.string().required('Full name is required'),
-  role: yup.string().oneOf(['user', 'coach', 'fan', 'aspirant', 'administrator']).required('Role is required'),
+  role: yup.string().oneOf(['user', 'coach', 'fan', 'aspirant']).required('Role is required'),
   sportsCategory: yup.string().oneOf(['coco', 'martial-arts', 'calorie-fight', 'adaptive-sports', 'unstructured-sports']).required('Sports category is required'),
   gender: yup.string().oneOf(['male', 'female', 'non-binary', 'prefer-not-to-say']).required('Gender is required'),
   accessibilityNeeds: yup.array().of(yup.string()),
@@ -30,13 +30,13 @@ interface SignupFormProps {
 }
 
 export function SignupForm({ onSignupSuccess }: SignupFormProps) {
-  const [selectedRole, setSelectedRole] = useState<'user' | 'coach' | 'fan' | 'aspirant' | 'administrator'>('user');
+  const [selectedRole, setSelectedRole] = useState<'user' | 'coach' | 'fan' | 'aspirant'>('user');
   const [selectedGender, setSelectedGender] = useState<'male' | 'female' | 'non-binary' | 'prefer-not-to-say'>('prefer-not-to-say');
   const [accessibilityNeeds, setAccessibilityNeeds] = useState<string[]>([]);
   const [preferredAccommodations, setPreferredAccommodations] = useState<string[]>([]);
   const [selectedSportRole, setSelectedSportRole] = useState<string>('');
   const [sportInterests, setSportInterests] = useState<string[]>([]);
-  const { register: registerUser, isLoading, darkMode } = useAuthStore();
+  const { register: registerUser, isLoading } = useAuthStore();
   
   const {
     register,
@@ -51,7 +51,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
   const onSubmit = async (data: SignupFormData) => {
     try {
       const selectedRoleData = sportRoles.find(r => r.id === selectedSportRole);
-      
+
       const registrationData = {
         ...data,
         accessibilityNeeds,
@@ -61,22 +61,22 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
         isProfessional: selectedRoleData?.isProfessional || false,
         verificationStatus: selectedRoleData?.requiresEvidence ? 'pending' : 'approved',
       };
-      
+
       await registerUser(registrationData);
-      
+
       if (selectedRoleData?.requiresEvidence) {
         toast.success('Registration successful! Please upload your evidence documents for verification.');
       } else {
         toast.success('Registration successful! Your account is ready to use.');
       }
-      
+
       onSignupSuccess();
     } catch (error: any) {
       toast.error(error?.message ?? 'Registration failed. Please try again.');
     }
   };
 
-  const handleRoleSelect = (role: 'user' | 'coach' | 'fan' | 'aspirant' | 'administrator') => {
+  const handleRoleSelect = (role: 'user' | 'coach' | 'fan' | 'aspirant') => {
     setSelectedRole(role);
     setValue('role', role);
     // Reset sport role and interests when changing roles
@@ -93,7 +93,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
       className="space-y-6"
     >
       <div>
-        <h2 className={`text-3xl font-bold mb-6 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>Join SportsFeed</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Join SportsFeed</h2>
         
         {/* Role Selection */}
         <div className="mb-6">
@@ -107,8 +107,8 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               onClick={() => handleRoleSelect('user')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'user'
-                  ? (darkMode ? 'border-blue-500 bg-blue-900/30' : 'border-blue-500 bg-blue-50')
-                  : (darkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400')
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300 hover:border-gray-400'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -119,15 +119,15 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                 </div>
               </div>
             </motion.div>
-            
+
             <motion.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleRoleSelect('coach')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'coach'
-                  ? (darkMode ? 'border-purple-500 bg-purple-900/30' : 'border-purple-500 bg-purple-50')
-                  : (darkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400')
+                  ? 'border-purple-500 bg-purple-50'
+                  : 'border-gray-300 hover:border-gray-400'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -145,8 +145,8 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               onClick={() => handleRoleSelect('fan')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'fan'
-                  ? (darkMode ? 'border-green-500 bg-green-900/30' : 'border-green-500 bg-green-50')
-                  : (darkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400')
+                  ? 'border-green-500 bg-green-50'
+                  : 'border-gray-300 hover:border-gray-400'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -164,8 +164,8 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               onClick={() => handleRoleSelect('aspirant')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'aspirant'
-                  ? (darkMode ? 'border-orange-500 bg-orange-900/30' : 'border-orange-500 bg-orange-50')
-                  : (darkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400')
+                  ? 'border-orange-500 bg-orange-50'
+                  : 'border-gray-300 hover:border-gray-400'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -183,15 +183,15 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               onClick={() => handleRoleSelect('administrator')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'administrator'
-                  ? (darkMode ? 'border-red-500 bg-red-900/30' : 'border-red-500 bg-red-50')
-                  : (darkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400')
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-300 hover:border-gray-400'
               }`}
             >
               <div className="flex items-center space-x-3">
-                <Shield className={`h-6 w-6 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
+                <Shield className="h-6 w-6 text-red-600" />
                 <div>
-                  <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Administrator</h3>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Platform administrator</p>
+                  <h3 className="font-semibold text-gray-900">Administrator</h3>
+                  <p className="text-sm text-gray-600">Platform administrator</p>
                 </div>
               </div>
             </motion.div>
@@ -323,8 +323,8 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                 }}
                 className={`p-3 border-2 rounded-lg text-sm font-medium transition-all ${
                   selectedGender === option.value
-                    ? (darkMode ? 'border-blue-500 bg-blue-900/30 text-blue-300' : 'border-blue-500 bg-blue-50 text-blue-700')
-                    : (darkMode ? 'border-gray-600 hover:border-gray-500 text-gray-300' : 'border-gray-300 hover:border-gray-400 text-gray-700')
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-700'
                 }`}
               >
                 {option.label}
@@ -413,7 +413,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
             error={errors.fullName?.message}
             placeholder="Enter your full name"
           />
-          
+
           <Input
             label="Username"
             {...register('username')}

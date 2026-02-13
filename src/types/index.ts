@@ -3,7 +3,7 @@ export interface User {
   email: string;
   username: string;
   fullName: string;
-  role: 'user' | 'coach' | 'expert' | 'fan' | 'aspirant' | 'administrator';
+  role: 'user' | 'admin' | 'moderator' | 'coach' | 'expert' | 'fan' | 'aspirant' | 'administrator';
   sportsCategory: 'coco' | 'martial-arts' | 'calorie-fight' | 'adaptive-sports' | 'unstructured-sports';
   gender: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
   isVerified: boolean;
