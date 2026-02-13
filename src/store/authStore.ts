@@ -22,7 +22,7 @@ interface RegisterData {
   password: string;
   username: string;
   fullName: string;
-  role: 'user' | 'coach' | 'fan' | 'aspirant';
+  role: 'user' | 'coach' | 'fan' | 'aspirant' | 'administrator';
   sportsCategory: 'coco' | 'martial-arts' | 'calorie-fight' | 'adaptive-sports' | 'unstructured-sports';
   gender: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
   accessibilityNeeds?: string[];
