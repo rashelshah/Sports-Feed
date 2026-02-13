@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion } from 'framer-motion';
-import { User, Shield, Trophy, Heart } from 'lucide-react';
+import { User, Shield, Trophy, Heart, ChevronDown, Check, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
@@ -16,7 +16,7 @@ const schema = yup.object({
   confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Confirm password is required'),
   username: yup.string().min(3, 'Username must be at least 3 characters').required('Username is required'),
   fullName: yup.string().required('Full name is required'),
-  role: yup.string().oneOf(['user', 'coach', 'fan', 'aspirant']).required('Role is required'),
+  role: yup.string().oneOf(['user', 'coach', 'fan', 'aspirant', 'administrator']).required('Role is required'),
   sportsCategory: yup.string().oneOf(['coco', 'martial-arts', 'calorie-fight', 'adaptive-sports', 'unstructured-sports']).required('Sports category is required'),
   gender: yup.string().oneOf(['male', 'female', 'non-binary', 'prefer-not-to-say']).required('Gender is required'),
   accessibilityNeeds: yup.array().of(yup.string()).default([]),
@@ -30,12 +30,14 @@ interface SignupFormProps {
 }
 
 export function SignupForm({ onSignupSuccess }: SignupFormProps) {
-  const [selectedRole, setSelectedRole] = useState<'user' | 'coach' | 'fan' | 'aspirant'>('user');
+  const [selectedRole, setSelectedRole] = useState<'user' | 'coach' | 'fan' | 'aspirant' | 'administrator'>('user');
   const [selectedGender, setSelectedGender] = useState<'male' | 'female' | 'non-binary' | 'prefer-not-to-say'>('prefer-not-to-say');
   const [accessibilityNeeds, setAccessibilityNeeds] = useState<string[]>([]);
   const [preferredAccommodations, setPreferredAccommodations] = useState<string[]>([]);
   const [selectedSportRole, setSelectedSportRole] = useState<string>('');
   const [sportInterests, setSportInterests] = useState<string[]>([]);
+  const [showAccessibilityDropdown, setShowAccessibilityDropdown] = useState(false);
+  const [showAccommodationsDropdown, setShowAccommodationsDropdown] = useState(false);
   const { register: registerUser, isLoading } = useAuthStore();
   const { darkMode } = useAuthStore();
   
@@ -64,7 +66,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
         sportRole: selectedRoleData,
         sportInterests,
         isProfessional: selectedRoleData?.isProfessional || false,
-        verificationStatus: selectedRoleData?.requiresEvidence ? 'pending' : 'approved',
+        verificationStatus: (selectedRoleData?.requiresEvidence ? 'pending' : 'approved') as 'pending' | 'approved' | 'rejected',
       };
 
       await registerUser(registrationData);
@@ -81,9 +83,9 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
     }
   };
 
-  const handleRoleSelect = (role: 'user' | 'coach' | 'fan' | 'aspirant') => {
-    setSelectedRole(role);
-    setValue('role', role);
+  const handleRoleSelect = (role: 'user' | 'coach' | 'fan' | 'aspirant' | 'administrator') => {
+    setSelectedRole(role as any);
+    setValue('role', role as any);
     // Reset sport role and interests when changing roles
     setSelectedSportRole('');
     setSportInterests([]);
@@ -112,8 +114,10 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               onClick={() => handleRoleSelect('user')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'user'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 hover:border-gray-400'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                  : darkMode
+                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                    : 'border-gray-300 hover:border-gray-400 bg-white'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -131,8 +135,10 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               onClick={() => handleRoleSelect('coach')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'coach'
-                  ? 'border-purple-500 bg-purple-50'
-                  : 'border-gray-300 hover:border-gray-400'
+                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+                  : darkMode
+                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                    : 'border-gray-300 hover:border-gray-400 bg-white'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -150,8 +156,10 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               onClick={() => handleRoleSelect('fan')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'fan'
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-gray-300 hover:border-gray-400'
+                  ? 'border-green-500 bg-green-50 dark:bg-green-900/30'
+                  : darkMode
+                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                    : 'border-gray-300 hover:border-gray-400 bg-white'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -169,8 +177,10 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               onClick={() => handleRoleSelect('aspirant')}
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'aspirant'
-                  ? 'border-orange-500 bg-orange-50'
-                  : 'border-gray-300 hover:border-gray-400'
+                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'
+                  : darkMode
+                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                    : 'border-gray-300 hover:border-gray-400 bg-white'
               }`}
             >
               <div className="flex items-center space-x-3">
@@ -178,27 +188,6 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                 <div>
                   <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Aspirant</h3>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Aspiring athlete or player</p>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleRoleSelect('administrator')}
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                selectedRole === 'administrator'
-                  ? 'border-red-500 bg-red-50'
-                  : darkMode 
-                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800' 
-                    : 'border-gray-300 hover:border-gray-400'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <Shield className={`h-6 w-6 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
-                <div>
-                  <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Administrator</h3>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Platform administrator</p>
                 </div>
               </div>
             </motion.div>
@@ -345,74 +334,220 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
           )}
         </div>
 
-        {/* Accessibility Needs */}
-        <div className="mb-6">
+        {/* Accessibility Needs - Custom Multi-Select */}
+        <div className="mb-6 relative">
           <label className={`block text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             Accessibility Needs (Optional)
           </label>
-          <div className="space-y-2">
-            {[
-              'Wheelchair accessible',
-              'Visual impairment support',
-              'Hearing impairment support',
-              'Mobility assistance',
-              'Cognitive support',
-              'Sensory-friendly environment',
-              'Sign language interpreter',
-              'Assistive technology'
-            ].map((need) => (
-              <label key={need} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={accessibilityNeeds.includes(need)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setAccessibilityNeeds([...accessibilityNeeds, need]);
-                    } else {
-                      setAccessibilityNeeds(accessibilityNeeds.filter(n => n !== need));
-                    }
-                  }}
-                  className={`rounded ${darkMode ? 'border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500' : 'border-gray-300 text-blue-600 focus:ring-blue-500'}`}
-                />
-                <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{need}</span>
-              </label>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowAccessibilityDropdown(!showAccessibilityDropdown)}
+            className={`w-full px-4 py-3 border-2 rounded-lg flex items-center justify-between transition-all ${
+              showAccessibilityDropdown
+                ? 'border-blue-500 ring-2 ring-blue-200'
+                : darkMode
+                  ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                  : 'border-gray-300 hover:border-gray-400 bg-white'
+            }`}
+          >
+            <span className={`text-sm ${accessibilityNeeds.length === 0 ? (darkMode ? 'text-gray-500' : 'text-gray-400') : (darkMode ? 'text-white' : 'text-gray-900')}`}>
+              {accessibilityNeeds.length === 0 ? 'Select accessibility needs...' : `${accessibilityNeeds.length} selected`}
+            </span>
+            <ChevronDown className={`h-5 w-5 transition-transform ${showAccessibilityDropdown ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+          </button>
+          
+          {showAccessibilityDropdown && (
+            <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg max-h-60 overflow-auto ${
+              darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-2">
+                {[
+                  'Wheelchair accessible',
+                  'Visual impairment support',
+                  'Hearing impairment support',
+                  'Mobility assistance',
+                  'Cognitive support',
+                  'Sensory-friendly environment',
+                  'Sign language interpreter',
+                  'Assistive technology'
+                ].map((need) => (
+                  <label
+                    key={need}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                      darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                      accessibilityNeeds.includes(need)
+                        ? 'bg-blue-500 border-blue-500'
+                        : darkMode
+                          ? 'border-gray-500'
+                          : 'border-gray-300'
+                    }`}>
+                      {accessibilityNeeds.includes(need) && <Check className="h-3 w-3 text-white" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={accessibilityNeeds.includes(need)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setAccessibilityNeeds([...accessibilityNeeds, need]);
+                          setValue('accessibilityNeeds', [...accessibilityNeeds, need]);
+                        } else {
+                          const updated = accessibilityNeeds.filter(n => n !== need);
+                          setAccessibilityNeeds(updated);
+                          setValue('accessibilityNeeds', updated);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{need}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {accessibilityNeeds.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {accessibilityNeeds.map((need) => (
+                <motion.span
+                  key={need}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+                    darkMode 
+                      ? 'bg-blue-600/30 text-blue-300 border border-blue-500/30' 
+                      : 'bg-blue-100 text-blue-700 border border-blue-200'
+                  }`}
+                >
+                  {need}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = accessibilityNeeds.filter(n => n !== need);
+                      setAccessibilityNeeds(updated);
+                      setValue('accessibilityNeeds', updated);
+                    }}
+                    className={`ml-2 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-colors ${
+                      darkMode ? 'text-blue-300' : 'text-blue-600'
+                    }`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </motion.span>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Preferred Accommodations */}
-        <div className="mb-6">
+        {/* Preferred Accommodations - Custom Multi-Select */}
+        <div className="mb-6 relative">
           <label className={`block text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             Preferred Accommodations (Optional)
           </label>
-          <div className="space-y-2">
-            {[
-              'Quiet spaces',
-              'Flexible scheduling',
-              'Modified equipment',
-              'Personal assistant',
-              'Transportation assistance',
-              'Dietary accommodations',
-              'Extended time for activities',
-              'One-on-one instruction'
-            ].map((accommodation) => (
-              <label key={accommodation} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={preferredAccommodations.includes(accommodation)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setPreferredAccommodations([...preferredAccommodations, accommodation]);
-                    } else {
-                      setPreferredAccommodations(preferredAccommodations.filter(a => a !== accommodation));
-                    }
-                  }}
-                  className={`rounded ${darkMode ? 'border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500' : 'border-gray-300 text-blue-600 focus:ring-blue-500'}`}
-                />
-                <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{accommodation}</span>
-              </label>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowAccommodationsDropdown(!showAccommodationsDropdown)}
+            className={`w-full px-4 py-3 border-2 rounded-lg flex items-center justify-between transition-all ${
+              showAccommodationsDropdown
+                ? 'border-green-500 ring-2 ring-green-200'
+                : darkMode
+                  ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                  : 'border-gray-300 hover:border-gray-400 bg-white'
+            }`}
+          >
+            <span className={`text-sm ${preferredAccommodations.length === 0 ? (darkMode ? 'text-gray-500' : 'text-gray-400') : (darkMode ? 'text-white' : 'text-gray-900')}`}>
+              {preferredAccommodations.length === 0 ? 'Select preferred accommodations...' : `${preferredAccommodations.length} selected`}
+            </span>
+            <ChevronDown className={`h-5 w-5 transition-transform ${showAccommodationsDropdown ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+          </button>
+          
+          {showAccommodationsDropdown && (
+            <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg max-h-60 overflow-auto ${
+              darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+            }`}>
+              <div className="p-2">
+                {[
+                  'Quiet spaces',
+                  'Flexible scheduling',
+                  'Modified equipment',
+                  'Personal assistant',
+                  'Transportation assistance',
+                  'Dietary accommodations',
+                  'Extended time for activities',
+                  'One-on-one instruction'
+                ].map((accommodation) => (
+                  <label
+                    key={accommodation}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                      darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                      preferredAccommodations.includes(accommodation)
+                        ? 'bg-green-500 border-green-500'
+                        : darkMode
+                          ? 'border-gray-500'
+                          : 'border-gray-300'
+                    }`}>
+                      {preferredAccommodations.includes(accommodation) && <Check className="h-3 w-3 text-white" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={preferredAccommodations.includes(accommodation)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setPreferredAccommodations([...preferredAccommodations, accommodation]);
+                          setValue('preferredAccommodations', [...preferredAccommodations, accommodation]);
+                        } else {
+                          const updated = preferredAccommodations.filter(a => a !== accommodation);
+                          setPreferredAccommodations(updated);
+                          setValue('preferredAccommodations', updated);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{accommodation}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {preferredAccommodations.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {preferredAccommodations.map((accommodation) => (
+                <motion.span
+                  key={accommodation}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+                    darkMode 
+                      ? 'bg-green-600/30 text-green-300 border border-green-500/30' 
+                      : 'bg-green-100 text-green-700 border border-green-200'
+                  }`}
+                >
+                  {accommodation}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = preferredAccommodations.filter(a => a !== accommodation);
+                      setPreferredAccommodations(updated);
+                      setValue('preferredAccommodations', updated);
+                    }}
+                    className={`ml-2 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-colors ${
+                      darkMode ? 'text-green-300' : 'text-green-600'
+                    }`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </motion.span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
