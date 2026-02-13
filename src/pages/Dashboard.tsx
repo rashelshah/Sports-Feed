@@ -64,8 +64,8 @@ export function Dashboard() {
 
   if (!user) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className="text-center">
+      <div className={`min-h-screen w-full overflow-x-hidden flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="text-center px-4">
           <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Loading...</h2>
           <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Please wait while we load your dashboard.</p>
         </div>
@@ -74,11 +74,11 @@ export function Dashboard() {
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen w-full overflow-x-hidden ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <Header />
 
       {/* Main Content */}
-      <main className="py-8">
+      <main className="py-4 sm:py-6 lg:py-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {renderContent()}
         </div>
