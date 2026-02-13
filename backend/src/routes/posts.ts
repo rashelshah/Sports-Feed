@@ -13,9 +13,15 @@ const router = express.Router();
 
 // Validation schemas
 const createPostSchema = Joi.object({
-  content: Joi.string().required().max(2000),
+  content: Joi.string().allow('', null).max(2000).default(''),
   mediaUrls: Joi.array().items(Joi.string().uri()).allow(null).optional().default([])
-});
+}).custom((value, helpers) => {
+  // Require at least content or media
+  if ((!value.content || !value.content.trim()) && (!value.mediaUrls || value.mediaUrls.length === 0)) {
+    return helpers.error('any.invalid');
+  }
+  return value;
+}).messages({ 'any.invalid': 'Post must have either text content or media' });
 
 const updatePostSchema = Joi.object({
   content: Joi.string().max(2000)
@@ -408,7 +414,7 @@ router.put('/:id', authenticateToken, validateParams(postIdSchema), validate(upd
     return;
   }
 
-  if (existingPost.author_id !== req.user!.id) {
+  if (existingPost.author_id !== req.user!.id && req.user!.role !== 'administrator') {
     res.status(403).json({
       success: false,
       error: 'Not authorized to update this post'
@@ -467,7 +473,7 @@ router.delete('/:id', authenticateToken, validateParams(postIdSchema), asyncHand
     return;
   }
 
-  if (existingPost.author_id !== req.user!.id) {
+  if (existingPost.author_id !== req.user!.id && req.user!.role !== 'administrator') {
     res.status(403).json({
       success: false,
       error: 'Not authorized to delete this post'

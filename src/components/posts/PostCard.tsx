@@ -229,7 +229,7 @@ export function PostCard({ post }: PostCardProps) {
           >
             <MoreHorizontal className="h-5 w-5" />
           </button>
-          {menuOpen && user && user.id === post.userId && (
+          {menuOpen && user && (user.id === post.userId || user.role === 'administrator') && (
             <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
               <button
                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2"
@@ -287,11 +287,11 @@ export function PostCard({ post }: PostCardProps) {
               </button>
               <button
                 className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={async () => { 
+                onClick={async () => {
                   setIsSavingEdit(true);
                   try {
-                    await updatePostContent(post.id, editedContent); 
-                    setIsEditing(false); 
+                    await updatePostContent(post.id, editedContent);
+                    setIsEditing(false);
                   } finally {
                     setIsSavingEdit(false);
                   }
@@ -315,17 +315,17 @@ export function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* Voice Note */}
-      {(post as any).audioUrl && (
+      {post.audioUrl && (
         <div className="px-4 pb-3">
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border border-green-200">
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/30 dark:to-blue-900/30 p-4 rounded-lg border border-green-200 dark:border-green-800">
             <div className="flex items-center space-x-3">
               <div className="flex-shrink-0 bg-green-500 p-2 rounded-full">
                 <Volume2 className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700 mb-2">Voice Note</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Voice Note</p>
                 <audio
-                  src={(post as any).audioUrl}
+                  src={post.audioUrl}
                   controls
                   className="w-full h-10"
                   style={{ maxWidth: '100%' }}
@@ -337,7 +337,7 @@ export function PostCard({ post }: PostCardProps) {
       )}
 
       {/* Media */}
-      {post.mediaUrl && (
+      {post.mediaUrl && post.mediaType !== 'audio' && (
         <div className="relative">
           {post.mediaType === 'video' ? (
             <video
@@ -352,6 +352,28 @@ export function PostCard({ post }: PostCardProps) {
               className="w-full h-80 object-cover"
             />
           )}
+        </div>
+      )}
+
+      {/* Audio as primary media (no separate audioUrl) */}
+      {post.mediaUrl && post.mediaType === 'audio' && !post.audioUrl && (
+        <div className="px-4 pb-3">
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/30 dark:to-blue-900/30 p-4 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0 bg-green-500 p-2 rounded-full">
+                <Volume2 className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Voice Note</p>
+                <audio
+                  src={post.mediaUrl}
+                  controls
+                  className="w-full h-10"
+                  style={{ maxWidth: '100%' }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

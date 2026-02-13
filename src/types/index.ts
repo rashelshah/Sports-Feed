@@ -78,7 +78,8 @@ export interface Post {
   user: User;
   content: string;
   mediaUrl?: string;
-  mediaType?: 'image' | 'video';
+  mediaType?: 'image' | 'video' | 'audio';
+  audioUrl?: string;
   likes: number;
   comments: number;
   shares: number;
