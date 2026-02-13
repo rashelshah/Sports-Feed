@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Users, Search } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -12,7 +12,7 @@ interface CreateGroupModalProps {
 }
 
 export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { getUserFollowers, getUserFollowing } = useAppStore();
   const [groupName, setGroupName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,17 +65,17 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden"
+        className={`rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center">
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-xl font-bold flex items-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             <Users className="h-5 w-5 mr-2" />
             Create Group
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
@@ -95,8 +95,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
               onClick={() => setShowFollowers(true)}
               className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                 showFollowers
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? (darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700')
+                  : (darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
               }`}
             >
               Followers ({followers.length})
@@ -105,8 +105,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
               onClick={() => setShowFollowers(false)}
               className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                 !showFollowers
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? (darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700')
+                  : (darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
               }`}
             >
               Following ({following.length})
@@ -114,19 +114,23 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
             <input
               type="text"
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                darkMode 
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  : 'border-gray-300'
+              }`}
             />
           </div>
 
           {selectedUsers.length > 0 && (
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <p className="text-sm text-blue-700 font-medium">
+            <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+              <p className={`text-sm font-medium ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
                 {selectedUsers.length} member{selectedUsers.length !== 1 ? 's' : ''} selected
               </p>
             </div>
@@ -139,15 +143,15 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
                 onClick={() => toggleUserSelection(targetUser.id)}
                 className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
                   selectedUsers.includes(targetUser.id)
-                    ? 'bg-blue-50 border-2 border-blue-500'
-                    : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent'
+                    ? (darkMode ? 'bg-blue-900/30 border-2 border-blue-500' : 'bg-blue-50 border-2 border-blue-500')
+                    : (darkMode ? 'bg-gray-700 hover:bg-gray-600 border-2 border-transparent' : 'bg-gray-50 hover:bg-gray-100 border-2 border-transparent')
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={selectedUsers.includes(targetUser.id)}
                   onChange={() => {}}
-                  className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+                  className={`h-4 w-4 rounded focus:ring-blue-500 ${darkMode ? 'bg-gray-600 border-gray-500 text-blue-500' : 'text-blue-600'}`}
                 />
                 <img
                   src={targetUser.profileImage}
@@ -156,7 +160,7 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
                 />
                 <div className="flex-1">
                   <div className="flex items-center space-x-1">
-                    <p className="font-medium text-gray-900">{targetUser.fullName}</p>
+                    <p className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{targetUser.fullName}</p>
                     {targetUser.isVerified && (
                       <svg
                         className={`w-4 h-4 ${
@@ -173,15 +177,15 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
                       </svg>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">@{targetUser.username}</p>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>@{targetUser.username}</p>
                 </div>
               </div>
             ))}
 
             {filteredUsers.length === 0 && (
               <div className="text-center py-8">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600">No users found</p>
+                <Users className={`h-12 w-12 mx-auto mb-2 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>No users found</p>
               </div>
             )}
           </div>

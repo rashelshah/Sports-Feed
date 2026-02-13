@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   MapPin,
@@ -133,8 +133,8 @@ function FlyToLocation({ position }: { position: [number, number] | null }) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export function MapPage() {
-  const { user, initSession } = useAuthStore();
-
+  const { user } = useAuthStore();
+  const { getUserTokens, addTokens } = useAppStore();
   const [activeTab, setActiveTab] = useState<'map' | 'checkins' | 'safety'>('map');
   const [mapType, setMapType] = useState<'standard' | 'heatmap' | 'safety'>('standard');
 
@@ -475,20 +475,21 @@ export function MapPage() {
 
   // ─── RENDER ─────────────────────────────────────────────────────
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6">
+    <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-md p-5 mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">Sports Map</h1>
-            <p className="text-gray-600">Discover locations, check in, and mark safe spaces</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sports Map</h1>
+            <p className="text-gray-600">Discover sports locations, check in, and mark safe spaces</p>
           </div>
-          <div className="flex items-center gap-6 text-sm text-gray-600">
-            <div>
-              <span className="font-semibold text-gray-900">{userStats?.totalCheckIns ?? 0}</span> check-ins
+          
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{userCheckIns.length}</span> check-ins today
             </div>
-            <div>
-              <span className="font-semibold text-gray-900">{locations.length}</span> safe locations
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{safeLocations.length}</span> safe locations
             </div>
             {userStats && (
               <div>
@@ -499,20 +500,21 @@ export function MapPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Navigation Tabs */}
       <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
-        {([
-          { id: 'map' as const, label: 'Map View', icon: MapPin },
-          { id: 'checkins' as const, label: 'My Check-ins', icon: CheckCircle },
-          { id: 'safety' as const, label: 'Safety Map', icon: Shield },
-        ]).map((tab) => (
+        {[
+          { id: 'map', label: 'Map View', icon: MapPin },
+          { id: 'checkins', label: 'My Check-ins', icon: CheckCircle },
+          { id: 'safety', label: 'Safety Map', icon: Shield },
+        ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${activeTab === tab.id
-              ? 'bg-white text-blue-600 shadow-sm font-medium'
-              : 'text-gray-600 hover:text-gray-900'
-              }`}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+              activeTab === tab.id
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
           >
             <tab.icon className="h-4 w-4" />
             <span>{tab.label}</span>
@@ -546,11 +548,11 @@ export function MapPage() {
       {!isLoading && !error && activeTab === 'map' && (
         <div className="space-y-6">
           {/* Map Controls */}
-          <div className="bg-white rounded-xl shadow-md p-4">
-            <div className="flex flex-wrap gap-3 items-center">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center space-x-2">
                 <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">View:</span>
+                <span className="text-sm font-medium text-gray-700">Map Type:</span>
               </div>
               {([
                 { id: 'standard' as const, label: 'Standard' },
@@ -559,25 +561,38 @@ export function MapPage() {
               ]).map((type) => (
                 <button
                   key={type.id}
-                  onClick={() => setMapType(type.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${mapType === type.id
-                    ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                  onClick={() => setMapType(type.id as any)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    mapType === type.id
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
                 >
                   {type.label}
                 </button>
               ))}
 
-              {/* Center on user */}
-              {userLocation && (
-                <button
-                  onClick={() => setFlyTarget([...userLocation])}
-                  className="ml-auto flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 transition"
-                >
-                  <Navigation className="h-3.5 w-3.5" />
-                  My Location
-                </button>
+              {mapType === 'heatmap' && (
+                <div className="flex items-center space-x-2 ml-4">
+                  <span className="text-sm text-gray-600">Heat Type:</span>
+                  {[
+                    { id: 'activity', label: 'Activity' },
+                    { id: 'women-safe', label: 'Women Safe' },
+                    { id: 'disability-friendly', label: 'Accessible' }
+                  ].map((type) => (
+                    <button
+                      key={type.id}
+                      onClick={() => setHeatMapType(type.id as any)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        heatMapType === type.id
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -695,48 +710,52 @@ export function MapPage() {
             </MapContainer>
           </div>
 
-          {/* Location Cards */}
-          {locations.length > 0 && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {locations.map((loc) => (
-                <motion.div
-                  key={loc.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-xl shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => {
-                    setSelectedLocation(loc);
-                    setFlyTarget([loc.latitude, loc.longitude]);
-                  }}
-                >
-                  <div className="flex items-start justify-between mb-3">
+          {/* Location List */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {locations.map((location) => (
+              <motion.div
+                key={location.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setSelectedLocation(location)}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl">{getLocationIcon(location.type)}</span>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{loc.name}</h3>
-                      {loc.address && <p className="text-sm text-gray-600">{loc.address}</p>}
+                      <h3 className="font-semibold text-gray-900">{location.name}</h3>
+                      <p className="text-sm text-gray-600">{location.address}</p>
                     </div>
-                    {loc.verifications_count !== undefined && (
-                      <div className="flex items-center gap-1 text-sm">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="font-medium">{loc.verifications_count}</span>
-                      </div>
-                    )}
                   </div>
-
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {(loc.safety_features || []).slice(0, 3).map((f: string, i: number) => (
-                      <div key={i} className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded text-xs">
-                        {getSafetyIcon(f)}
-                        <span className="capitalize">{f.replace(/-/g, ' ')}</span>
-                      </div>
-                    ))}
-                    {(loc.safety_features || []).length > 3 && (
-                      <span className="text-xs text-gray-500">+{(loc.safety_features || []).length - 3} more</span>
-                    )}
+                  
+                  <div className="flex items-center space-x-1">
+                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                    <span className="text-sm font-medium">{location.rating}</span>
                   </div>
+                </div>
 
-                  {loc.distance !== undefined && (
-                    <p className="text-xs text-gray-500 mb-3">📍 {loc.distance.toFixed(1)} km away</p>
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                  <div className="flex items-center space-x-1">
+                    <Users className="h-4 w-4" />
+                    <span>{location.currentUsers} active</span>
+                  </div>
+                  {location.maxCapacity && (
+                    <span>Max: {location.maxCapacity}</span>
                   )}
+                </div>
+
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {location.safetyFeatures.slice(0, 3).map((feature, index) => (
+                    <div key={index} className="flex items-center space-x-1 bg-gray-100 px-2 py-1 rounded text-xs">
+                      {getSafetyIcon(feature)}
+                      <span className="capitalize">{feature.replace('-', ' ')}</span>
+                    </div>
+                  ))}
+                  {location.safetyFeatures.length > 3 && (
+                    <span className="text-xs text-gray-500">+{location.safetyFeatures.length - 3} more</span>
+                  )}
+                </div>
 
                   <Button
                     onClick={() => {
@@ -780,13 +799,15 @@ export function MapPage() {
       {!isLoading && activeTab === 'checkins' && (
         <div className="space-y-6">
           <h2 className="text-2xl font-bold text-gray-900">My Check-ins</h2>
-
-          {checkIns.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-md p-8 text-center">
-              <CheckCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          
+          {userCheckIns.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <CheckCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No check-ins yet</h3>
               <p className="text-gray-600 mb-4">Start exploring and check in at sports locations to earn tokens!</p>
-              <Button onClick={() => setActiveTab('map')}>Explore Map</Button>
+              <Button onClick={() => setActiveTab('map')}>
+                Explore Map
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -795,27 +816,24 @@ export function MapPage() {
                   key={ci.id}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-xl shadow-md p-4"
+                  className="bg-white rounded-lg shadow-md p-4"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center space-x-3">
                       <div className="bg-green-100 p-2 rounded-full">
                         <CheckCircle className="h-5 w-5 text-green-600" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{ci.location_name}</h3>
+                        <h3 className="font-semibold text-gray-900">{checkIn.locationName}</h3>
                         <p className="text-sm text-gray-600">
-                          {new Date(ci.checked_in_at).toLocaleDateString()} at{' '}
-                          {new Date(ci.checked_in_at).toLocaleTimeString()}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {ci.activity.replace(/-/g, ' ')} · {ci.duration} min
+                          {new Date(checkIn.createdAt).toLocaleDateString()} at{' '}
+                          {new Date(checkIn.createdAt).toLocaleTimeString()}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm text-green-600 font-medium">+5 tokens</div>
-                      <div className="text-xs text-gray-500">Check-in</div>
+                      <div className={`text-sm font-medium ${darkMode ? 'text-green-400' : 'text-green-600'}`}>+5 tokens</div>
+                      <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Check-in</div>
                     </div>
                   </div>
                 </motion.div>
@@ -830,101 +848,50 @@ export function MapPage() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-gray-900">Safe Locations</h2>
-            {canCreateSafeLocation && (
-              <Button onClick={() => { setSelectedLocation(null); setShowSafetyModal(true); }} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Add Safe Location
-              </Button>
-            )}
+            <Button
+              onClick={() => setShowSafetyModal(true)}
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Mark Safe Location
+            </Button>
           </div>
 
-          {locations.filter(l => (l.safety_features || []).length > 0).length === 0 ? (
-            <div className="bg-white rounded-xl shadow-md p-8 text-center">
-              <Shield className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No safe locations yet</h3>
-              <p className="text-gray-600">Be the first to mark a safe location!</p>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {locations.filter(l => (l.safety_features || []).length > 0).map((loc) => (
-                <motion.div
-                  key={loc.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-xl shadow-md p-4"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{loc.name}</h3>
-                      <p className="text-sm text-gray-600">{getRoleLabel(loc)}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-medium mr-1">{(loc.average_rating || 0).toFixed(1)}</span>
-                      {ratingId === loc.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-yellow-400" />
-                      ) : (
-                        [1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`h-4 w-4 cursor-pointer transition-colors ${star <= Math.round(loc.average_rating || 0)
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-gray-300'
-                              }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRateLocation(loc.id, star);
-                            }}
-                          />
-                        ))
-                      )}
-                    </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {safeLocations.map((location) => (
+              <motion.div
+                key={location.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-lg shadow-md p-4"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{location.name}</h3>
+                    <p className="text-sm text-gray-600">{location.address}</p>
                   </div>
+                  
+                  <div className="flex items-center space-x-1">
+                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                    <span className="text-sm font-medium">{location.averageRating.toFixed(1)}</span>
+                  </div>
+                </div>
 
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {(loc.safety_features || []).map((f: string, i: number) => (
-                      <div key={i} className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded text-xs">
-                        {getSafetyIcon(f)}
-                        <span className="capitalize">{f.replace(/-/g, ' ')}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {location.safetyFeatures.map((feature, index) => (
+                    <div key={index} className="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded text-xs">
+                      {getSafetyIcon(feature)}
+                      <span className="capitalize">{feature.replace('-', ' ')}</span>
+                    </div>
+                  ))}
+                </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                      Verified by {loc.verifications_count || 0} users
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => { setSelectedLocation(loc); setShowSafetyModal(true); }}
-                        className="text-xs px-2 py-1 h-auto"
-                      >
-                        <Shield className="h-3 w-3 mr-1" />
-                        Verify
-                      </Button>
-                      {canDeleteLocation(loc) && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteLocation(loc.id, loc.name)}
-                          className="text-xs px-2 py-1 h-auto text-red-500 hover:text-red-700 hover:border-red-300"
-                          disabled={deletingId === loc.id}
-                        >
-                          {deletingId === loc.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3 w-3" />
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                <div className="text-xs text-gray-500">
+                  Verified by {location.verifiedBy.length} users
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -934,58 +901,28 @@ export function MapPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Check in at {selectedLocation.name}
             </h3>
 
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <MapPin className="h-4 w-4" />
                 <span>{selectedLocation.address || `${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}`}</span>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Activity</label>
-                <select
-                  value={checkInActivity}
-                  onChange={(e) => setCheckInActivity(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="coco">CoCo</option>
-                  <option value="martial-arts">Martial Arts</option>
-                  <option value="calorie-fight">Calorie Fight</option>
-                  <option value="adaptive-sports">Adaptive Sports</option>
-                  <option value="unstructured-sports">Unstructured Sports</option>
-                </select>
+              
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <Users className="h-4 w-4" />
+                <span>{selectedLocation.currentUsers} people currently here</span>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={1440}
-                  value={checkInDuration}
-                  onChange={(e) => setCheckInDuration(Number(e.target.value))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Reward:</strong> Earn 5 tokens for checking in!
+                </p>
               </div>
-
-              {isLocationCheckedIn(selectedLocation) ? (
-                <div className="bg-amber-50 p-3 rounded-lg">
-                  <p className="text-sm text-amber-800">
-                    <strong>Already checked in!</strong> You've already checked in at this location. Come back later!
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Reward:</strong> Earn tokens for checking in!
-                  </p>
-                </div>
-              )}
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -1007,15 +944,17 @@ export function MapPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
           >
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {selectedLocation ? `Verify ${selectedLocation.name}` : 'Mark Location as Safe'}
+              Mark Location as Safe
             </h3>
 
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">Select safety features available at this location:</p>
-
+              <p className="text-sm text-gray-600">
+                Select the safety features available at this location:
+              </p>
+              
               <div className="space-y-2">
                 {[
                   'women-safe',
@@ -1029,18 +968,18 @@ export function MapPage() {
                   <label key={feature} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={safetyFeatures.includes(feature)}
-                      onChange={() => toggleSafetyFeature(feature)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-700 capitalize">{feature.replace(/-/g, ' ')}</span>
+                    <span className="text-sm text-gray-700 capitalize">
+                      {feature.replace('-', ' ')}
+                    </span>
                   </label>
                 ))}
               </div>
 
               <div className="bg-green-50 p-3 rounded-lg">
                 <p className="text-sm text-green-800">
-                  <strong>Reward:</strong> Earn tokens for reporting safe locations!
+                  <strong>Reward:</strong> Earn 10 tokens for marking a safe location!
                 </p>
               </div>
             </div>

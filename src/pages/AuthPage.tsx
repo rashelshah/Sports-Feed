@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Users, Shield } from 'lucide-react';
 import { SignupForm } from '../components/auth/SignupForm';
 import { LoginForm } from '../components/auth/LoginForm';
+import { useAuthStore } from '../store/authStore';
 
 type AuthStep = 'login' | 'signup';
 
 export function AuthPage() {
   const [currentStep, setCurrentStep] = useState<AuthStep>('login');
+  const { darkMode } = useAuthStore();
 
   const renderStep = () => {
     try {
@@ -25,7 +27,11 @@ export function AuthPage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+    <div className={`min-h-screen flex items-center justify-center p-4 ${
+      darkMode 
+        ? 'bg-gradient-to-br from-gray-900 to-gray-800' 
+        : 'bg-gradient-to-br from-blue-50 to-purple-50'
+    }`}>
       <div className="w-full max-w-4xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           {/* Left Side - Branding */}
@@ -35,29 +41,29 @@ export function AuthPage() {
             transition={{ duration: 0.6 }}
             className="text-center lg:text-left"
           >
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+            <h1 className={`text-4xl lg:text-5xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Welcome to{' '}
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 SportsFeed
               </span>
             </h1>
             
-            <p className="text-xl text-gray-600 mb-8">
+            <p className={`text-xl mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Connect with certified coaches, share your journey, and level up your athletic performance.
             </p>
             
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Trophy className="h-6 w-6 text-yellow-500" />
-                <span className="text-gray-700">Learn from verified coaches</span>
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Learn from verified coaches</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Users className="h-6 w-6 text-blue-500" />
-                <span className="text-gray-700">Connect with athletes worldwide</span>
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Connect with athletes worldwide</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Shield className="h-6 w-6 text-green-500" />
-                <span className="text-gray-700">Secure, verified community</span>
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-700'}>Secure, verified community</span>
               </div>
             </div>
           </motion.div>
@@ -67,7 +73,7 @@ export function AuthPage() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-white rounded-2xl shadow-xl p-8"
+            className={`rounded-2xl shadow-xl p-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
           >
             <div className="min-h-[400px]">
               {renderStep()}
@@ -75,7 +81,7 @@ export function AuthPage() {
             
             <div className="mt-6 text-center">
               {currentStep === 'login' ? (
-                <p className="text-gray-600">
+                <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
                   Don't have an account?{' '}
                   <button
                     onClick={() => setCurrentStep('signup')}
@@ -85,7 +91,7 @@ export function AuthPage() {
                   </button>
                 </p>
               ) : (
-                <p className="text-gray-600">
+                <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
                   Already have an account?{' '}
                   <button
                     onClick={() => setCurrentStep('login')}

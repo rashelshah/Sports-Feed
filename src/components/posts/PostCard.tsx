@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share, MoreHorizontal, Send, Volume2, Edit, Trash2, Check, X } from 'lucide-react';
+import { Heart, MessageCircle, Share, MoreHorizontal, Send, Volume2, Edit, Trash2, Check, X, Loader2 } from 'lucide-react';
 import { Post } from '../../types';
 import { useAppStore } from '../../store/appStore';
 import { useAuthStore } from '../../store/authStore';
@@ -23,6 +23,8 @@ export function PostCard({ post }: PostCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(post.content);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [fetchedComments, setFetchedComments] = useState<any[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
 
@@ -199,7 +201,7 @@ export function PostCard({ post }: PostCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-lg shadow-md overflow-hidden mb-6"
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6"
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4">
@@ -211,16 +213,16 @@ export function PostCard({ post }: PostCardProps) {
           />
           <div>
             <div className="flex items-center space-x-1">
-              <h3 className="font-semibold text-gray-900">{post.user.username}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white">{post.user.username}</h3>
               {getVerificationBadge()}
             </div>
-            <p className="text-sm text-gray-500 capitalize">{post.user.sportsCategory.replace('-', ' ')}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{post.user.sportsCategory.replace('-', ' ')}</p>
           </div>
         </div>
 
         <div className="relative">
           <button
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             title="Post options"
             aria-label="Post options"
             onClick={() => setMenuOpen(!menuOpen)}
@@ -228,25 +230,35 @@ export function PostCard({ post }: PostCardProps) {
             <MoreHorizontal className="h-5 w-5" />
           </button>
           {menuOpen && user && user.id === post.userId && (
-            <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+            <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
               <button
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2"
                 onClick={() => { setIsEditing(true); setMenuOpen(false); }}
               >
-                <Edit className="h-4 w-4 text-gray-600" />
-                <span>Edit text</span>
+                <Edit className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                <span className="dark:text-gray-200">Edit text</span>
               </button>
               <button
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
-                onClick={() => {
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-red-600 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={async () => {
                   if (confirm('Delete this post?')) {
-                    deletePost(post.id);
+                    setIsDeleting(true);
+                    try {
+                      await deletePost(post.id);
+                    } finally {
+                      setIsDeleting(false);
+                    }
                   }
                   setMenuOpen(false);
                 }}
+                disabled={isDeleting}
               >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete post</span>
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                <span>{isDeleting ? 'Deleting...' : 'Delete post'}</span>
               </button>
             </div>
           )}
@@ -260,12 +272,12 @@ export function PostCard({ post }: PostCardProps) {
             <textarea
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={3}
             />
             <div className="flex items-center space-x-2 justify-end">
               <button
-                className="px-3 py-1 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center space-x-1"
+                className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center space-x-1"
                 onClick={() => { setIsEditing(false); setEditedContent(post.content); }}
                 title="Cancel"
                 aria-label="Cancel edit"
@@ -274,18 +286,31 @@ export function PostCard({ post }: PostCardProps) {
                 <span>Cancel</span>
               </button>
               <button
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-1"
-                onClick={() => { updatePostContent(post.id, editedContent); setIsEditing(false); }}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={async () => { 
+                  setIsSavingEdit(true);
+                  try {
+                    await updatePostContent(post.id, editedContent); 
+                    setIsEditing(false); 
+                  } finally {
+                    setIsSavingEdit(false);
+                  }
+                }}
+                disabled={isSavingEdit}
                 title="Save"
                 aria-label="Save edit"
               >
-                <Check className="h-4 w-4" />
-                <span>Save</span>
+                {isSavingEdit ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                <span>{isSavingEdit ? 'Saving...' : 'Save'}</span>
               </button>
             </div>
           </div>
         ) : (
-          post.content && <p className="text-gray-900 whitespace-pre-wrap">{post.content}</p>
+          post.content && <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{post.content}</p>
         )}
       </div>
 
@@ -338,7 +363,7 @@ export function PostCard({ post }: PostCardProps) {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleLike}
-              className={`flex items-center space-x-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
+              className={`flex items-center space-x-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 dark:text-gray-400 hover:text-red-500'
                 }`}
             >
               <Heart className={`h-6 w-6 ${isLiked ? 'fill-current' : ''}`} />
@@ -347,7 +372,7 @@ export function PostCard({ post }: PostCardProps) {
 
             <button
               onClick={() => setShowComments(!showComments)}
-              className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors"
+              className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
             >
               <MessageCircle className="h-6 w-6" />
               <span className="text-sm font-medium">{post.comments}</span>
@@ -357,7 +382,7 @@ export function PostCard({ post }: PostCardProps) {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleShare}
-              className="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors"
+              className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-green-500 transition-colors"
             >
               <Share className="h-6 w-6" />
               <span className="text-sm font-medium">{sharesCount}</span>
@@ -365,7 +390,7 @@ export function PostCard({ post }: PostCardProps) {
           </div>
         </div>
 
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           {new Date(post.createdAt).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -381,7 +406,7 @@ export function PostCard({ post }: PostCardProps) {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="border-t border-gray-100 p-4"
+          className="border-t border-gray-100 dark:border-gray-700 p-4"
         >
           {/* Comment Form */}
           {user && (
@@ -397,7 +422,7 @@ export function PostCard({ post }: PostCardProps) {
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Write a comment..."
-                    className="w-full p-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={2}
                   />
                   <div className="flex justify-end mt-2">
@@ -431,18 +456,18 @@ export function PostCard({ post }: PostCardProps) {
                   className="h-8 w-8 rounded-full object-cover"
                 />
                 <div className="flex-1">
-                  <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
                     <div className="flex items-center space-x-1 mb-1">
-                      <p className="font-medium text-sm text-gray-900">{comment.user.fullName}</p>
+                      <p className="font-medium text-sm text-gray-900 dark:text-white">{comment.user.fullName}</p>
                       {comment.user.isVerified && (
                         <svg className={`w-3 h-3 ${comment.user.role === 'coach' ? 'text-purple-500' : 'text-blue-500'}`} fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
                       )}
                     </div>
-                    <p className="text-sm text-gray-700">{comment.content}</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{comment.content}</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 ml-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-3">
                     {new Date(comment.createdAt).toLocaleString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -457,10 +482,10 @@ export function PostCard({ post }: PostCardProps) {
             {isLoadingComments ? (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                <p className="text-gray-400 text-sm">Loading comments...</p>
+                <p className="text-gray-400 dark:text-gray-500 text-sm">Loading comments...</p>
               </div>
             ) : comments.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-4">
+              <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">
                 No comments yet. Be the first to comment!
               </p>
             ) : null}

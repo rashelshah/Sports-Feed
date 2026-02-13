@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Play, Coins, Clock } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
+import { useAuthStore } from '../../store/authStore';
 import { Button } from '../ui/Button';
 import toast from 'react-hot-toast';
 
@@ -12,6 +13,7 @@ interface WatchAdModalProps {
 
 export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
   const { watchAd } = useAppStore();
+  const { darkMode } = useAuthStore();
   const [isWatching, setIsWatching] = useState(false);
   const [countdown, setCountdown] = useState(15);
   const [adCompleted, setAdCompleted] = useState(false);
@@ -59,14 +61,14 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-md w-full"
+        className={`rounded-lg shadow-xl max-w-md w-full ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Watch Ad for Tokens</h2>
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Watch Ad for Tokens</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
@@ -78,10 +80,10 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
               <div className="bg-gradient-to-r from-green-500 to-blue-500 rounded-full p-4 w-16 h-16 mx-auto mb-4">
                 <Coins className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Earn 10 Free Tokens!
               </h3>
-              <p className="text-gray-600 text-sm mb-6">
+              <p className={`text-sm mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Watch a short 15-second advertisement to earn tokens and unlock premium content.
               </p>
               
@@ -112,11 +114,11 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
               </div>
               
               <div className="flex items-center justify-center space-x-2 mb-4">
-                <Clock className="h-5 w-5 text-gray-500" />
-                <span className="text-lg font-bold text-gray-900">{countdown}s</span>
+                <Clock className={`h-5 w-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                <span className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{countdown}s</span>
               </div>
               
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className={`w-full rounded-full h-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                 <div 
                   className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
                   style={{ width: `${((15 - countdown) / 15) * 100}%` }}
@@ -130,10 +132,10 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
               <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-full p-4 w-16 h-16 mx-auto mb-4">
                 <Coins className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Ad Complete! 🎉
               </h3>
-              <p className="text-gray-600 text-sm mb-6">
+              <p className={`text-sm mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Thank you for watching! You've earned 10 tokens.
               </p>
               

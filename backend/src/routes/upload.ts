@@ -344,14 +344,14 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), asyncHandler(
   try {
     // Delete old avatar if exists
     const { data: currentUser } = await supabaseAdmin
-      .from('users')
-      .select('avatar_url')
+      .from('profiles')
+      .select('profile_image')
       .eq('id', req.user!.id)
       .single();
 
-    if (currentUser?.avatar_url) {
+    if (currentUser?.profile_image) {
       // Extract public_id from Cloudinary URL
-      const urlParts = currentUser.avatar_url.split('/');
+      const urlParts = currentUser.profile_image.split('/');
       const publicIdWithExt = urlParts[urlParts.length - 1];
       const publicId = publicIdWithExt.split('.')[0];
       
@@ -390,8 +390,8 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), asyncHandler(
 
     // Update user's avatar URL
     const { error: updateError } = await supabaseAdmin
-      .from('users')
-      .update({ avatar_url: result.secure_url })
+      .from('profiles')
+      .update({ profile_image: result.secure_url })
       .eq('id', req.user!.id);
 
     if (updateError) {

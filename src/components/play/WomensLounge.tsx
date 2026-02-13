@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Shield, Heart, Star, Calendar, MapPin, Clock, Video, BookOpen, MessageCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -62,7 +62,7 @@ interface WomensContent {
 }
 
 export function WomensLounge() {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { getUserTokens, spendTokens } = useAppStore();
   const [activeTab, setActiveTab] = useState<'events' | 'coaches' | 'content'>('events');
   const [events, setEvents] = useState<WomensEvent[]>([]);
@@ -235,16 +235,16 @@ export function WomensLounge() {
   if (!isFemale) {
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-8 text-center">
+        <div className={`rounded-lg p-8 text-center ${darkMode ? 'bg-gradient-to-r from-pink-900/30 to-purple-900/30' : 'bg-gradient-to-r from-pink-50 to-purple-50'}`}>
           <Shield className="h-16 w-16 text-pink-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Women's Lounge</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Women's Lounge</h2>
+          <p className={`mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             This space is exclusively for women athletes and organizers. It provides a safe, supportive environment
             for women to connect, learn, and grow together in sports.
           </p>
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Why Women's Lounge?</h3>
-            <ul className="text-left text-gray-600 space-y-2">
+          <div className={`rounded-lg p-6 shadow-sm ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Why Women's Lounge?</h3>
+            <ul className={`text-left space-y-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               <li>• Safe space for women to share experiences</li>
               <li>• Female-focused coaching and mentorship</li>
               <li>• Events designed specifically for women's needs</li>
@@ -257,22 +257,22 @@ export function WomensLounge() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className={`max-w-6xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}>
       {/* Header */}
-      <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-6 mb-8">
+      <div className={`rounded-lg p-6 mb-8 ${darkMode ? 'bg-gradient-to-r from-pink-900/30 to-purple-900/30' : 'bg-gradient-to-r from-pink-50 to-purple-50'}`}>
         <div className="flex items-center space-x-4">
-          <div className="bg-pink-100 p-3 rounded-full">
-            <Heart className="h-8 w-8 text-pink-600" />
+          <div className={`p-3 rounded-full ${darkMode ? 'bg-pink-900/50' : 'bg-pink-100'}`}>
+            <Heart className={`h-8 w-8 ${darkMode ? 'text-pink-400' : 'text-pink-600'}`} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Women's Lounge</h1>
-            <p className="text-gray-600">A safe space for women athletes to connect, learn, and grow together</p>
+            <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Women's Lounge</h1>
+            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>A safe space for women athletes to connect, learn, and grow together</p>
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-8">
+      <div className={`flex space-x-1 rounded-lg p-1 mb-8 ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
         {[
           { id: 'events', label: 'Events', icon: Calendar },
           { id: 'coaches', label: 'Coaches', icon: Users },
@@ -282,8 +282,8 @@ export function WomensLounge() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${activeTab === tab.id
-                ? 'bg-white text-pink-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? (darkMode ? 'bg-gray-700 text-pink-400 shadow-sm' : 'bg-white text-pink-600 shadow-sm')
+                : (darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-900')
               }`}
           >
             <tab.icon className="h-4 w-4" />
@@ -295,21 +295,21 @@ export function WomensLounge() {
       {/* Events Tab */}
       {activeTab === 'events' && (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">Upcoming Events</h2>
+          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Upcoming Events</h2>
           <div className="grid gap-6">
             {events.map((event) => (
               <motion.div
                 key={event.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg shadow-md p-6"
+                className={`rounded-lg shadow-md p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{event.title}</h3>
-                    <p className="text-gray-600 mb-4">{event.description}</p>
+                    <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{event.title}</h3>
+                    <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{event.description}</p>
 
-                    <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
+                    <div className={`flex items-center space-x-4 text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-4 w-4" />
                         <span>{event.date}</span>
@@ -328,7 +328,7 @@ export function WomensLounge() {
                       {event.features.map((feature, index) => (
                         <span
                           key={index}
-                          className="px-3 py-1 bg-pink-100 text-pink-700 text-xs rounded-full"
+                          className={`px-3 py-1 text-xs rounded-full ${darkMode ? 'bg-pink-900/30 text-pink-300' : 'bg-pink-100 text-pink-700'}`}
                         >
                           {feature}
                         </span>
@@ -340,12 +340,12 @@ export function WomensLounge() {
                     <div className="flex items-center space-x-1 mb-2">
                       <Star className="h-4 w-4 text-yellow-400 fill-current" />
                       <span className="text-sm font-medium">{event.rating}</span>
-                      <span className="text-sm text-gray-500">({event.totalRatings})</span>
+                      <span className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>({event.totalRatings})</span>
                     </div>
-                    <div className="text-sm text-gray-500 mb-2">
+                    <div className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       {event.currentParticipants}/{event.maxParticipants} participants
                     </div>
-                    <div className="text-lg font-bold text-pink-600 mb-3">
+                    <div className={`text-lg font-bold mb-3 ${darkMode ? 'text-pink-400' : 'text-pink-600'}`}>
                       {event.tokenCost} tokens
                     </div>
                     <Button
@@ -366,14 +366,14 @@ export function WomensLounge() {
       {/* Coaches Tab */}
       {activeTab === 'coaches' && (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">Featured Women Coaches</h2>
+          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Featured Women Coaches</h2>
           <div className="grid md:grid-cols-2 gap-6">
             {coaches.map((coach) => (
               <motion.div
                 key={coach.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg shadow-md p-6"
+                className={`rounded-lg shadow-md p-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
               >
                 <div className="flex items-start space-x-4">
                   <div className="relative">
@@ -383,21 +383,21 @@ export function WomensLounge() {
                       className="h-16 w-16 rounded-full object-cover"
                     />
                     {coach.isOnline && (
-                      <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-white"></div>
+                      <div className={`absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 ${darkMode ? 'border-gray-800' : 'border-white'}`}></div>
                     )}
                   </div>
 
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{coach.name}</h3>
+                      <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{coach.name}</h3>
                       {coach.isVerified && (
                         <Shield className="h-4 w-4 text-blue-500" />
                       )}
                     </div>
 
-                    <p className="text-sm text-gray-600 mb-3">{coach.bio}</p>
+                    <p className={`text-sm mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{coach.bio}</p>
 
-                    <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
+                    <div className={`flex items-center space-x-4 text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       <div className="flex items-center space-x-1">
                         <Star className="h-4 w-4 text-yellow-400 fill-current" />
                         <span>{coach.rating}</span>
@@ -429,14 +429,14 @@ export function WomensLounge() {
       {/* Content Tab */}
       {activeTab === 'content' && (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">Women's Content</h2>
+          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Women's Content</h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {content.map((item) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg shadow-md overflow-hidden"
+                className={`rounded-lg shadow-md overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
               >
                 {item.thumbnail && (
                   <div className="relative">
@@ -459,10 +459,10 @@ export function WomensLounge() {
                 )}
 
                 <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h3>
-                  <p className="text-gray-600 text-sm mb-4">{item.description}</p>
+                  <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{item.title}</h3>
+                  <p className={`text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{item.description}</p>
 
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
+                  <div className={`flex items-center space-x-4 text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     <div className="flex items-center space-x-1">
                       <Video className="h-4 w-4" />
                       <span>{item.views} views</span>
@@ -474,13 +474,13 @@ export function WomensLounge() {
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-500">
+                    <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       by {item.author.name}
                     </div>
                     <Button
                       onClick={() => handleAccessContent(item)}
                       size="sm"
-                      variant={item.isPremium ? "default" : "outline"}
+                      variant={item.isPremium ? "primary" : "outline"}
                     >
                       {item.isPremium ? `${item.tokenCost} tokens` : 'Free'}
                     </Button>
