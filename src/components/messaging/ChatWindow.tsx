@@ -525,7 +525,7 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
               animate={{ opacity: 1, y: 0 }}
               className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}
             >
-              <div className={`flex items-end gap-2 max-w-[70%] ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className={`flex items-end gap-2 max-w-[85%] sm:max-w-[70%] ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                 {!isOwn && (
                   <img
                     src={message.sender?.profile_image || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
@@ -635,8 +635,8 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
         </div>
       )}
 
-      <form onSubmit={handleSendMessage} className={`p-4 border-t ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} ${imagePreviewUrl ? 'border-t-0 pt-2' : ''}`}>
-        <div className="flex items-center space-x-3">
+      <form onSubmit={handleSendMessage} className={`p-2 sm:p-4 border-t ${darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} ${imagePreviewUrl ? 'border-t-0 pt-2' : ''}`}>
+        <div className="flex items-center space-x-2 sm:space-x-3">
           <input
             ref={fileInputRef}
             type="file"
@@ -652,10 +652,10 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploadingImage}
-            className={`p-2 rounded-full transition-colors ${isUploadingImage ? 'animate-pulse' : ''} ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+            className={`p-1.5 sm:p-2 rounded-full transition-colors ${isUploadingImage ? 'animate-pulse' : ''} ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
             title={isUploadingImage ? 'Uploading...' : 'Upload image'}
           >
-            <Image className="h-5 w-5" />
+            <Image className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
 
           <div className="flex-1 relative">
@@ -666,7 +666,7 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isValidating}
-                className={`w-full px-4 py-2 pr-10 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 ${darkMode
+                className={`w-full px-3 sm:px-4 py-2 pr-10 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 text-sm sm:text-base ${darkMode
                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                   : 'border border-gray-300 disabled:bg-gray-100 disabled:text-gray-500'
                   }`}
@@ -674,10 +674,10 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
                 title="Add emoji"
               >
-                <Smile className="h-5 w-5" />
+                <Smile className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
 
               {showEmojiPicker && (
@@ -707,10 +707,10 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
           <button
             type="submit"
             disabled={!newMessage.trim() || isValidating}
-            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white p-2 rounded-full transition-colors"
+            className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white p-1.5 sm:p-2 rounded-full transition-colors"
             title="Send message"
           >
-            <Send className="h-5 w-5" />
+            <Send className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
         </div>
       </form>

@@ -548,7 +548,7 @@ export function MapPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className={`flex space-x-1 rounded-lg p-1 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+      <div className={`flex space-x-1 rounded-lg p-1 mb-6 overflow-x-auto ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
         {[
           { id: 'map', label: 'Map View', icon: MapPin },
           { id: 'checkins', label: 'My Check-ins', icon: CheckCircle },
@@ -557,42 +557,20 @@ export function MapPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${activeTab === tab.id
+            className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap ${activeTab === tab.id
               ? darkMode
                 ? 'bg-gray-700 text-blue-400 shadow-sm'
                 : 'bg-white text-blue-600 shadow-sm'
               : darkMode
                 ? 'text-gray-400 hover:text-gray-200'
                 : 'text-gray-600 hover:text-gray-900'
-              }`}
+            }`}
           >
             <tab.icon className="h-4 w-4" />
-            <span>{tab.label}</span>
+            <span className="text-sm">{tab.label}</span>
           </button>
         ))}
       </div>
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className={`rounded-xl shadow-md p-12 flex flex-col items-center justify-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
-          <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Loading map data...</p>
-        </div>
-      )}
-
-      {/* Error state */}
-      {error && !isLoading && (
-        <div className={`border rounded-xl p-6 text-center mb-6 ${darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
-          <AlertCircle className={`h-8 w-8 mx-auto mb-2 ${darkMode ? 'text-red-400' : 'text-red-500'}`} />
-          <p className={darkMode ? 'text-red-300' : 'text-red-700'}>{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className={`mt-3 px-4 py-2 rounded-lg transition ${darkMode ? 'bg-red-900/30 text-red-300 hover:bg-red-900/50' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-          >
-            Retry
-          </button>
-        </div>
-      )}
 
       {/* ═══ MAP VIEW TAB ═══ */}
       {!isLoading && !error && activeTab === 'map' && (
@@ -650,7 +628,8 @@ export function MapPage() {
             <MapContainer
               center={userLocation || defaultCenter}
               zoom={13}
-              style={{ height: '480px', width: '100%' }}
+              style={{ height: '300px', width: '100%' }}
+              className="sm:h-[400px] md:h-[480px]"
               scrollWheelZoom={true}
             >
               <TileLayer

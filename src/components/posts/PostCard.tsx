@@ -340,18 +340,19 @@ export function PostCard({ post }: PostCardProps) {
 
       {/* Media */}
       {post.mediaUrl && post.mediaType !== 'audio' && (
-        <div className="relative">
+        <div className="relative w-full">
           {post.mediaType === 'video' ? (
             <video
               src={post.mediaUrl}
-              className="w-full h-80 object-cover"
+              className="w-full h-auto max-h-[70vh] sm:max-h-[500px] object-contain bg-black"
               controls
+              playsInline
             />
           ) : (
             <img
               src={post.mediaUrl}
               alt="Post content"
-              className="w-full h-80 object-cover"
+              className="w-full h-auto max-h-[70vh] sm:max-h-[500px] object-contain bg-gray-100 dark:bg-gray-900"
             />
           )}
         </div>
@@ -380,25 +381,25 @@ export function PostCard({ post }: PostCardProps) {
       )}
 
       {/* Actions */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4 sm:space-x-6">
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleLike}
-              className={`flex items-center space-x-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 dark:text-gray-400 hover:text-red-500'
+              className={`flex items-center space-x-1 sm:space-x-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 dark:text-gray-400 hover:text-red-500'
                 }`}
             >
-              <Heart className={`h-6 w-6 ${isLiked ? 'fill-current' : ''}`} />
+              <Heart className={`h-5 w-5 sm:h-6 sm:w-6 ${isLiked ? 'fill-current' : ''}`} />
               <span className="text-sm font-medium">{likesCount}</span>
             </motion.button>
 
             <button
               onClick={() => setShowComments(!showComments)}
-              className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
+              className="flex items-center space-x-1 sm:space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
             >
-              <MessageCircle className="h-6 w-6" />
+              <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
               <span className="text-sm font-medium">{post.comments}</span>
             </button>
 
@@ -406,9 +407,9 @@ export function PostCard({ post }: PostCardProps) {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleShare}
-              className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-green-500 transition-colors"
+              className="flex items-center space-x-1 sm:space-x-2 text-gray-500 dark:text-gray-400 hover:text-green-500 transition-colors"
             >
-              <Share className="h-6 w-6" />
+              <Share className="h-5 w-5 sm:h-6 sm:w-6" />
               <span className="text-sm font-medium">{sharesCount}</span>
             </motion.button>
           </div>
@@ -430,23 +431,23 @@ export function PostCard({ post }: PostCardProps) {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="border-t border-gray-100 dark:border-gray-700 p-4"
+          className="border-t border-gray-100 dark:border-gray-700 p-3 sm:p-4"
         >
           {/* Comment Form */}
           {user && (
             <form onSubmit={handleComment} className="mb-4">
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-2 sm:space-x-3">
                 <img
                   src={user.profileImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
                   alt={user.fullName}
-                  className="h-8 w-8 rounded-full object-cover"
+                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-cover flex-shrink-0"
                 />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Write a comment..."
-                    className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                     rows={2}
                   />
                   <div className="flex justify-end mt-2">
@@ -456,8 +457,8 @@ export function PostCard({ post }: PostCardProps) {
                       disabled={!newComment.trim()}
                       loading={isCommenting}
                     >
-                      <Send className="h-4 w-4 mr-1" />
-                      Comment
+                      <Send className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="text-xs sm:text-sm">Comment</span>
                     </Button>
                   </div>
                 </div>
@@ -472,26 +473,26 @@ export function PostCard({ post }: PostCardProps) {
                 key={comment.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-start space-x-3"
+                className="flex items-start space-x-2 sm:space-x-3"
               >
                 <img
                   src={comment.user.profileImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
                   alt={comment.user.fullName}
-                  className="h-8 w-8 rounded-full object-cover"
+                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-full object-cover flex-shrink-0"
                 />
-                <div className="flex-1">
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <div className="flex-1 min-w-0">
+                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-2 sm:p-3">
                     <div className="flex items-center space-x-1 mb-1">
-                      <p className="font-medium text-sm text-gray-900 dark:text-white">{comment.user.fullName}</p>
+                      <p className="font-medium text-sm text-gray-900 dark:text-white truncate">{comment.user.fullName}</p>
                       {comment.user.isVerified && (
-                        <svg className={`w-3 h-3 ${comment.user.role === 'coach' ? 'text-purple-500' : 'text-blue-500'}`} fill="currentColor" viewBox="0 0 20 20">
+                        <svg className={`w-3 h-3 flex-shrink-0 ${comment.user.role === 'coach' ? 'text-purple-500' : 'text-blue-500'}`} fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
                       )}
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">{comment.content}</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 break-words">{comment.content}</p>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-3">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-2 sm:ml-3">
                     {new Date(comment.createdAt).toLocaleString('en-US', {
                       month: 'short',
                       day: 'numeric',

@@ -38,6 +38,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
   const [sportInterests, setSportInterests] = useState<string[]>([]);
   const [showAccessibilityDropdown, setShowAccessibilityDropdown] = useState(false);
   const [showAccommodationsDropdown, setShowAccommodationsDropdown] = useState(false);
+  const [showSportInterestsDropdown, setShowSportInterestsDropdown] = useState(false);
   const { register: registerUser, isLoading } = useAuthStore();
   const { darkMode } = useAuthStore();
   
@@ -257,42 +258,110 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
           </div>
         )}
 
-        {/* Sport Interests (for Fans) */}
+        {/* Sport Interests (for Fans) - Custom Multi-Select */}
         {selectedRole === 'fan' && (
-          <div className="mb-6">
+          <div className="mb-6 relative">
             <label className={`block text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Sport Interests (Optional)
             </label>
-            <div className="space-y-2">
-              {[
-                'Martial Arts',
-                'Fitness & Training',
-                'Coco Sports',
-                'Adaptive Sports',
-                'Unstructured Sports',
-                'Competition Watching',
-                'Training Videos',
-                'Sports News',
-                'Equipment Reviews',
-                'Nutrition & Health'
-              ].map((interest) => (
-                <label key={interest} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={sportInterests.includes(interest)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSportInterests([...sportInterests, interest]);
-                      } else {
+            <button
+              type="button"
+              onClick={() => setShowSportInterestsDropdown(!showSportInterestsDropdown)}
+              className={`w-full px-4 py-3 border-2 rounded-lg flex items-center justify-between transition-all ${
+                showSportInterestsDropdown
+                  ? 'border-orange-500 ring-2 ring-orange-200'
+                  : darkMode
+                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                    : 'border-gray-300 hover:border-gray-400 bg-white'
+              }`}
+            >
+              <span className={`text-sm ${sportInterests.length === 0 ? (darkMode ? 'text-gray-500' : 'text-gray-400') : (darkMode ? 'text-white' : 'text-gray-900')}`}>
+                {sportInterests.length === 0 ? 'Select sport interests...' : `${sportInterests.length} selected`}
+              </span>
+              <ChevronDown className={`h-5 w-5 transition-transform ${showSportInterestsDropdown ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+            </button>
+            
+            {showSportInterestsDropdown && (
+              <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg max-h-60 overflow-auto ${
+                darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+              }`}>
+                <div className="p-2">
+                  {[
+                    'Martial Arts',
+                    'Fitness & Training',
+                    'Coco Sports',
+                    'Adaptive Sports',
+                    'Unstructured Sports',
+                    'Competition Watching',
+                    'Training Videos',
+                    'Sports News',
+                    'Equipment Reviews',
+                    'Nutrition & Health'
+                  ].map((interest) => (
+                    <label
+                      key={interest}
+                      className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                        darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                        sportInterests.includes(interest)
+                          ? 'bg-orange-500 border-orange-500'
+                          : darkMode
+                            ? 'border-gray-500'
+                            : 'border-gray-300'
+                      }`}>
+                        {sportInterests.includes(interest) && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={sportInterests.includes(interest)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSportInterests([...sportInterests, interest]);
+                          } else {
+                            setSportInterests(sportInterests.filter(i => i !== interest));
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{interest}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {sportInterests.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {sportInterests.map((interest) => (
+                  <motion.span
+                    key={interest}
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+                      darkMode 
+                        ? 'bg-orange-600/30 text-orange-300 border border-orange-500/30' 
+                        : 'bg-orange-100 text-orange-700 border border-orange-200'
+                    }`}
+                  >
+                    {interest}
+                    <button
+                      type="button"
+                      onClick={() => {
                         setSportInterests(sportInterests.filter(i => i !== interest));
-                      }
-                    }}
-                    className={`rounded ${darkMode ? 'border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500' : 'border-gray-300 text-green-600 focus:ring-green-500'}`}
-                  />
-                  <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{interest}</span>
-                </label>
-              ))}
-            </div>
+                      }}
+                      className={`ml-2 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-colors ${
+                        darkMode ? 'text-orange-300' : 'text-orange-600'
+                      }`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </motion.span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

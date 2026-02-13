@@ -106,59 +106,59 @@ export function PlayPage() {
 
       {/* Navigation Tabs */}
       <div className={`rounded-lg shadow-md mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-        <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <nav className="flex">
+        <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} overflow-x-auto`}>
+          <nav className="flex min-w-max">
             <button
               onClick={() => setActiveTab('videos')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'videos'
+              className={`px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'videos'
                 ? 'border-blue-500 text-blue-600'
                 : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-                }`}
+              }`}
             >
-              <Play className="h-4 w-4 inline mr-2" />
+              <Play className="h-4 w-4 inline mr-1 sm:mr-2" />
               Videos ({filteredVideos.length})
             </button>
 
             <button
               onClick={() => setActiveTab('memberships')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'memberships'
+              className={`px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'memberships'
                 ? 'border-blue-500 text-blue-600'
                 : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-                }`}
+              }`}
             >
-              <Star className="h-4 w-4 inline mr-2" />
+              <Star className="h-4 w-4 inline mr-1 sm:mr-2" />
               {user.role === 'coach' ? 'My Memberships' : 'Memberships'} ({displayMemberships.length})
             </button>
 
             <button
               onClick={() => setActiveTab('livestreams')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'livestreams'
+              className={`px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'livestreams'
                 ? 'border-red-500 text-red-600'
                 : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-                }`}
+              }`}
             >
-              <Radio className="h-4 w-4 inline mr-2" />
+              <Radio className="h-4 w-4 inline mr-1 sm:mr-2" />
               Livestreams ({displayLivestreams.length})
             </button>
 
             <button
               onClick={() => setActiveTab('womens-lounge')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'womens-lounge'
+              className={`px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'womens-lounge'
                 ? 'border-pink-500 text-pink-600'
                 : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-                }`}
+              }`}
             >
-              <Heart className="h-4 w-4 inline mr-2" />
+              <Heart className="h-4 w-4 inline mr-1 sm:mr-2" />
               Women's Lounge
             </button>
 
             {user.role === 'coach' && (
               <button
                 onClick={() => setActiveTab('upload')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'upload'
+                className={`px-4 sm:px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'upload'
                   ? 'border-blue-500 text-blue-600'
                   : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-                  }`}
+                }`}
               >
                 Upload Content
               </button>
@@ -168,21 +168,21 @@ export function PlayPage() {
 
         {/* Filters for Videos Tab */}
         {activeTab === 'videos' && (
-          <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
-            <div className="flex flex-wrap gap-4 items-center">
+          <div className={`p-3 sm:p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 items-start sm:items-center">
               <div className="flex items-center space-x-2">
                 <Filter className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                 <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Filters:</span>
               </div>
 
               {/* Category Filter */}
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Sport:</span>
                 {['all', 'coco', 'martial-arts', 'calorie-fight'].map((category) => (
                   <button
                     key={category}
                     onClick={() => setCategoryFilter(category as any)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${categoryFilter === category
+                    className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors ${categoryFilter === category
                       ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
                       : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
                       }`}
@@ -193,13 +193,13 @@ export function PlayPage() {
               </div>
 
               {/* Type Filter */}
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Type:</span>
                 {['all', 'free', 'premium'].map((type) => (
                   <button
                     key={type}
                     onClick={() => setTypeFilter(type as any)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${typeFilter === type
+                    className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-colors ${typeFilter === type
                       ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
                       : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
                       }`}
