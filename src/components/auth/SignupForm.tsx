@@ -19,8 +19,8 @@ const schema = yup.object({
   role: yup.string().oneOf(['user', 'coach', 'fan', 'aspirant']).required('Role is required'),
   sportsCategory: yup.string().oneOf(['coco', 'martial-arts', 'calorie-fight', 'adaptive-sports', 'unstructured-sports']).required('Sports category is required'),
   gender: yup.string().oneOf(['male', 'female', 'non-binary', 'prefer-not-to-say']).required('Gender is required'),
-  accessibilityNeeds: yup.array().of(yup.string()),
-  preferredAccommodations: yup.array().of(yup.string()),
+  accessibilityNeeds: yup.array().of(yup.string()).default([]),
+  preferredAccommodations: yup.array().of(yup.string()).default([]),
 });
 
 type SignupFormData = yup.InferType<typeof schema>;
@@ -37,6 +37,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
   const [selectedSportRole, setSelectedSportRole] = useState<string>('');
   const [sportInterests, setSportInterests] = useState<string[]>([]);
   const { register: registerUser, isLoading } = useAuthStore();
+  const { darkMode } = useAuthStore();
   
   const {
     register,
@@ -45,7 +46,11 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
     setValue,
   } = useForm<SignupFormData>({
     resolver: yupResolver(schema),
-    defaultValues: { role: 'user' },
+    defaultValues: { 
+      role: 'user',
+      accessibilityNeeds: [],
+      preferredAccommodations: []
+    },
   });
 
   const onSubmit = async (data: SignupFormData) => {
@@ -93,7 +98,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
       className="space-y-6"
     >
       <div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Join SportsFeed</h2>
+        <h2 className={`text-3xl font-bold mb-6 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>Join SportsFeed</h2>
         
         {/* Role Selection */}
         <div className="mb-6">
@@ -184,14 +189,16 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                 selectedRole === 'administrator'
                   ? 'border-red-500 bg-red-50'
-                  : 'border-gray-300 hover:border-gray-400'
+                  : darkMode 
+                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800' 
+                    : 'border-gray-300 hover:border-gray-400'
               }`}
             >
               <div className="flex items-center space-x-3">
-                <Shield className="h-6 w-6 text-red-600" />
+                <Shield className={`h-6 w-6 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
                 <div>
-                  <h3 className="font-semibold text-gray-900">Administrator</h3>
-                  <p className="text-sm text-gray-600">Platform administrator</p>
+                  <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Administrator</h3>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Platform administrator</p>
                 </div>
               </div>
             </motion.div>
@@ -324,7 +331,9 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                 className={`p-3 border-2 rounded-lg text-sm font-medium transition-all ${
                   selectedGender === option.value
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                    : darkMode
+                      ? 'border-gray-600 hover:border-gray-500 text-gray-300'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-700'
                 }`}
               >
                 {option.label}

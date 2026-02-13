@@ -130,6 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       const role = userData.role;
+      // Only send simple serializable data to Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -137,26 +138,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           data: {
             username: userData.username,
             full_name: userData.fullName,
-            role,
-            sports_category: userData.sportsCategory,
-            gender: userData.gender,
-            accessibility_needs: userData.accessibilityNeeds ?? [],
-            preferred_accommodations: userData.preferredAccommodations ?? [],
-            sport_role: userData.sportRole ?? null,
-            sport_interests: userData.sportInterests ?? [],
-            is_professional: userData.isProfessional ?? false,
-            verification_status: userData.verificationStatus ?? 'approved',
+            role: role,
           },
         },
       });
-      if (authError) throw authError;
+      
+      // Handle 409 conflict - user already exists, try to sign in instead
+      if (authError?.code === '409' || authError?.status === 409 || authError?.message?.includes('already registered')) {
+        console.log('User already exists, attempting to sign in...');
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: userData.email,
+          password: userData.password,
+        });
+        
+        if (signInError) {
+          throw new Error('Account already exists but login failed. Please try logging in manually.');
+        }
+        
+        if (signInData.user) {
+          // User logged in successfully, now fetch their profile
+          const fetchedProfile = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', signInData.user.id)
+            .single();
+          
+          if (fetchedProfile.data) {
+            const mappedUser = mapProfileToUser(fetchedProfile.data);
+            if (signInData.session?.access_token) {
+              localStorage.setItem('token', signInData.session.access_token);
+            }
+            set({ user: mappedUser, isAuthenticated: true, isLoading: false });
+            return;
+          }
+        }
+      }
+      
+      if (authError && authError.code !== '409' && authError.status !== 409) throw authError;
       if (!authData.user) throw new Error('Registration failed');
 
       const user = authData.user;
 
+      // Insert or update full profile data into profiles table (upsert to handle 409 conflicts)
       const { error: profileInsertError } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: user.id,
           email: user.email ?? userData.email,
           username: userData.username,
@@ -166,17 +192,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           gender: userData.gender,
           accessibility_needs: userData.accessibilityNeeds ?? [],
           preferred_accommodations: userData.preferredAccommodations ?? [],
-          sport_role: userData.sportRole ?? null,
+          sport_role: userData.sportRole ? JSON.stringify(userData.sportRole) : null,
           sport_interests: userData.sportInterests ?? [],
           is_professional: userData.isProfessional ?? false,
           verification_status: userData.verificationStatus ?? 'approved',
-        });
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
 
+      // Log profile insert error for debugging but don't fail - profile may already exist
       if (profileInsertError) {
-        if (profileInsertError.message.includes('duplicate') || profileInsertError.code === '23505') {
-          throw new Error('Username or email already exists. Please try a different one.');
+        console.warn('Profile upsert warning (may already exist):', profileInsertError);
+        // Only throw for non-conflict errors
+        if (profileInsertError.code !== '23505' && !profileInsertError.message.includes('duplicate')) {
+          throw new Error(profileInsertError.message);
         }
-        throw new Error(profileInsertError.message);
       }
 
       const fetchedProfile = await supabase

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabaseAdmin } from '../config/supabase';
+import { supabase, supabaseAdmin } from '../config/supabase';
 import { logger } from '../utils/logger';
 
 // Extend Request interface to include user
@@ -52,8 +52,9 @@ export const authMiddleware = async (
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     // Debug logging removed to reduce noise
 
-    // Verify the JWT token with Supabase
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    // Verify the JWT token with Supabase using the regular client (not admin)
+    // The admin client with persistSession: false cannot verify JWT tokens
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     // Debug logging removed to reduce noise
 
@@ -233,7 +234,8 @@ export const optionalAuthMiddleware = async (
 
     const token = authHeader.substring(7);
 
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    // Use regular supabase client (not admin) for token verification
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
       return next(); // Continue without user
