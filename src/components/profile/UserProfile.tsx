@@ -101,13 +101,13 @@ export function UserProfile() {
           </div>
 
           {/* Profile Info */}
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{user.fullName}</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">{user.fullName}</h1>
               {getVerificationBadge()}
             </div>
-            <p className="text-gray-600 dark:text-gray-400 mb-1">@{user.username}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 capitalize mb-3">{user.sportsCategory.replace('-', ' ')}</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-1 text-sm sm:text-base truncate">@{user.username}</p>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 capitalize mb-3">{user.sportsCategory.replace('-', ' ')}</p>
             {user.bio && (
               <p className="text-gray-700 dark:text-gray-300 mb-4">{user.bio}</p>
             )}
@@ -194,30 +194,33 @@ export function UserProfile() {
             )}
 
             {/* Action Buttons */}
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Button
                 onClick={() => setShowEditModal(true)}
                 variant="outline"
                 size="sm"
+                className="flex-1 sm:flex-none"
               >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Profile
+                <Edit className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="text-xs sm:text-sm">Edit</span>
               </Button>
               <Button
                 onClick={() => setShowSettings(true)}
                 variant="outline"
                 size="sm"
+                className="flex-1 sm:flex-none"
               >
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
+                <Settings className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="text-xs sm:text-sm">Settings</span>
               </Button>
               <Button
                 onClick={handleShareProfile}
                 variant="outline"
                 size="sm"
+                className="flex-1 sm:flex-none"
               >
-                <Share className="h-4 w-4 mr-2" />
-                Share Profile
+                <Share className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="text-xs sm:text-sm">Share</span>
               </Button>
             </div>
           </div>
@@ -225,7 +228,7 @@ export function UserProfile() {
       </motion.div>
 
       {/* Content Tabs */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-20 sm:mb-6">
         {/* Tab Headers */}
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex">
@@ -251,26 +254,26 @@ export function UserProfile() {
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6 pb-20 sm:pb-6">
           {displayPosts.length > 0 ? (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {displayPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
+            <div className="text-center py-8 sm:py-12">
               <div className="text-gray-400 dark:text-gray-600 mb-4">
                 {activeTab === 'posts' ? (
-                  <Users className="h-12 w-12 mx-auto" />
+                  <Users className="h-10 w-10 sm:h-12 sm:w-12 mx-auto" />
                 ) : (
-                  <UserPlus className="h-12 w-12 mx-auto" />
+                  <UserPlus className="h-10 w-10 sm:h-12 sm:w-12 mx-auto" />
                 )}
               </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2">
                 {activeTab === 'posts' ? 'No posts yet' : 'No shared posts yet'}
               </h3>
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
                 {activeTab === 'posts'
                   ? 'Start sharing your thoughts and experiences!'
                   : 'Share posts from other users to see them here.'}
@@ -281,13 +284,6 @@ export function UserProfile() {
       </div>
 
       {/* Modals */}
-      {showEditModal && (
-        <EditProfileModal
-          user={user}
-          onClose={() => setShowEditModal(false)}
-        />
-      )}
-
       {showFollowersModal && (
         <FollowersModal
           users={followersModalType === 'followers' ? followers : following}

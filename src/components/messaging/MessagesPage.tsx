@@ -67,7 +67,7 @@ export function MessagesPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden h-full min-h-0 relative pb-safe">
         {/* Conversations Sidebar */}
         <div
           className={`${selectedConversationId ? 'hidden md:flex' : 'flex'
@@ -198,7 +198,7 @@ export function MessagesPage() {
         </div>
 
         {/* Chat Window */}
-        <div className={`flex-1 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className={`flex-1 w-full min-w-0 h-full ${selectedConversationId ? 'absolute inset-0 z-10 md:relative md:inset-auto' : 'relative'} ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
           {isSwitchingConversation ? (
             <div className={`h-full flex flex-col items-center justify-center p-8 ${darkMode ? 'text-gray-400' : 'text-gray-400'}`}>
               <Loader2 className="h-12 w-12 mb-4 animate-spin text-blue-500" />
@@ -212,7 +212,7 @@ export function MessagesPage() {
               onArchive={() => setSelectedConversationId(null)}
             />
           ) : (
-            <div className={`h-full flex flex-col items-center justify-center p-8 ${darkMode ? 'text-gray-400' : 'text-gray-400'}`}>
+            <div className={`hidden md:flex h-full flex-col items-center justify-center p-8 ${darkMode ? 'text-gray-400' : 'text-gray-400'}`}>
               <MessageCircle className={`h-24 w-24 mb-6 ${darkMode ? 'text-gray-700' : 'text-gray-200'}`} />
               <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Select a conversation</h3>
               <p className={`text-center max-w-md mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>

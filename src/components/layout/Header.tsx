@@ -49,7 +49,12 @@ export function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <h1 className="text-xl sm:text-2xl font-bold text-blue-600">SportsFeed</h1>
+            <button
+              onClick={() => setCurrentView('home')}
+              className="text-xl sm:text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              SportsFeed
+            </button>
             {isConnected && (
               <span className="ml-3 h-2 w-2 bg-green-500 rounded-full"></span>
             )}
