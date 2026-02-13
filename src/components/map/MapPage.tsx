@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   MapPin,
@@ -12,11 +12,13 @@ import {
   AlertCircle,
   Zap,
   Loader2,
-  Trash2
+  Trash2,
+  Users
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuthStore } from '../../store/authStore';
+import { useAppStore } from '../../store/appStore';
 import { Button } from '../ui/Button';
 import toast from 'react-hot-toast';
 
@@ -133,10 +135,11 @@ function FlyToLocation({ position }: { position: [number, number] | null }) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export function MapPage() {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { getUserTokens, addTokens } = useAppStore();
   const [activeTab, setActiveTab] = useState<'map' | 'checkins' | 'safety'>('map');
   const [mapType, setMapType] = useState<'standard' | 'heatmap' | 'safety'>('standard');
+  const [heatMapType, setHeatMapType] = useState<'activity' | 'women-safe' | 'disability-friendly'>('activity');
 
   // Data state
   const [locations, setLocations] = useState<SafeLocationResponse[]>([]);
@@ -316,7 +319,8 @@ export function MapPage() {
   };
 
   // ─── Check if user can create safe locations ──────────────────
-  const canCreateSafeLocation = user && ['admin', 'administrator', 'coach'].includes(user.role || '');
+  // All authenticated users can create safe locations
+  const canCreateSafeLocation = !!user;
 
   // ─── Mark safe handler ──────────────────────────────────────────
   const handleMarkSafe = async () => {
@@ -467,33 +471,44 @@ export function MapPage() {
     }
   };
 
+  const getCategoryEmoji = (category?: string) => {
+    switch (category) {
+      case 'gym': return '🏋️';
+      case 'park': return '🌳';
+      case 'studio': return '🎭';
+      case 'field': return '⚽';
+      case 'court': return '🏀';
+      case 'track': return '🏃';
+      default: return '📍';
+    }
+  };
+
   const getCategoryIcon = (loc: SafeLocationResponse) => {
     return CATEGORY_ICONS[loc.category || 'default'] || CATEGORY_ICONS.default;
   };
 
   if (!user) return null;
-
-  // ─── RENDER ─────────────────────────────────────────────────────
+  
   return (
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sports Map</h1>
-            <p className="text-gray-600">Discover sports locations, check in, and mark safe spaces</p>
+            <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Sports Map</h1>
+            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Discover sports locations, check in, and mark safe spaces</p>
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">{userCheckIns.length}</span> check-ins today
+            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{checkIns.length}</span> check-ins today
             </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">{safeLocations.length}</span> safe locations
+            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{locations.length}</span> safe locations
             </div>
             {userStats && (
-              <div>
-                <span className="font-semibold text-gray-900">{userStats.totalHours}</span> hrs active
+              <div className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                <span className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{userStats.totalHours}</span> hrs active
               </div>
             )}
           </div>
@@ -501,7 +516,7 @@ export function MapPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
+      <div className={`flex space-x-1 rounded-lg p-1 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
         {[
           { id: 'map', label: 'Map View', icon: MapPin },
           { id: 'checkins', label: 'My Check-ins', icon: CheckCircle },
@@ -512,8 +527,12 @@ export function MapPage() {
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
               activeTab === tab.id
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? darkMode
+                  ? 'bg-gray-700 text-blue-400 shadow-sm'
+                  : 'bg-white text-blue-600 shadow-sm'
+                : darkMode
+                  ? 'text-gray-400 hover:text-gray-200'
+                  : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <tab.icon className="h-4 w-4" />
@@ -524,20 +543,20 @@ export function MapPage() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="bg-white rounded-xl shadow-md p-12 flex flex-col items-center justify-center">
+        <div className={`rounded-xl shadow-md p-12 flex flex-col items-center justify-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
           <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
-          <p className="text-gray-600">Loading map data...</p>
+          <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Loading map data...</p>
         </div>
       )}
 
       {/* Error state */}
       {error && !isLoading && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center mb-6">
-          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-          <p className="text-red-700">{error}</p>
+        <div className={`border rounded-xl p-6 text-center mb-6 ${darkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+          <AlertCircle className={`h-8 w-8 mx-auto mb-2 ${darkMode ? 'text-red-400' : 'text-red-500'}`} />
+          <p className={darkMode ? 'text-red-300' : 'text-red-700'}>{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+            className={`mt-3 px-4 py-2 rounded-lg transition ${darkMode ? 'bg-red-900/30 text-red-300 hover:bg-red-900/50' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
           >
             Retry
           </button>
@@ -548,11 +567,11 @@ export function MapPage() {
       {!isLoading && !error && activeTab === 'map' && (
         <div className="space-y-6">
           {/* Map Controls */}
-          <div className="bg-white rounded-lg shadow-md p-4">
+          <div className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Map Type:</span>
+                <Filter className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Map Type:</span>
               </div>
               {([
                 { id: 'standard' as const, label: 'Standard' },
@@ -576,13 +595,13 @@ export function MapPage() {
                 <div className="flex items-center space-x-2 ml-4">
                   <span className="text-sm text-gray-600">Heat Type:</span>
                   {[
-                    { id: 'activity', label: 'Activity' },
-                    { id: 'women-safe', label: 'Women Safe' },
-                    { id: 'disability-friendly', label: 'Accessible' }
+                    { id: 'activity' as const, label: 'Activity' },
+                    { id: 'women-safe' as const, label: 'Women Safe' },
+                    { id: 'disability-friendly' as const, label: 'Accessible' }
                   ].map((type) => (
                     <button
                       key={type.id}
-                      onClick={() => setHeatMapType(type.id as any)}
+                      onClick={() => setHeatMapType(type.id)}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                         heatMapType === type.id
                           ? 'bg-purple-100 text-purple-700'
@@ -598,7 +617,7 @@ export function MapPage() {
           </div>
 
           {/* Leaflet Map */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className={`rounded-xl shadow-md overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <MapContainer
               center={userLocation || defaultCenter}
               zoom={13}
@@ -717,75 +736,74 @@ export function MapPage() {
                 key={location.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                className={`rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
                 onClick={() => setSelectedLocation(location)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-2">
-                    <span className="text-2xl">{getLocationIcon(location.type)}</span>
+                    <span className="text-2xl">{getCategoryEmoji(location.category)}</span>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{location.name}</h3>
-                      <p className="text-sm text-gray-600">{location.address}</p>
+                      <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-medium">{location.rating}</span>
+                    <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{(location.average_rating || 0).toFixed(1)}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                <div className={`flex items-center justify-between text-sm mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   <div className="flex items-center space-x-1">
                     <Users className="h-4 w-4" />
-                    <span>{location.currentUsers} active</span>
+                    <span>{location.verifications_count || 0} verified</span>
                   </div>
-                  {location.maxCapacity && (
-                    <span>Max: {location.maxCapacity}</span>
+                  {location.distance !== undefined && (
+                    <span>{location.distance.toFixed(1)} km</span>
                   )}
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-3">
-                  {location.safetyFeatures.slice(0, 3).map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-1 bg-gray-100 px-2 py-1 rounded text-xs">
+                  {(location.safety_features || []).slice(0, 3).map((feature: string, index: number) => (
+                    <div key={index} className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
                       {getSafetyIcon(feature)}
                       <span className="capitalize">{feature.replace('-', ' ')}</span>
                     </div>
                   ))}
-                  {location.safetyFeatures.length > 3 && (
-                    <span className="text-xs text-gray-500">+{location.safetyFeatures.length - 3} more</span>
+                  {(location.safety_features || []).length > 3 && (
+                    <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>+{(location.safety_features || []).length - 3} more</span>
                   )}
                 </div>
 
                   <Button
                     onClick={() => {
-                      setSelectedLocation(loc);
-                      if (isLocationCheckedIn(loc)) {
+                      setSelectedLocation(location);
+                      if (isLocationCheckedIn(location)) {
                         toast('You have already checked in at this location', { icon: 'ℹ️' });
                       } else {
                         setShowCheckInModal(true);
                       }
                     }}
                     size="sm"
-                    className={`w-full ${isLocationCheckedIn(loc)
+                    className={`w-full ${isLocationCheckedIn(location)
                         ? 'bg-green-600 hover:bg-green-700 text-white'
                         : ''
                       }`}
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />
-                    {isLocationCheckedIn(loc) ? 'Checked In ✓' : 'Check In'}
+                    {isLocationCheckedIn(location) ? 'Checked In ✓' : 'Check In'}
                   </Button>
                 </motion.div>
               ))}
             </div>
-          )}
 
           {/* Empty state */}
           {locations.length === 0 && !isLoading && (
-            <div className="bg-white rounded-xl shadow-md p-8 text-center">
-              <MapPin className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No locations found</h3>
-              <p className="text-gray-600 mb-4">Be the first to add a safe location in your area!</p>
+            <div className={`rounded-xl shadow-md p-8 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <MapPin className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} />
+              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No locations found</h3>
+              <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Be the first to add a safe location in your area!</p>
               <Button onClick={() => { setSelectedLocation(null); setShowSafetyModal(true); }}>
                 <Plus className="h-4 w-4 mr-1" />
                 Add Safe Location
@@ -798,13 +816,13 @@ export function MapPage() {
       {/* ═══ CHECK-INS TAB ═══ */}
       {!isLoading && activeTab === 'checkins' && (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">My Check-ins</h2>
+          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>My Check-ins</h2>
           
-          {userCheckIns.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <CheckCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No check-ins yet</h3>
-              <p className="text-gray-600 mb-4">Start exploring and check in at sports locations to earn tokens!</p>
+          {checkIns.length === 0 ? (
+            <div className={`rounded-lg shadow-md p-8 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <CheckCircle className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No check-ins yet</h3>
+              <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Start exploring and check in at sports locations to earn tokens!</p>
               <Button onClick={() => setActiveTab('map')}>
                 Explore Map
               </Button>
@@ -816,18 +834,18 @@ export function MapPage() {
                   key={ci.id}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-lg shadow-md p-4"
+                  className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="bg-green-100 p-2 rounded-full">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      <div className={`p-2 rounded-full ${darkMode ? 'bg-green-900/30' : 'bg-green-100'}`}>
+                        <CheckCircle className={`h-5 w-5 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{checkIn.locationName}</h3>
-                        <p className="text-sm text-gray-600">
-                          {new Date(checkIn.createdAt).toLocaleDateString()} at{' '}
-                          {new Date(checkIn.createdAt).toLocaleTimeString()}
+                        <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{ci.location_name}</h3>
+                        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {new Date(ci.checked_in_at).toLocaleDateString()} at{' '}
+                          {new Date(ci.checked_in_at).toLocaleTimeString()}
                         </p>
                       </div>
                     </div>
@@ -847,7 +865,7 @@ export function MapPage() {
       {!isLoading && activeTab === 'safety' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900">Safe Locations</h2>
+            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Safe Locations</h2>
             <Button
               onClick={() => setShowSafetyModal(true)}
               size="sm"
@@ -858,36 +876,39 @@ export function MapPage() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {safeLocations.map((location) => (
+            {locations.filter(loc => (loc.safety_features || []).length > 0).map((location) => (
               <motion.div
                 key={location.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-lg shadow-md p-4"
+                className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{location.name}</h3>
-                    <p className="text-sm text-gray-600">{location.address}</p>
+                    <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
                   </div>
                   
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-medium">{location.averageRating.toFixed(1)}</span>
+                    <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{(location.average_rating || 0).toFixed(1)}</span>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-3">
-                  {location.safetyFeatures.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded text-xs">
+                  {(location.safety_features || []).map((feature: string, index: number) => (
+                    <div key={index} className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700'}`}>
                       {getSafetyIcon(feature)}
                       <span className="capitalize">{feature.replace('-', ' ')}</span>
                     </div>
                   ))}
+                  {(location.safety_features || []).length > 3 && (
+                    <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>+{(location.safety_features || []).length - 3} more</span>
+                  )}
                 </div>
 
-                <div className="text-xs text-gray-500">
-                  Verified by {location.verifiedBy.length} users
+                <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Verified by {location.verifications_count || 0} users
                 </div>
               </motion.div>
             ))}
@@ -901,25 +922,25 @@ export function MapPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            className={`rounded-lg p-6 max-w-md w-full mx-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
           >
             <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Check in at {selectedLocation.name}
             </h3>
 
             <div className="space-y-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <MapPin className="h-4 w-4" />
                 <span>{selectedLocation.address || `${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}`}</span>
               </div>
               
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <Users className="h-4 w-4" />
-                <span>{selectedLocation.currentUsers} people currently here</span>
+                <span>Check-in location</span>
               </div>
 
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
                   <strong>Reward:</strong> Earn 5 tokens for checking in!
                 </p>
               </div>
@@ -944,14 +965,14 @@ export function MapPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            className={`rounded-lg p-6 max-w-md w-full mx-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Mark Location as Safe
             </h3>
 
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Select the safety features available at this location:
               </p>
               
@@ -968,17 +989,19 @@ export function MapPage() {
                   <label key={feature} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={safetyFeatures.includes(feature)}
+                      onChange={() => toggleSafetyFeature(feature)}
+                      className={`rounded text-blue-600 focus:ring-blue-500 ${darkMode ? 'border-gray-600 bg-gray-700' : 'border-gray-300'}`}
                     />
-                    <span className="text-sm text-gray-700 capitalize">
+                    <span className={`text-sm capitalize ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       {feature.replace('-', ' ')}
                     </span>
                   </label>
                 ))}
               </div>
 
-              <div className="bg-green-50 p-3 rounded-lg">
-                <p className="text-sm text-green-800">
+              <div className={`p-3 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
                   <strong>Reward:</strong> Earn 10 tokens for marking a safe location!
                 </p>
               </div>
