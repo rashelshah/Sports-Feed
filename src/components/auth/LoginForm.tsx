@@ -20,7 +20,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onLoginSuccess }: LoginFormProps) {
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, darkMode } = useAuthStore();
   
   const {
     register,
@@ -55,7 +55,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       className="space-y-6"
     >
       <div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Welcome Back</h2>
+        <h2 className={`text-3xl font-bold mb-6 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>Welcome Back</h2>
         
         <Input
           label="Email"

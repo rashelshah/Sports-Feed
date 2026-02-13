@@ -11,7 +11,7 @@ interface CreatePostProps {
 }
 
 export function CreatePost({ onPostCreated }: CreatePostProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const [content, setContent] = useState('');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -204,7 +204,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-lg shadow-md p-6 mb-6"
+      className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
     >
       <form onSubmit={handleSubmit}>
         <div className="flex items-start space-x-4">
@@ -219,14 +219,14 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Share your training tips, techniques, or motivation..."
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={`w-full p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkMode ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' : 'border-gray-300 bg-white'}`}
               rows={4}
             />
 
             {mediaFile && (
-              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+              <div className={`mt-3 p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">{mediaFile.name}</span>
+                  <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{mediaFile.name}</span>
                   <button
                     type="button"
                     onClick={() => setMediaFile(null)}
@@ -239,11 +239,11 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
             )}
 
             {audioBlob && (
-              <div className="mt-3 p-3 bg-green-50 rounded-lg">
+              <div className={`mt-3 p-3 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-50'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Mic className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-green-700">Voice note recorded</span>
+                    <Mic className={`h-4 w-4 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
+                    <span className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-700'}`}>Voice note recorded</span>
                   </div>
                   <button
                     type="button"
@@ -270,7 +270,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                 />
                 <label
                   htmlFor="image-upload"
-                  className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 cursor-pointer transition-colors"
+                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}
                 >
                   <Image className="h-5 w-5" />
                   <span className="text-sm">Photo</span>
@@ -288,7 +288,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                 />
                 <label
                   htmlFor="video-upload"
-                  className="flex items-center space-x-2 text-gray-500 hover:text-purple-500 cursor-pointer transition-colors"
+                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${darkMode ? 'text-gray-400 hover:text-purple-400' : 'text-gray-500 hover:text-purple-500'}`}
                 >
                   <Video className="h-5 w-5" />
                   <span className="text-sm">Video</span>
@@ -299,7 +299,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                   onClick={isRecording ? stopRecording : startRecording}
                   className={`flex items-center space-x-2 cursor-pointer transition-colors ${isRecording
                     ? 'text-red-500 hover:text-red-700'
-                    : 'text-gray-500 hover:text-green-500'
+                    : (darkMode ? 'text-gray-400 hover:text-green-400' : 'text-gray-500 hover:text-green-500')
                     }`}
                 >
                   {isRecording ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}

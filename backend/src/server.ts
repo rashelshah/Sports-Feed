@@ -303,7 +303,14 @@ server.listen(PORT, async () => {
     const { createNotificationsTable } = await import('./migrations/create_notifications_table');
     await createNotificationsTable();
   } catch (err) {
-    logger.error('Migration error:', err);
+    logger.error('Notifications migration error:', err);
+  }
+
+  try {
+    const { ensureMessagingSchema } = await import('./migrations/ensure_messaging_schema');
+    await ensureMessagingSchema();
+  } catch (err) {
+    logger.error('Messaging migration error:', err);
   }
 });
 

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, FileText, CheckCircle, Clock, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { VerificationDocument } from '../../types';
+import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
 interface DocumentUploadProps {
@@ -10,6 +11,7 @@ interface DocumentUploadProps {
 }
 
 export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
+  const { darkMode } = useAuthStore();
   const [documents, setDocuments] = useState<VerificationDocument[]>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -57,11 +59,11 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
-        return 'text-green-600 bg-green-50';
+        return darkMode ? 'text-green-400 bg-green-900/30' : 'text-green-600 bg-green-50';
       case 'rejected':
-        return 'text-red-600 bg-red-50';
+        return darkMode ? 'text-red-400 bg-red-900/30' : 'text-red-600 bg-red-50';
       default:
-        return 'text-yellow-600 bg-yellow-50';
+        return darkMode ? 'text-yellow-400 bg-yellow-900/30' : 'text-yellow-600 bg-yellow-50';
     }
   };
 
@@ -69,11 +71,11 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg"
+      className={`max-w-2xl mx-auto p-6 rounded-lg shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
     >
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Document Verification</h2>
-        <p className="text-gray-600">
+        <h2 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Document Verification</h2>
+        <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
           Upload your certificates and documents for expert verification
         </p>
       </div>

@@ -7,11 +7,14 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isInitialized: boolean;
+  darkMode: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
   initSession: () => Promise<void>;
+  toggleDarkMode: () => void;
+  setDarkMode: (value: boolean) => void;
 }
 
 interface RegisterData {
@@ -61,6 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isLoading: false,
   isInitialized: false,
+  darkMode: localStorage.getItem('darkMode') === 'true',
 
   initSession: async () => {
     try {
@@ -208,11 +212,91 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, isAuthenticated: false });
   },
 
-  updateUser: (userData: Partial<User>) => {
+  updateUser: async (userData: Partial<User>) => {
     const currentUser = get().user;
-    if (currentUser) {
+    if (!currentUser) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Not authenticated');
+
+      // Build payload with only defined values
+      const payload: any = {};
+      
+      if (userData.fullName !== undefined && userData.fullName.trim()) {
+        payload.full_name = userData.fullName.trim();
+      }
+      if (userData.username !== undefined && userData.username.trim()) {
+        // Username must match pattern: alphanumeric and underscores only
+        // Replace spaces with underscores, then remove any other invalid characters
+        const cleanUsername = userData.username
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, '_')           // Replace spaces with underscores
+          .replace(/[^a-zA-Z0-9_]/g, '');  // Remove any other invalid chars
+        
+        if (cleanUsername.length >= 3) {
+          payload.username = cleanUsername;
+          console.log('Cleaned username:', cleanUsername);
+        } else {
+          console.warn('Username too short after cleaning:', cleanUsername);
+        }
+      }
+      if (userData.bio !== undefined) {
+        payload.bio = userData.bio;
+      }
+      if (userData.profileImage !== undefined && userData.profileImage) {
+        payload.profile_image = userData.profileImage;
+      }
+
+      // Call backend API to persist changes
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      console.log('Profile update response:', data);
+      if (!data.success) {
+        const errorMsg = data.error || data.details || 
+          (data.errors ? JSON.stringify(data.errors) : null) || 
+          JSON.stringify(data) || 'Failed to update profile';
+        throw new Error(errorMsg);
+      }
+
+      // Update local state with the returned user data
       const updatedUser = { ...currentUser, ...userData };
       set({ user: updatedUser });
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  },
+
+  toggleDarkMode: () => {
+    const newDarkMode = !get().darkMode;
+    localStorage.setItem('darkMode', String(newDarkMode));
+    set({ darkMode: newDarkMode });
+    // Apply dark mode class to document
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  },
+
+  setDarkMode: (value: boolean) => {
+    localStorage.setItem('darkMode', String(value));
+    set({ darkMode: value });
+    // Apply dark mode class to document
+    if (value) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
   },
 }));

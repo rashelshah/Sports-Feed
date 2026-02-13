@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Clock, Eye, Heart, Star, Filter, Coins, Radio } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -15,8 +15,8 @@ import { WomensLounge } from './WomensLounge';
 import { Button } from '../ui/Button';
 
 export function PlayPage() {
-  const { user } = useAuthStore();
-  const { videos, memberships, livestreams, getVideosByCategory, getMembershipsByCoach, getUserTokens, getLivestreams } = useAppStore();
+  const { user, darkMode } = useAuthStore();
+  const { videos, memberships, livestreams, getVideosByCategory, getMembershipsByCoach, getUserTokens, getLivestreams, fetchLivestreams, fetchVideos } = useAppStore();
   const [activeTab, setActiveTab] = useState<'videos' | 'memberships' | 'livestreams' | 'upload' | 'womens-lounge'>('videos');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'coco' | 'martial-arts' | 'calorie-fight'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'free' | 'premium'>('all');
@@ -24,6 +24,21 @@ export function PlayPage() {
   const [showCreateMembershipModal, setShowCreateMembershipModal] = useState(false);
   const [showCreateLivestreamModal, setShowCreateLivestreamModal] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(true);
+  const [isLoadingLivestreams, setIsLoadingLivestreams] = useState(true);
+
+  // Fetch livestreams and videos from database on mount
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoadingVideos(true);
+      setIsLoadingLivestreams(true);
+      await Promise.all([
+        fetchLivestreams().finally(() => setIsLoadingLivestreams(false)),
+        fetchVideos().finally(() => setIsLoadingVideos(false))
+      ]);
+    };
+    loadData();
+  }, [fetchLivestreams, fetchVideos]);
 
   if (!user) return null;
 
@@ -47,11 +62,11 @@ export function PlayPage() {
       className="max-w-6xl mx-auto"
     >
       {/* Header with Token Wallet */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Play & Learn</h1>
-            <p className="text-gray-600">Watch videos, earn tokens, and unlock premium content</p>
+            <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Play & Learn</h1>
+            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Watch videos, earn tokens, and unlock premium content</p>
           </div>
           
           <TokenWallet tokens={userTokens} />
@@ -59,15 +74,15 @@ export function PlayPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white rounded-lg shadow-md mb-6">
-        <div className="border-b border-gray-200">
+      <div className={`rounded-lg shadow-md mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <nav className="flex">
             <button
               onClick={() => setActiveTab('videos')}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'videos'
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
               }`}
             >
               <Play className="h-4 w-4 inline mr-2" />
@@ -79,7 +94,7 @@ export function PlayPage() {
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'memberships'
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
               }`}
             >
               <Star className="h-4 w-4 inline mr-2" />
@@ -91,7 +106,7 @@ export function PlayPage() {
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'livestreams'
                   ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
               }`}
             >
               <Radio className="h-4 w-4 inline mr-2" />
@@ -103,7 +118,7 @@ export function PlayPage() {
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'womens-lounge'
                   ? 'border-pink-500 text-pink-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
               }`}
             >
               <Heart className="h-4 w-4 inline mr-2" />
@@ -116,7 +131,7 @@ export function PlayPage() {
                 className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'upload'
                     ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
                 }`}
               >
                 Upload Content
@@ -127,24 +142,24 @@ export function PlayPage() {
 
         {/* Filters for Videos Tab */}
         {activeTab === 'videos' && (
-          <div className="p-4 border-b border-gray-100">
+          <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Filters:</span>
+                <Filter className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Filters:</span>
               </div>
               
               {/* Category Filter */}
               <div className="flex space-x-2">
-                <span className="text-sm text-gray-600">Sport:</span>
+                <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Sport:</span>
                 {['all', 'coco', 'martial-arts', 'calorie-fight'].map((category) => (
                   <button
                     key={category}
                     onClick={() => setCategoryFilter(category as any)}
                     className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                       categoryFilter === category
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
+                        : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
                     }`}
                   >
                     {category === 'all' ? 'All Sports' : category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -154,15 +169,15 @@ export function PlayPage() {
               
               {/* Type Filter */}
               <div className="flex space-x-2">
-                <span className="text-sm text-gray-600">Type:</span>
+                <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Type:</span>
                 {['all', 'free', 'premium'].map((type) => (
                   <button
                     key={type}
                     onClick={() => setTypeFilter(type as any)}
                     className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                       typeFilter === type
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
+                        : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
                     }`}
                   >
                     {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -178,16 +193,25 @@ export function PlayPage() {
       <div className="space-y-6">
         {activeTab === 'videos' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredVideos.map((video) => (
-              <VideoCard key={video.id} video={video} userTokens={userTokens} />
-            ))}
-            
-            {filteredVideos.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <Play className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No videos found</h3>
-                <p className="text-gray-600">Try adjusting your filters or check back later for new content.</p>
+            {isLoadingVideos ? (
+              <div className="col-span-full flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading videos...</p>
               </div>
+            ) : (
+              <>
+                {filteredVideos.map((video) => (
+                  <VideoCard key={video.id} video={video} userTokens={userTokens} />
+                ))}
+                
+                {filteredVideos.length === 0 && (
+                  <div className="col-span-full text-center py-12">
+                    <Play className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                    <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No videos found</h3>
+                    <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Try adjusting your filters or check back later for new content.</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -195,8 +219,8 @@ export function PlayPage() {
         {activeTab === 'memberships' && (
           <div className="space-y-6">
             {user.role === 'coach' && displayMemberships.length > 0 && (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className={`p-4 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
                   <strong>Coach Dashboard:</strong> These are the memberships you've created. Users can purchase these to access your exclusive content.
                 </p>
               </div>
@@ -209,11 +233,11 @@ export function PlayPage() {
 
               {displayMemberships.length === 0 && (
                 <div className="col-span-full text-center py-12">
-                  <Star className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <Star className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                  <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     {user.role === 'coach' ? 'No memberships created yet' : 'No memberships available'}
                   </h3>
-                  <p className="text-gray-600">
+                  <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
                     {user.role === 'coach'
                       ? 'Create your first membership to offer exclusive content to your followers.'
                       : 'Check back later for exclusive membership opportunities.'}
@@ -235,9 +259,9 @@ export function PlayPage() {
         {activeTab === 'livestreams' && (
           <div className="space-y-6">
             {user.role === 'coach' && (
-              <div className="bg-red-50 p-4 rounded-lg flex items-center justify-between">
+              <div className={`p-4 rounded-lg flex items-center justify-between ${darkMode ? 'bg-red-900/30' : 'bg-red-50'}`}>
                 <div>
-                  <p className="text-sm text-red-800 font-medium">
+                  <p className={`text-sm font-medium ${darkMode ? 'text-red-300' : 'text-red-800'}`}>
                     <strong>Start a Livestream:</strong> Connect with your audience in real-time
                   </p>
                 </div>
@@ -252,31 +276,40 @@ export function PlayPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayLivestreams.map((livestream: any) => (
-                <LivestreamCard key={livestream.id} livestream={livestream} />
-              ))}
-
-              {displayLivestreams.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <Radio className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No livestreams available
-                  </h3>
-                  <p className="text-gray-600">
-                    {user.role === 'coach'
-                      ? 'Start your first livestream to connect with your audience.'
-                      : 'Check back later for live training sessions.'}
-                  </p>
-                  {user.role === 'coach' && (
-                    <Button
-                      onClick={() => setShowCreateLivestreamModal(true)}
-                      className="mt-4 bg-red-600 hover:bg-red-700"
-                    >
-                      <Radio className="h-4 w-4 mr-2" />
-                      Start Livestream
-                    </Button>
-                  )}
+              {isLoadingLivestreams ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mb-4"></div>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading livestreams...</p>
                 </div>
+              ) : (
+                <>
+                  {displayLivestreams.map((livestream: any) => (
+                    <LivestreamCard key={livestream.id} livestream={livestream} />
+                  ))}
+
+                  {displayLivestreams.length === 0 && (
+                    <div className="col-span-full text-center py-12">
+                      <Radio className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                      <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        No livestreams available
+                      </h3>
+                      <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                        {user.role === 'coach'
+                          ? 'Start your first livestream to connect with your audience.'
+                          : 'Check back later for live training sessions.'}
+                      </p>
+                      {user.role === 'coach' && (
+                        <Button
+                          onClick={() => setShowCreateLivestreamModal(true)}
+                          className="mt-4 bg-red-600 hover:bg-red-700"
+                        >
+                          <Radio className="h-4 w-4 mr-2" />
+                          Start Livestream
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -287,11 +320,11 @@ export function PlayPage() {
         )}
 
         {activeTab === 'upload' && user.role === 'coach' && (
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <div className={`rounded-lg shadow-md p-8 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="max-w-md mx-auto">
               <Play className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Upload Your Content</h2>
-              <p className="text-gray-600 mb-6">
+              <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Upload Your Content</h2>
+              <p className={`mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Share your expertise with the community. Upload training videos, create membership programs, or start a livestream.
               </p>
 

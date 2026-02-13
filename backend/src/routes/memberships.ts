@@ -69,7 +69,7 @@ router.get('/', validateQuery(getMembershipsQuerySchema), asyncHandler(async (re
 
   let query = supabase
     .from('memberships')
-    .select('*', { count: 'exact' })
+    .select('*, coach:users!created_by(*)', { count: 'exact' })
     .range(offset, offset + limit - 1)
     .order(sortBy, { ascending: sortOrder === 'asc' });
 
@@ -92,11 +92,32 @@ router.get('/', validateQuery(getMembershipsQuerySchema), asyncHandler(async (re
     return;
   }
 
+  // Map memberships to include formatted coach data
+  const mappedMemberships = (memberships || []).map((m: any) => ({
+    ...m,
+    coach: m.coach ? {
+      id: m.coach.id,
+      email: m.coach.email,
+      username: m.coach.username,
+      fullName: m.coach.full_name || m.coach.name || 'Unknown',
+      role: m.coach.role,
+      sportsCategory: m.coach.sports_category,
+      gender: m.coach.gender,
+      isVerified: m.coach.is_verified,
+      profileImage: m.coach.profile_image || m.coach.avatar_url,
+      bio: m.coach.bio,
+      followers: m.coach.followers || 0,
+      following: m.coach.following || 0,
+      posts: m.coach.posts || 0,
+      createdAt: m.coach.created_at
+    } : null
+  }));
+
   const totalPages = Math.ceil((count || 0) / limit);
 
   res.json({
     success: true,
-    memberships: memberships || [],
+    memberships: mappedMemberships,
     pagination: {
       currentPage: page,
       totalPages,

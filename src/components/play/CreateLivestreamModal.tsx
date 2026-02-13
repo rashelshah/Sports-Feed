@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Radio, Calendar } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -12,7 +12,7 @@ interface CreateLivestreamModalProps {
 }
 
 export function CreateLivestreamModal({ onClose }: CreateLivestreamModalProps) {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { addLivestream } = useAppStore();
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
@@ -53,25 +53,63 @@ export function CreateLivestreamModal({ onClose }: CreateLivestreamModalProps) {
     setIsCreating(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('You must be logged in to create a livestream');
+        setIsCreating(false);
+        return;
+      }
 
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/livestreams`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          youtubeUrl: formData.youtubeUrl,
+          thumbnailUrl: '',
+          category: user.sportsCategory || 'coco',
+          scheduledTime: formData.scheduledTime || null,
+          isLive: formData.isLive
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create livestream');
+      }
+
+      // Map the backend response to frontend format
       const newLivestream = {
-        id: Date.now().toString(),
-        title: formData.title,
-        description: formData.description,
-        youtubeUrl: formData.youtubeUrl,
-        coach: user,
-        isLive: formData.isLive,
-        scheduledTime: formData.scheduledTime || undefined,
-        viewers: formData.isLive ? Math.floor(Math.random() * 100) + 10 : 0,
-        category: user.sportsCategory,
+        id: data.livestream.id,
+        title: data.livestream.title,
+        description: data.livestream.description,
+        youtubeUrl: data.livestream.youtube_url,
+        coach: data.livestream.coach ? {
+          ...data.livestream.coach,
+          username: data.livestream.coach.full_name,
+          fullName: data.livestream.coach.full_name,
+          profileImage: data.livestream.coach.profile_image,
+          sportsCategory: data.livestream.coach.sports_category || 'coco',
+          isVerified: data.livestream.coach.is_verified
+        } : user,
+        isLive: data.livestream.is_live,
+        scheduledTime: data.livestream.scheduled_time,
+        viewers: data.livestream.viewers_count || 0,
+        category: data.livestream.category,
+        createdAt: data.livestream.created_at
       };
 
       addLivestream(newLivestream);
       toast.success(`Livestream "${formData.title}" ${formData.isLive ? 'started' : 'scheduled'} successfully!`);
       onClose();
-    } catch (error) {
-      toast.error('Failed to create livestream. Please try again.');
+    } catch (error: any) {
+      console.error('Error creating livestream:', error);
+      toast.error(error.message || 'Failed to create livestream. Please try again.');
     } finally {
       setIsCreating(false);
     }
@@ -89,24 +127,24 @@ export function CreateLivestreamModal({ onClose }: CreateLivestreamModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        className={`rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h2 className={`text-2xl font-bold flex items-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             <Radio className="h-6 w-6 text-red-500 mr-2" />
             Create Livestream
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <p className="text-gray-600 text-center">
+          <p className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             Schedule or start a live stream session with your followers
           </p>
 
@@ -119,14 +157,18 @@ export function CreateLivestreamModal({ onClose }: CreateLivestreamModalProps) {
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Description *
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Describe what you'll be teaching in this livestream..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none ${
+                darkMode 
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  : 'border-gray-300'
+              }`}
               rows={4}
               required
             />
@@ -140,8 +182,8 @@ export function CreateLivestreamModal({ onClose }: CreateLivestreamModalProps) {
             required
           />
 
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm text-blue-800">
+          <div className={`p-4 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+            <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
               <strong>How to get your YouTube URL:</strong>
               <br />
               1. Go to YouTube Studio and create a live stream
@@ -152,22 +194,22 @@ export function CreateLivestreamModal({ onClose }: CreateLivestreamModalProps) {
             </p>
           </div>
 
-          <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg">
+          <div className={`flex items-center space-x-3 p-4 border rounded-lg ${darkMode ? 'border-gray-600' : 'border-gray-200'}`}>
             <input
               type="checkbox"
               id="isLive"
               checked={formData.isLive}
               onChange={(e) => handleInputChange('isLive', e.target.checked)}
-              className="h-4 w-4 text-red-600 rounded focus:ring-red-500"
+              className={`h-4 w-4 rounded focus:ring-red-500 ${darkMode ? 'bg-gray-700 border-gray-600 text-red-500' : 'text-red-600'}`}
             />
-            <label htmlFor="isLive" className="flex-1 text-gray-700 font-medium cursor-pointer">
+            <label htmlFor="isLive" className={`flex-1 font-medium cursor-pointer ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Start stream immediately (check if already live on YouTube)
             </label>
           </div>
 
           {!formData.isLive && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+              <label className={`block text-sm font-medium mb-1 flex items-center ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 <Calendar className="h-4 w-4 mr-1" />
                 Scheduled Time *
               </label>
@@ -175,14 +217,18 @@ export function CreateLivestreamModal({ onClose }: CreateLivestreamModalProps) {
                 type="datetime-local"
                 value={formData.scheduledTime}
                 onChange={(e) => handleInputChange('scheduledTime', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 ${
+                  darkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'border-gray-300'
+                }`}
                 required={!formData.isLive}
               />
             </div>
           )}
 
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <p className="text-sm text-yellow-800">
+          <div className={`p-4 rounded-lg ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'}`}>
+            <p className={`text-sm ${darkMode ? 'text-yellow-300' : 'text-yellow-800'}`}>
               <strong>Note:</strong> Make sure your YouTube stream is set to public or unlisted, and that embedding is enabled in YouTube settings.
             </p>
           </div>
