@@ -294,6 +294,7 @@ export function MessagesPage() {
           onConversationCreated={(id) => {
             setSelectedConversationId(id);
             setShowStartModal(false);
+            refresh(); // Refresh conversations list to include the new one
           }}
         />
       )}
