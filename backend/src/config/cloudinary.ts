@@ -42,10 +42,10 @@ export const uploadPostMedia = multer({
     files: parseInt(process.env.MAX_FILES_PER_REQUEST || '5'),
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/') || file.mimetype.startsWith('audio/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image and video files are allowed for posts'));
+      cb(new Error('Only image, video, and audio files are allowed for posts'));
     }
   },
 });
@@ -78,7 +78,7 @@ export const uploadDocument = multer({
       'image/jpeg',
       'image/png'
     ];
-    
+
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {

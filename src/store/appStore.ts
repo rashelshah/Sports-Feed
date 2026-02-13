@@ -30,11 +30,52 @@ function mapDbUserToUser(row: any): User {
   };
 }
 
+// Helper: detect media type from a URL by checking file extension and path
+function detectMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' | undefined {
+  if (!url) return undefined;
+  const lower = url.toLowerCase();
+  // Check for video extensions or cloudinary video resource type
+  if (lower.includes('/video/') || /\.(mp4|mov|avi|webm|wmv|flv|mkv)/.test(lower)) return 'video';
+  // Check for audio extensions or cloudinary audio patterns
+  if (lower.includes('voice-note') || /\.(mp3|wav|ogg|m4a|webm|aac)/.test(lower)) {
+    // Disambiguate: if it's .webm but under voice-notes folder, it's audio
+    if (lower.includes('voice-note') || lower.includes('audio')) return 'audio';
+    // .webm could be video too, default to video unless audio path detected
+    if (/\.webm/.test(lower) && !lower.includes('/video/')) return 'audio';
+  }
+  // Check for image extensions
+  if (lower.includes('/image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp)/.test(lower)) return 'image';
+  return 'image'; // default fallback
+}
+
 // Helper: map a raw Supabase post row to the frontend Post type
 function mapDbPostToPost(row: any, currentUserId?: string): Post {
   // Handle author being an array (PostgREST can return this with views)
   const rawAuthor = row.author;
   const author = Array.isArray(rawAuthor) ? rawAuthor[0] : rawAuthor;
+
+  // Detect media types from URLs
+  const mediaUrls: string[] = row.media_urls || [];
+  let primaryMediaUrl: string | undefined;
+  let primaryMediaType: 'image' | 'video' | 'audio' | undefined;
+  let audioUrl: string | undefined;
+
+  for (const url of mediaUrls) {
+    const type = detectMediaTypeFromUrl(url);
+    if (type === 'audio') {
+      audioUrl = url;
+    } else if (!primaryMediaUrl) {
+      primaryMediaUrl = url;
+      primaryMediaType = type;
+    }
+  }
+
+  // If no primary media but we have audio, make it the primary
+  if (!primaryMediaUrl && audioUrl) {
+    primaryMediaUrl = audioUrl;
+    primaryMediaType = 'audio';
+  }
+
   return {
     id: row.id,
     userId: row.author_id,
@@ -53,8 +94,9 @@ function mapDbPostToPost(row: any, currentUserId?: string): Post {
       createdAt: new Date().toISOString(),
     },
     content: row.content ?? '',
-    mediaUrl: row.media_urls?.[0] ?? undefined,
-    mediaType: row.media_urls?.[0] ? 'image' : undefined,
+    mediaUrl: primaryMediaUrl,
+    mediaType: primaryMediaType,
+    audioUrl: audioUrl,
     likes: typeof row.likes === 'number' ? row.likes : row.likes?.[0]?.count ?? row.likes_count ?? 0,
     comments: typeof row.comments === 'number' ? row.comments : row.comments?.[0]?.count ?? row.comments_count ?? 0,
     shares: typeof row.shares === 'number' ? row.shares : row.shares?.[0]?.count ?? row.shares_count ?? 0,
@@ -189,34 +231,57 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const data = await response.json();
       if (data.success && data.posts) {
-        const mappedPosts = data.posts.map((p: any) => ({
-          id: p.id,
-          userId: p.author_id,
-          user: {
-            id: p.author?.id || p.author_id,
-            username: p.author?.username || p.author?.name || 'Unknown',
-            fullName: p.author?.name || 'Unknown',
-            email: p.author?.email || '',
-            profileImage: p.author?.avatar_url || null,
-            sportsCategory: p.author?.sports_category || 'unstructured-sports',
-            gender: 'prefer-not-to-say' as const,
-            role: p.author?.role || 'athlete',
-            isVerified: p.author?.is_verified || false,
-            bio: p.author?.bio || '',
-            followers: 0,
-            following: 0,
-            posts: 0,
+        const mappedPosts = data.posts.map((p: any) => {
+          // Detect media types from URLs
+          const mediaUrls: string[] = p.media_urls || [];
+          let primaryMediaUrl: string | undefined;
+          let primaryMediaType: 'image' | 'video' | 'audio' | undefined;
+          let postAudioUrl: string | undefined;
+
+          for (const url of mediaUrls) {
+            const type = detectMediaTypeFromUrl(url);
+            if (type === 'audio') {
+              postAudioUrl = url;
+            } else if (!primaryMediaUrl) {
+              primaryMediaUrl = url;
+              primaryMediaType = type;
+            }
+          }
+          if (!primaryMediaUrl && postAudioUrl) {
+            primaryMediaUrl = postAudioUrl;
+            primaryMediaType = 'audio';
+          }
+
+          return {
+            id: p.id,
+            userId: p.author_id,
+            user: {
+              id: p.author?.id || p.author_id,
+              username: p.author?.username || p.author?.name || 'Unknown',
+              fullName: p.author?.name || 'Unknown',
+              email: p.author?.email || '',
+              profileImage: p.author?.avatar_url || null,
+              sportsCategory: p.author?.sports_category || 'unstructured-sports',
+              gender: 'prefer-not-to-say' as const,
+              role: p.author?.role || 'athlete',
+              isVerified: p.author?.is_verified || false,
+              bio: p.author?.bio || '',
+              followers: 0,
+              following: 0,
+              posts: 0,
+              createdAt: p.created_at
+            },
+            content: p.content,
+            mediaUrl: primaryMediaUrl || null,
+            mediaType: primaryMediaType,
+            audioUrl: postAudioUrl,
+            likes: p.likes_count || 0,
+            shares: p.shares_count || 0,
+            comments: p.comments_count || 0,
+            isLiked: p.isLikedByUser || false,
             createdAt: p.created_at
-          },
-          content: p.content,
-          mediaUrl: p.media_urls && p.media_urls.length > 0 ? p.media_urls[0] : null,
-          mediaType: 'image' as const,
-          likes: p.likes_count || 0,
-          shares: p.shares_count || 0,
-          comments: p.comments_count || 0,
-          isLiked: p.isLikedByUser || false,
-          createdAt: p.created_at
-        }));
+          };
+        });
         set({ posts: mappedPosts, isLoadingPosts: false });
       } else {
         set({ isLoadingPosts: false });

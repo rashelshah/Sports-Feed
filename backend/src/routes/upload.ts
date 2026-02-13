@@ -87,12 +87,12 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
   const allowedTypes = {
     image: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
     video: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/flv', 'video/webm'],
-    audio: ['audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a'],
+    audio: ['audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/webm'],
     document: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
   };
 
   const allAllowedTypes = Object.values(allowedTypes).flat();
-  
+
   if (allAllowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -147,7 +147,7 @@ router.post('/single', authenticateToken, upload.single('file'), asyncHandler(as
       {
         folder: `sportsfeed/${folder}`,
         public_id: fileName,
-        resource_type: fileType === 'video' ? 'video' : fileType === 'document' ? 'raw' : 'image',
+        resource_type: (fileType === 'video' || fileType === 'audio') ? 'video' : fileType === 'document' ? 'raw' : 'image',
         // Use eager_async for faster image uploads - transformations happen in background
         eager_async: fileType === 'image',
         tags: tags ? tags.split(',').map((tag: string) => tag.trim()) : [],
@@ -185,7 +185,7 @@ router.post('/single', authenticateToken, upload.single('file'), asyncHandler(as
         await deleteFromCloudinary(result.public_id, fileType === 'video' ? 'video' : fileType === 'document' ? 'raw' : 'image');
         throw new Error(`Failed to save upload record: ${dbError.message}`);
       }
-      
+
       uploadRecord = data;
     } catch (dbError: any) {
       console.error('Upload record save failed:', dbError);
@@ -224,7 +224,7 @@ router.post('/single', authenticateToken, upload.single('file'), asyncHandler(as
 // Upload multiple files
 router.post('/multiple', authenticateToken, upload.array('files', 10), asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const files = req.files as Express.Multer.File[];
-  
+
   if (!files || files.length === 0) {
     res.status(400).json({
       success: false,
@@ -332,7 +332,7 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), asyncHandler(
   }
 
   const fileType = getFileType(req.file.mimetype);
-  
+
   if (fileType !== 'image') {
     res.status(400).json({
       success: false,
@@ -354,7 +354,7 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), asyncHandler(
       const urlParts = currentUser.profile_image.split('/');
       const publicIdWithExt = urlParts[urlParts.length - 1];
       const publicId = publicIdWithExt.split('.')[0];
-      
+
       try {
         await deleteFromCloudinary(`sportsfeed/avatars/${publicId}`, 'image');
       } catch (deleteError) {
@@ -363,7 +363,7 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), asyncHandler(
     }
 
     const fileName = `${req.user!.id}-${Date.now()}`;
-    
+
     const result = await uploadToCloudinary(
       req.file.buffer,
       {
