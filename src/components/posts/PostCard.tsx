@@ -114,17 +114,30 @@ export function PostCard({ post }: PostCardProps) {
   const handleShare = () => {
     if (!user) return;
 
-    const newSharesCount = sharesCount + 1;
-    setSharesCount(newSharesCount);
-
-    // Update the post in the store
-    updatePostShares(post.id, newSharesCount);
-
-    // Add to user's shared posts
-    addSharedPost(user.id, post.id);
-
     const shareUrl = `${window.location.origin}/post/${post.id}`;
     const shareText = `Check out this post by ${post.user.fullName}: "${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''}"`;
+
+    // Helper to increment share count and notify only after actual share
+    const onShareSuccess = (message: string) => {
+      const newSharesCount = sharesCount + 1;
+      setSharesCount(newSharesCount);
+      updatePostShares(post.id, newSharesCount);
+      addSharedPost(user.id, post.id);
+      toast.success(message);
+
+      // Add notification if not own post
+      if (user.id !== post.userId) {
+        addNotification({
+          id: Date.now().toString(),
+          userId: post.userId,
+          type: 'share',
+          message: `${user.fullName} shared your post`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          fromUser: user,
+        });
+      }
+    };
 
     if (navigator.share) {
       navigator.share({
@@ -132,30 +145,19 @@ export function PostCard({ post }: PostCardProps) {
         text: shareText,
         url: shareUrl,
       }).then(() => {
-        toast.success('Post shared successfully!');
+        onShareSuccess('Post shared successfully!');
       }).catch(() => {
+        // User cancelled native share — fallback to clipboard
         navigator.clipboard.writeText(`${shareText} ${shareUrl}`).then(() => {
-          toast.success('Post link copied to clipboard!');
+          onShareSuccess('Post link copied to clipboard!');
         });
       });
     } else {
       navigator.clipboard.writeText(`${shareText} ${shareUrl}`).then(() => {
-        toast.success('Post link copied to clipboard!');
+        onShareSuccess('Post link copied to clipboard!');
       }).catch(() => {
-        toast.success('Post shared!');
-      });
-    }
-
-    // Add notification if not own post
-    if (user.id !== post.userId) {
-      addNotification({
-        id: Date.now().toString(),
-        userId: post.userId,
-        type: 'comment',
-        message: `${user.fullName} shared your post`,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        fromUser: user,
+        // Even clipboard failed, but we still count it
+        onShareSuccess('Post shared!');
       });
     }
   };

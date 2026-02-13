@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Users, TrendingUp } from 'lucide-react';
+import { Search, Users, TrendingUp, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
 import { User } from '../../types';
@@ -14,16 +14,18 @@ export function DiscoverPage() {
   const [sportFilter, setSportFilter] = useState<'all' | 'coco' | 'martial-arts' | 'calorie-fight'>('all');
   // Track optimistic follower counts locally
   const [followerCounts, setFollowerCounts] = useState<Record<string, number>>({});
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
 
   // Fetch real users from Supabase on mount
   useEffect(() => {
-    fetchUsers();
+    setIsLoadingUsers(true);
+    fetchUsers().finally(() => setIsLoadingUsers(false));
   }, []);
 
   // Initialize follower counts when users load - only for users not already in state
   useEffect(() => {
     if (users.length === 0) return;
-    
+
     setFollowerCounts(prev => {
       const newCounts = { ...prev };
       users.forEach(u => {
@@ -198,88 +200,95 @@ export function DiscoverPage() {
       </div>
 
       {/* User Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {searchResults.map((targetUser) => (
-          <motion.div
-            key={targetUser.id}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ y: -5 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
-          >
-            <div className="relative h-32 bg-gradient-to-r from-blue-500 to-purple-600">
-              <img
-                src={targetUser.profileImage}
-                alt={targetUser.fullName}
-                className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 h-20 w-20 rounded-full border-4 border-white dark:border-gray-800 object-cover"
-              />
-            </div>
-
-            <div className="pt-12 p-6 text-center">
-              <div className="flex items-center justify-center space-x-1 mb-2">
-                <h3 className="font-semibold text-gray-900 dark:text-white">{targetUser.fullName}</h3>
-                {getVerificationBadge(targetUser)}
+      {isLoadingUsers ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mb-4" />
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Loading community members...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {searchResults.map((targetUser) => (
+            <motion.div
+              key={targetUser.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ y: -5 }}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
+            >
+              <div className="relative h-32 bg-gradient-to-r from-blue-500 to-purple-600">
+                <img
+                  src={targetUser.profileImage}
+                  alt={targetUser.fullName}
+                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 h-20 w-20 rounded-full border-4 border-white dark:border-gray-800 object-cover"
+                />
               </div>
 
-              <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">@{targetUser.username}</p>
+              <div className="pt-12 p-6 text-center">
+                <div className="flex items-center justify-center space-x-1 mb-2">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">{targetUser.fullName}</h3>
+                  {getVerificationBadge(targetUser)}
+                </div>
 
-              <div className="flex flex-col items-center space-y-1 mb-3">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${targetUser.role === 'coach' ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-                  }`}>
-                  {targetUser.role.charAt(0).toUpperCase() + targetUser.role.slice(1)}
-                </span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${targetUser.sportsCategory === 'coco' ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' :
-                  targetUser.sportsCategory === 'martial-arts' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' :
-                    'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                  }`}>
-                  {targetUser.sportsCategory.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </span>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-1">@{targetUser.username}</p>
+
+                <div className="flex flex-col items-center space-y-1 mb-3">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${targetUser.role === 'coach' ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                    }`}>
+                    {targetUser.role.charAt(0).toUpperCase() + targetUser.role.slice(1)}
+                  </span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${targetUser.sportsCategory === 'coco' ? 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200' :
+                    targetUser.sportsCategory === 'martial-arts' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' :
+                      'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                    }`}>
+                    {targetUser.sportsCategory.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </span>
+                </div>
+
+                {targetUser.bio && (
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">{targetUser.bio}</p>
+                )}
+
+                <div className="flex justify-center space-x-4 mb-4 text-sm">
+                  <div className="text-center">
+                    <p className="font-bold text-gray-900 dark:text-white">{targetUser.posts}</p>
+                    <p className="text-gray-600 dark:text-gray-400">Posts</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold text-gray-900 dark:text-white">{followerCounts[targetUser.id] ?? targetUser.followers}</p>
+                    <p className="text-gray-600 dark:text-gray-400">Followers</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold text-gray-900 dark:text-white">{targetUser.following}</p>
+                    <p className="text-gray-600 dark:text-gray-400">Following</p>
+                  </div>
+                </div>
+
+                <FollowButton
+                  targetUserId={targetUser.id}
+                  targetUserName={targetUser.fullName}
+                  variant={targetUser.role === 'coach' ? 'secondary' : 'primary'}
+                  className="w-full"
+                  onFollowChange={(isFollowing) => {
+                    // Optimistically update follower count immediately
+                    setFollowerCounts(prev => {
+                      const currentCount = prev[targetUser.id] ?? targetUser.followers;
+                      const newCount = isFollowing ? currentCount + 1 : Math.max(0, currentCount - 1);
+                      return {
+                        ...prev,
+                        [targetUser.id]: newCount
+                      };
+                    });
+                    // Refresh from database after a short delay to sync
+                    setTimeout(() => fetchUsers(), 500);
+                  }}
+                />
               </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
-              {targetUser.bio && (
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">{targetUser.bio}</p>
-              )}
-
-              <div className="flex justify-center space-x-4 mb-4 text-sm">
-                <div className="text-center">
-                  <p className="font-bold text-gray-900 dark:text-white">{targetUser.posts}</p>
-                  <p className="text-gray-600 dark:text-gray-400">Posts</p>
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-gray-900 dark:text-white">{followerCounts[targetUser.id] ?? targetUser.followers}</p>
-                  <p className="text-gray-600 dark:text-gray-400">Followers</p>
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-gray-900 dark:text-white">{targetUser.following}</p>
-                  <p className="text-gray-600 dark:text-gray-400">Following</p>
-                </div>
-              </div>
-
-              <FollowButton
-                targetUserId={targetUser.id}
-                targetUserName={targetUser.fullName}
-                variant={targetUser.role === 'coach' ? 'secondary' : 'primary'}
-                className="w-full"
-                onFollowChange={(isFollowing) => {
-                  // Optimistically update follower count immediately
-                  setFollowerCounts(prev => {
-                    const currentCount = prev[targetUser.id] ?? targetUser.followers;
-                    const newCount = isFollowing ? currentCount + 1 : Math.max(0, currentCount - 1);
-                    return {
-                      ...prev,
-                      [targetUser.id]: newCount
-                    };
-                  });
-                  // Refresh from database after a short delay to sync
-                  setTimeout(() => fetchUsers(), 500);
-                }}
-              />
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {searchResults.length === 0 && (
+      {!isLoadingUsers && searchResults.length === 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

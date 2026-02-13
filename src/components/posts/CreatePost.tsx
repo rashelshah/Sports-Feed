@@ -210,7 +210,6 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
 
       // Create post via backend API
       setUploadStatus('Creating post...');
-      const finalContent = audioBlob && transcribedText ? `${content}\n\n[Voice: ${transcribedText}]` : content;
 
       const token = localStorage.getItem('token');
       if (!token) {
@@ -227,8 +226,9 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          content: finalContent,
-          mediaUrls
+          content,
+          mediaUrls,
+          ...(transcribedText ? { transcription: transcribedText } : {})
         })
       });
 

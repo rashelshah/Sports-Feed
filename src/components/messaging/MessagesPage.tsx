@@ -10,7 +10,7 @@ import { StartConversationModal } from './StartConversationModal';
 const formatTimeAgo = (date: Date): string => {
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
+
   if (diffInSeconds < 60) return 'just now';
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
@@ -41,12 +41,12 @@ export function MessagesPage() {
   // Filter conversations by search
   const filteredConversations = searchQuery
     ? conversations.filter((c) => {
-        const other = getOtherParticipant(c);
-        return (
-          other?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          other?.username?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      })
+      const other = getOtherParticipant(c);
+      return (
+        other?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        other?.username?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    })
     : conversations;
 
   return (
@@ -70,9 +70,8 @@ export function MessagesPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Conversations Sidebar */}
         <div
-          className={`${
-            selectedConversationId ? 'hidden md:flex' : 'flex'
-          } w-full md:w-80 flex-col border-r ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
+          className={`${selectedConversationId ? 'hidden md:flex' : 'flex'
+            } w-full md:w-80 flex-col border-r ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
         >
           {/* Search */}
           <div className={`p-4 border-b ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
@@ -83,11 +82,10 @@ export function MessagesPage() {
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  darkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${darkMode
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                     : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                  }`}
               />
             </div>
           </div>
@@ -126,12 +124,12 @@ export function MessagesPage() {
                         // Show loading state immediately
                         setIsSwitchingConversation(true);
                         setSelectedConversationId(conversation.id);
-                        
+
                         // Clear unread count immediately in UI for better UX
                         if (conversation.unread_count > 0) {
                           // Optimistically update local state to remove badge immediately
-                          setConversations((prev: typeof conversations) => prev.map((c: typeof conversations[0]) => 
-                            c.id === conversation.id 
+                          setConversations((prev: typeof conversations) => prev.map((c: typeof conversations[0]) =>
+                            c.id === conversation.id
                               ? { ...c, unread_count: 0 }
                               : c
                           ));
@@ -139,17 +137,16 @@ export function MessagesPage() {
                           await markMessagesAsRead(conversation.id, userId!);
                           refresh(); // Refresh conversations to ensure sync
                         }
-                        
+
                         // Keep loading state for a short time to ensure messages are loaded
                         setTimeout(() => {
                           setIsSwitchingConversation(false);
                         }, 500);
                       }}
-                      className={`w-full p-4 flex items-start space-x-3 transition-colors ${
-                        isActive 
-                          ? (darkMode ? 'bg-blue-900/20 border-l-4 border-blue-500' : 'bg-blue-50 border-l-4 border-blue-500') 
+                      className={`w-full p-4 flex items-start space-x-3 transition-colors ${isActive
+                          ? (darkMode ? 'bg-blue-900/20 border-l-4 border-blue-500' : 'bg-blue-50 border-l-4 border-blue-500')
                           : (darkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50')
-                      }`}
+                        }`}
                     >
                       <img
                         src={
@@ -172,7 +169,9 @@ export function MessagesPage() {
                         </div>
                         <p className={`text-sm capitalize ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{other?.role || 'User'}</p>
                         <p className={`text-sm truncate mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {conversation.last_message || 'No messages yet'}
+                          {conversation.last_message
+                            ? (conversation.last_message.match(/^https?:\/\/.*\.(jpg|jpeg|png|gif|webp|svg)/i) ? '📷 Photo' : conversation.last_message)
+                            : 'No messages yet'}
                         </p>
                       </div>
                       {conversation.unread_count > 0 && (
@@ -235,11 +234,10 @@ export function MessagesPage() {
         <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 p-4 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className={`rounded-lg shadow-md p-6 cursor-pointer border transition-colors ${
-              darkMode 
-                ? 'bg-gray-800 border-gray-700 hover:border-blue-500' 
+            className={`rounded-lg shadow-md p-6 cursor-pointer border transition-colors ${darkMode
+                ? 'bg-gray-800 border-gray-700 hover:border-blue-500'
                 : 'bg-white border-gray-200 hover:border-blue-300'
-            }`}
+              }`}
           >
             <div className="flex items-center space-x-3 mb-3">
               <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
@@ -254,11 +252,10 @@ export function MessagesPage() {
 
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className={`rounded-lg shadow-md p-6 cursor-pointer border transition-colors ${
-              darkMode 
-                ? 'bg-gray-800 border-gray-700 hover:border-green-500' 
+            className={`rounded-lg shadow-md p-6 cursor-pointer border transition-colors ${darkMode
+                ? 'bg-gray-800 border-gray-700 hover:border-green-500'
                 : 'bg-white border-gray-200 hover:border-green-300'
-            }`}
+              }`}
           >
             <div className="flex items-center space-x-3 mb-3">
               <div className={`p-2 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-100'}`}>
@@ -273,11 +270,10 @@ export function MessagesPage() {
 
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className={`rounded-lg shadow-md p-6 cursor-pointer border transition-colors ${
-              darkMode 
-                ? 'bg-gray-800 border-gray-700 hover:border-purple-500' 
+            className={`rounded-lg shadow-md p-6 cursor-pointer border transition-colors ${darkMode
+                ? 'bg-gray-800 border-gray-700 hover:border-purple-500'
                 : 'bg-white border-gray-200 hover:border-purple-300'
-            }`}
+              }`}
           >
             <div className="flex items-center space-x-3 mb-3">
               <div className={`p-2 rounded-lg ${darkMode ? 'bg-purple-900/30' : 'bg-purple-100'}`}>

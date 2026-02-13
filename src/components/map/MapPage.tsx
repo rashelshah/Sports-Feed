@@ -147,6 +147,7 @@ export function MapPage() {
   const [heatMapData, setHeatMapData] = useState<HeatMapPoint[]>([]);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const userLocationRef = useRef<[number, number] | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
 
   // UI state
@@ -165,28 +166,14 @@ export function MapPage() {
   // Default map center — overridden by user geolocation
   const defaultCenter: [number, number] = [20.2961, 85.8245];
 
-  // ─── Geolocation ────────────────────────────────────────────────
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const loc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-          setUserLocation(loc);
-          setFlyTarget(loc);
-        },
-        (err) => console.warn('Geolocation denied:', err.message),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-  }, []);
-
   // ─── Fetch all data ─────────────────────────────────────────────
   const fetchLocations = useCallback(async () => {
     try {
       const params = new URLSearchParams({ limit: '100', sortBy: 'created_at', sortOrder: 'desc' });
-      if (userLocation) {
-        params.set('latitude', String(userLocation[0]));
-        params.set('longitude', String(userLocation[1]));
+      const loc = userLocationRef.current;
+      if (loc) {
+        params.set('latitude', String(loc[0]));
+        params.set('longitude', String(loc[1]));
         params.set('radius', '50');
         params.set('sortBy', 'distance');
       }
@@ -200,7 +187,7 @@ export function MapPage() {
     } catch (err) {
       console.error('Error fetching locations:', err);
     }
-  }, [userLocation]);
+  }, []);
 
   const fetchCheckIns = useCallback(async () => {
     try {
@@ -244,6 +231,25 @@ export function MapPage() {
     }
   }, []);
 
+  // ─── Geolocation (after fetch functions are defined) ────────────
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+          userLocationRef.current = loc;
+          setUserLocation(loc);
+          setFlyTarget(loc);
+          // Re-fetch locations with user coordinates (single targeted re-fetch)
+          fetchLocations();
+        },
+        (err) => console.warn('Geolocation denied:', err.message),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  }, [fetchLocations]);
+
+  // Initial data load (runs once since all callbacks have stable identity)
   useEffect(() => {
     async function loadAll() {
       setIsLoading(true);
@@ -488,7 +494,7 @@ export function MapPage() {
   };
 
   if (!user) return null;
-  
+
   return (
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
@@ -498,7 +504,7 @@ export function MapPage() {
             <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Sports Map</h1>
             <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Discover sports locations, check in, and mark safe spaces</p>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{checkIns.length}</span> check-ins today
@@ -525,15 +531,14 @@ export function MapPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
-              activeTab === tab.id
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${activeTab === tab.id
                 ? darkMode
                   ? 'bg-gray-700 text-blue-400 shadow-sm'
                   : 'bg-white text-blue-600 shadow-sm'
                 : darkMode
                   ? 'text-gray-400 hover:text-gray-200'
                   : 'text-gray-600 hover:text-gray-900'
-            }`}
+              }`}
           >
             <tab.icon className="h-4 w-4" />
             <span>{tab.label}</span>
@@ -581,11 +586,10 @@ export function MapPage() {
                 <button
                   key={type.id}
                   onClick={() => setMapType(type.id as any)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    mapType === type.id
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${mapType === type.id
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {type.label}
                 </button>
@@ -602,11 +606,10 @@ export function MapPage() {
                     <button
                       key={type.id}
                       onClick={() => setHeatMapType(type.id)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                        heatMapType === type.id
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${heatMapType === type.id
                           ? 'bg-purple-100 text-purple-700'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
                       {type.label}
                     </button>
@@ -747,7 +750,7 @@ export function MapPage() {
                       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 text-yellow-400 fill-current" />
                     <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{(location.average_rating || 0).toFixed(1)}</span>
@@ -776,27 +779,27 @@ export function MapPage() {
                   )}
                 </div>
 
-                  <Button
-                    onClick={() => {
-                      setSelectedLocation(location);
-                      if (isLocationCheckedIn(location)) {
-                        toast('You have already checked in at this location', { icon: 'ℹ️' });
-                      } else {
-                        setShowCheckInModal(true);
-                      }
-                    }}
-                    size="sm"
-                    className={`w-full ${isLocationCheckedIn(location)
-                        ? 'bg-green-600 hover:bg-green-700 text-white'
-                        : ''
-                      }`}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    {isLocationCheckedIn(location) ? 'Checked In ✓' : 'Check In'}
-                  </Button>
-                </motion.div>
-              ))}
-            </div>
+                <Button
+                  onClick={() => {
+                    setSelectedLocation(location);
+                    if (isLocationCheckedIn(location)) {
+                      toast('You have already checked in at this location', { icon: 'ℹ️' });
+                    } else {
+                      setShowCheckInModal(true);
+                    }
+                  }}
+                  size="sm"
+                  className={`w-full ${isLocationCheckedIn(location)
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : ''
+                    }`}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  {isLocationCheckedIn(location) ? 'Checked In ✓' : 'Check In'}
+                </Button>
+              </motion.div>
+            ))}
+          </div>
 
           {/* Empty state */}
           {locations.length === 0 && !isLoading && (
@@ -817,7 +820,7 @@ export function MapPage() {
       {!isLoading && activeTab === 'checkins' && (
         <div className="space-y-6">
           <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>My Check-ins</h2>
-          
+
           {checkIns.length === 0 ? (
             <div className={`rounded-lg shadow-md p-8 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
               <CheckCircle className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
@@ -888,7 +891,7 @@ export function MapPage() {
                     <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
                     <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
                   </div>
-                  
+
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 text-yellow-400 fill-current" />
                     <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{(location.average_rating || 0).toFixed(1)}</span>
@@ -933,7 +936,7 @@ export function MapPage() {
                 <MapPin className="h-4 w-4" />
                 <span>{selectedLocation.address || `${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}`}</span>
               </div>
-              
+
               <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <Users className="h-4 w-4" />
                 <span>Check-in location</span>
@@ -975,7 +978,7 @@ export function MapPage() {
               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Select the safety features available at this location:
               </p>
-              
+
               <div className="space-y-2">
                 {[
                   'women-safe',
