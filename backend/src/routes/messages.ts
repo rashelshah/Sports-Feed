@@ -45,7 +45,7 @@ router.get('/conversation/:conversationId', authenticateToken, validateParams(co
     before,
     after
   } = req.query as any;
-  
+
   const page = parseInt(pageStr, 10) || 1;
   const limit = parseInt(limitStr, 10) || 50;
 
@@ -98,13 +98,13 @@ router.get('/conversation/:conversationId', authenticateToken, validateParams(co
   // Fetch sender data for all messages separately (more reliable than joins)
   const senderIds = [...new Set((messages || []).map(m => m.sender_id))];
   let sendersMap = new Map();
-  
+
   if (senderIds.length > 0) {
     const { data: sendersData } = await supabaseAdmin
       .from('users')
       .select('id, full_name, profile_image, role, is_verified')
       .in('id', senderIds);
-    
+
     (sendersData || []).forEach(u => {
       sendersMap.set(u.id, u);
     });
@@ -158,7 +158,7 @@ router.get('/conversation/:conversationId', authenticateToken, validateParams(co
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
   console.log('=== SEND MESSAGE DEBUG ===');
   console.log('Request body:', req.body);
-  
+
   const {
     conversationId,
     content,
@@ -253,7 +253,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     .select('name, full_name')
     .eq('id', req.user!.id)
     .single();
-  
+
   const senderName = sender?.name || sender?.full_name || 'Someone';
 
   // Create notifications for other participants
@@ -413,16 +413,7 @@ router.put('/:id', authenticateToken, validateParams(messageIdSchema), validate(
       edited_at: new Date().toISOString()
     })
     .eq('id', id)
-    .select(`
-      *,
-      sender:users!sender_id(
-        id,
-        name,
-        avatar_url,
-        role,
-        is_verified
-      )
-    `)
+    .select('*')
     .single();
 
   if (error) {

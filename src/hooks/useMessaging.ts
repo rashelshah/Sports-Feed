@@ -151,7 +151,29 @@ export function useConversations() {
           }));
 
           console.log('Mapped conversations:', mapped.length);
-          setConversations(mapped);
+
+          // Deduplicate: keep only the most recent conversation per other participant
+          const deduped = (() => {
+            const seen = new Map<string, ConversationWithParticipants>();
+            for (const conv of mapped) {
+              if (conv.type !== 'direct') {
+                // Group conversations are never duplicates
+                seen.set(conv.id, conv);
+                continue;
+              }
+              const otherParticipant = conv.participants.find(
+                p => p.user_id !== userId
+              );
+              const otherUserId = otherParticipant?.user_id || conv.id;
+              const existing = seen.get(otherUserId);
+              if (!existing || new Date(conv.last_message_at || conv.updated_at) > new Date(existing.last_message_at || existing.updated_at)) {
+                seen.set(otherUserId, conv);
+              }
+            }
+            return Array.from(seen.values());
+          })();
+
+          setConversations(deduped);
           setIsLoading(false);
           return;
         } catch (mapErr) {
@@ -696,7 +718,7 @@ export async function findOrCreateDirectConversation(
 
     if (!findError && existingConv) {
       const convId = existingConv.conversation_id;
-      
+
       // If user A has left this conversation, rejoin them
       if (existingConv.left_at) {
         const rejoined = await rejoinConversation(convId, userIdA);
@@ -889,7 +911,7 @@ export function useMessageableUsers(searchQuery: string, autoLoadAll = false) {
 
   const searchUsers = useCallback(async () => {
     if (!userId) return;
-    
+
     // If autoLoadAll is true, fetch all followed users without requiring search query
     if (!autoLoadAll && !searchQuery.trim()) {
       setUsers([]);

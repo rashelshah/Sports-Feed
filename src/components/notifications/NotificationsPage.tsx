@@ -3,10 +3,11 @@ import { motion } from 'framer-motion';
 import { Bell, Heart, UserPlus, UserMinus, Shield, MessageCircle, Share2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
+import toast from 'react-hot-toast';
 
 export function NotificationsPage() {
   const { user, darkMode } = useAuthStore();
-  const { notifications, markNotificationAsRead, fetchNotifications } = useAppStore();
+  const { notifications, markNotificationAsRead, fetchNotifications, setCurrentView } = useAppStore();
 
   // Fetch notifications from API on mount
   useEffect(() => {
@@ -37,8 +38,30 @@ export function NotificationsPage() {
     }
   };
 
-  const handleNotificationClick = (notificationId: string) => {
-    markNotificationAsRead(notificationId);
+  const handleNotificationClick = (notification: { id: string; type: string; postId?: string; fromUser?: any }) => {
+    markNotificationAsRead(notification.id);
+
+    // Navigate to relevant content based on notification type
+    switch (notification.type) {
+      case 'like':
+      case 'comment':
+      case 'share':
+        // Navigate to home feed where the post is visible
+        setCurrentView('home');
+        toast.success('Navigated to your feed');
+        break;
+      case 'follow':
+      case 'unfollow':
+        // Navigate to discover to see the user
+        setCurrentView('discover');
+        break;
+      case 'message':
+        // Navigate to messages
+        setCurrentView('messages');
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -69,7 +92,7 @@ export function NotificationsPage() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 whileHover={{ backgroundColor: darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)' }}
-                onClick={() => handleNotificationClick(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
                 className={`p-4 cursor-pointer transition-colors ${!notification.isRead ? (darkMode ? 'bg-blue-900/20' : 'bg-blue-50') : ''
                   }`}
               >

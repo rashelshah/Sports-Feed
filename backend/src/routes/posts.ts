@@ -14,7 +14,8 @@ const router = express.Router();
 // Validation schemas
 const createPostSchema = Joi.object({
   content: Joi.string().allow('', null).max(2000).default(''),
-  mediaUrls: Joi.array().items(Joi.string().uri()).allow(null).optional().default([])
+  mediaUrls: Joi.array().items(Joi.string().uri()).allow(null).optional().default([]),
+  transcription: Joi.string().allow('', null).max(5000).optional()
 }).custom((value, helpers) => {
   // Require at least content or media
   if ((!value.content || !value.content.trim()) && (!value.mediaUrls || value.mediaUrls.length === 0)) {
