@@ -37,9 +37,9 @@ export const authMiddleware = async (
 ) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     // Debug logging removed to reduce noise
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       // Debug logging removed to reduce noise
       res.status(401).json({
@@ -66,15 +66,15 @@ export const authMiddleware = async (
       return;
     }
 
-    // Get user details from our database
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('id, email, role, is_banned, is_verified')
+    // Get user details from profiles table (source of truth for roles)
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, role, is_banned, verification_status')
       .eq('id', user.id)
       .single();
 
-    if (userError || !userData) {
-      logger.error('Failed to fetch user data:', { error: userError?.message, userId: user.id });
+    if (profileError || !profileData) {
+      logger.error('Failed to fetch user profile:', { error: profileError?.message, userId: user.id });
       res.status(401).json({
         error: 'Unauthorized',
         message: 'User not found in database',
@@ -83,7 +83,7 @@ export const authMiddleware = async (
     }
 
     // Check if user is banned
-    if (userData.is_banned) {
+    if (profileData.is_banned) {
       res.status(403).json({
         error: 'Forbidden',
         message: 'Your account has been banned',
@@ -93,15 +93,18 @@ export const authMiddleware = async (
 
     // Update last active timestamp
     await supabaseAdmin
-      .from('users')
+      .from('profiles')
       .update({ last_active_at: new Date().toISOString() })
       .eq('id', user.id);
 
+    // Debug log — temporary
+    console.log("Authenticated role:", profileData.role);
+
     // Attach user to request object
     req.user = {
-      id: userData.id,
-      email: userData.email,
-      role: userData.role,
+      id: profileData.id,
+      email: profileData.email,
+      role: profileData.role,
       aud: user.aud,
       exp: 0, // Will be set from JWT if needed
     };
@@ -183,8 +186,8 @@ export const verifiedMiddleware = async (
 
   try {
     const { data: userData, error } = await supabaseAdmin
-      .from('users')
-      .select('is_verified')
+      .from('profiles')
+      .select('verification_status')
       .eq('id', req.user.id)
       .single();
 
@@ -196,7 +199,7 @@ export const verifiedMiddleware = async (
       return;
     }
 
-    if (!userData.is_verified) {
+    if (userData.verification_status !== 'approved') {
       res.status(403).json({
         error: 'Forbidden',
         message: 'Account verification required',
@@ -223,7 +226,7 @@ export const optionalAuthMiddleware = async (
 ) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return next(); // Continue without user
     }
@@ -236,20 +239,20 @@ export const optionalAuthMiddleware = async (
       return next(); // Continue without user
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from('profiles')
       .select('id, email, role, is_banned')
       .eq('id', user.id)
       .single();
 
-    if (userError || !userData || userData.is_banned) {
+    if (profileError || !profileData || profileData.is_banned) {
       return next(); // Continue without user
     }
 
     req.user = {
-      id: userData.id,
-      email: userData.email,
-      role: userData.role,
+      id: profileData.id,
+      email: profileData.email,
+      role: profileData.role,
       aud: user.aud,
       exp: 0,
     };
@@ -265,7 +268,7 @@ export const optionalAuthMiddleware = async (
 export const requireRole = (allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = (req as AuthenticatedRequest).user;
-    
+
     if (!user) {
       res.status(401).json({
         error: 'Unauthorized',

@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { supabase, supabaseAdmin } from '../config/supabase';
-import { authenticateToken, optionalAuthMiddleware } from '../middleware/auth';
+import { authenticateToken, optionalAuthMiddleware, requireRole } from '../middleware/auth';
 import { validate, validateQuery, validateParams } from '../middleware/validation';
 import { asyncHandler } from '../middleware/errorHandler';
 import Joi from 'joi';
@@ -140,28 +140,33 @@ router.post('/checkin', authenticateToken, validate(checkInSchema), asyncHandler
   } = req.body;
   const userId = req.user!.id;
 
+  // Check for duplicate check-in at similar coordinates within 24 hours
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentCheckIns } = await supabaseAdmin
+    .from('location_checkins')
+    .select('id, checked_in_at')
+    .eq('user_id', userId)
+    .gte('checked_in_at', twentyFourHoursAgo)
+    .gte('latitude', latitude - 0.001)
+    .lte('latitude', latitude + 0.001)
+    .gte('longitude', longitude - 0.001)
+    .lte('longitude', longitude + 0.001)
+    .limit(1);
+
+  if (recentCheckIns && recentCheckIns.length > 0) {
+    res.status(409).json({
+      success: false,
+      error: 'You have already checked in at this location in the last 24 hours',
+      alreadyCheckedIn: true,
+      lastCheckIn: recentCheckIns[0]
+    });
+    return;
+  }
+
   const checkInId = uuidv4();
 
-  // Get the JWT token from the request header
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.substring(7); // Remove 'Bearer ' prefix
-
-  // Create an authenticated Supabase client for this request
-  const { createClient } = require('@supabase/supabase-js');
-  const authenticatedSupabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    }
-  );
-
-  // Create check-in record with authenticated client
-  const { data: checkIn, error } = await authenticatedSupabase
+  // Create check-in record with admin client to bypass RLS
+  const { data: checkIn, error } = await supabaseAdmin
     .from('location_checkins')
     .insert({
       id: checkInId,
@@ -174,14 +179,7 @@ router.post('/checkin', authenticateToken, validate(checkInSchema), asyncHandler
       notes,
       checked_in_at: new Date().toISOString()
     })
-    .select(`
-      *,
-      user:users(
-        id,
-        name,
-        avatar_url
-      )
-    `)
+    .select('*')
     .single();
 
   if (error) {
@@ -245,13 +243,13 @@ router.post('/checkin', authenticateToken, validate(checkInSchema), asyncHandler
 
   // Award tokens for check-in
   const tokenReward = Math.floor(Math.min(duration * 0.5, 50)); // integer tokens as required by RPC
-  await supabase.rpc('add_user_tokens', {
+  await supabaseAdmin.rpc('add_user_tokens', {
     user_id_param: userId,
     amount_param: tokenReward
   });
 
   // Record the transaction
-  await supabase
+  await supabaseAdmin
     .from('token_transactions')
     .insert({
       to_user_id: userId,
@@ -261,7 +259,7 @@ router.post('/checkin', authenticateToken, validate(checkInSchema), asyncHandler
     });
 
   // Get user details for broadcasting
-  const { data: userData } = await supabase
+  const { data: userData } = await supabaseAdmin
     .from('users')
     .select('name')
     .eq('id', userId)
@@ -272,7 +270,7 @@ router.post('/checkin', authenticateToken, validate(checkInSchema), asyncHandler
   if (socketHandlers && locationName) {
     // Create a location ID from coordinates for consistent room naming
     const locationId = `${Math.round(latitude * 10000)}_${Math.round(longitude * 10000)}`;
-    
+
     // Broadcast check-in event to location room
     socketHandlers.broadcastToLocation(locationId, 'userCheckedIn', {
       checkIn,
@@ -321,14 +319,7 @@ router.get('/checkins', authenticateToken, validateQuery(getCheckInsQuerySchema)
   // Use admin client to bypass RLS safely while enforcing user access on server
   let query = supabaseAdmin
     .from('location_checkins')
-    .select(`
-      *,
-      user:users(
-        id,
-        name,
-        avatar_url
-      )
-    `, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .eq('user_id', targetUserId)
     .range(offset, offset + limit - 1)
     .order(sortBy === 'created_at' ? 'checked_in_at' : sortBy, { ascending: sortOrder === 'asc' });
@@ -388,16 +379,9 @@ router.get('/safe-locations', optionalAuthMiddleware, validateQuery(getSafeLocat
 
   const offset = (page - 1) * limit;
 
-  let query = supabase
+  let query = supabaseAdmin
     .from('safe_locations')
-    .select(`
-      *,
-      created_by:users!created_by(
-        id,
-        name,
-        avatar_url
-      )
-    `, { count: 'exact' })
+    .select('*', { count: 'exact' })
     .eq('is_active', true)
     .range(offset, offset + limit - 1);
 
@@ -457,7 +441,7 @@ router.get('/safe-locations', optionalAuthMiddleware, validateQuery(getSafeLocat
 
     // Sort by distance if requested
     if (sortBy === 'distance') {
-      locationsWithDistance.sort((a, b) => 
+      locationsWithDistance.sort((a, b) =>
         sortOrder === 'asc' ? a.distance - b.distance : b.distance - a.distance
       );
     }
@@ -501,17 +485,9 @@ router.get('/safe-locations', optionalAuthMiddleware, validateQuery(getSafeLocat
 router.get('/safe-locations/:id', optionalAuthMiddleware, validateParams(locationIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
 
-  const { data: location, error } = await supabase
+  const { data: location, error } = await supabaseAdmin
     .from('safe_locations')
-    .select(`
-      *,
-      created_by:users!created_by(
-        id,
-        name,
-        avatar_url,
-        role
-      )
-    `)
+    .select('*')
     .eq('id', id)
     .single();
 
@@ -530,7 +506,7 @@ router.get('/safe-locations/:id', optionalAuthMiddleware, validateParams(locatio
 }));
 
 // Create safe location
-router.post('/safe-locations', authenticateToken, validate(createSafeLocationSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
+router.post('/safe-locations', authenticateToken, requireRole(['admin', 'administrator', 'coach']), validate(createSafeLocationSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const {
     name,
     description,
@@ -545,16 +521,44 @@ router.post('/safe-locations', authenticateToken, validate(createSafeLocationSch
     imageUrls
   } = req.body;
   const userId = req.user!.id;
+  const creatorRole = (req.user as any).role || 'user';
+
+  // Reverse geocode to get a meaningful location name
+  let locationName = name;
+  try {
+    const geoRes = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=16&addressdetails=1`,
+      { headers: { 'User-Agent': 'SportsFeed/1.0' } }
+    );
+    if (geoRes.ok) {
+      const geoData: any = await geoRes.json();
+      const addr = geoData.address || {};
+      // Pick the best landmark name
+      locationName = addr.amenity || addr.building || addr.leisure || addr.shop ||
+        addr.tourism || addr.historic || addr.road || addr.neighbourhood ||
+        addr.suburb || geoData.display_name?.split(',')[0] || name;
+    }
+  } catch (geoErr) {
+    console.warn('Reverse geocoding failed, using default name:', geoErr);
+  }
 
   const locationId = uuidv4();
 
+  // Determine address label based on creator role
+  let addressLabel = address || 'Community reported';
+  if (creatorRole === 'admin' || creatorRole === 'administrator') {
+    addressLabel = 'Platform created';
+  } else if (creatorRole === 'coach') {
+    addressLabel = 'Coach reported location';
+  }
+
   const insertData = {
     id: locationId,
-    name,
+    name: locationName,
     description: description || null,
     latitude,
     longitude,
-    address: address || null,
+    address: addressLabel,
     category,
     amenities: amenities || [],
     safety_features: safetyFeatures || [],
@@ -562,53 +566,41 @@ router.post('/safe-locations', authenticateToken, validate(createSafeLocationSch
     contact_info: contactInfo || {},
     image_urls: imageUrls || [],
     created_by: userId,
+    creator_role: creatorRole,
     is_active: true,
     is_verified: false
   };
 
-  // Use service role client to bypass RLS for location creation
-  const { createClient } = require('@supabase/supabase-js');
-  const serviceRoleClient = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  );
-  
-  const { data: location, error } = await serviceRoleClient
+  console.log('Attempting to insert safe location with data:', JSON.stringify(insertData, null, 2));
+
+  const { data: location, error } = await supabaseAdmin
     .from('safe_locations')
     .insert(insertData)
-    .select(`
-      *,
-      created_by:users!created_by(
-        id,
-        name,
-        avatar_url
-      )
-    `)
+    .select('*')
     .single();
 
   if (error) {
-    console.error('Error creating safe location:', error);
+    console.error('Error creating safe location:', JSON.stringify(error, null, 2));
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Error details:', error.details);
+    console.error('Error hint:', error.hint);
     res.status(400).json({
       success: false,
-      error: 'Failed to create safe location'
+      error: 'Failed to create safe location',
+      details: error.message
     });
     return;
   }
 
   // Award tokens for contributing a location
-  await supabase.rpc('add_user_tokens', {
+  await supabaseAdmin.rpc('add_user_tokens', {
     user_id_param: userId,
     amount_param: 25
   });
 
   // Record the transaction
-  await supabase
+  await supabaseAdmin
     .from('token_transactions')
     .insert({
       to_user_id: userId,
@@ -660,7 +652,7 @@ router.put('/safe-locations/:id', authenticateToken, validateParams(locationIdSc
   }
 
   // Check if location exists and user can edit it
-  const { data: existingLocation, error: fetchError } = await supabase
+  const { data: existingLocation, error: fetchError } = await supabaseAdmin
     .from('safe_locations')
     .select('created_by')
     .eq('id', id)
@@ -674,7 +666,7 @@ router.put('/safe-locations/:id', authenticateToken, validateParams(locationIdSc
     return;
   }
 
-  if (existingLocation.created_by !== req.user!.id && req.user!.role !== 'admin') {
+  if (existingLocation.created_by !== req.user!.id && !['admin', 'administrator'].includes((req.user as any).role || '')) {
     res.status(403).json({
       success: false,
       error: 'You can only update locations you created'
@@ -682,18 +674,11 @@ router.put('/safe-locations/:id', authenticateToken, validateParams(locationIdSc
     return;
   }
 
-  const { data: location, error } = await supabase
+  const { data: location, error } = await supabaseAdmin
     .from('safe_locations')
     .update(updates)
     .eq('id', id)
-    .select(`
-      *,
-      created_by:users!created_by(
-        id,
-        name,
-        avatar_url
-      )
-    `)
+    .select('*')
     .single();
 
   if (error) {
@@ -716,7 +701,7 @@ router.delete('/safe-locations/:id', authenticateToken, validateParams(locationI
   const { id } = req.params;
 
   // Check if location exists and user can delete it
-  const { data: existingLocation, error: fetchError } = await supabase
+  const { data: existingLocation, error: fetchError } = await supabaseAdmin
     .from('safe_locations')
     .select('created_by')
     .eq('id', id)
@@ -730,7 +715,7 @@ router.delete('/safe-locations/:id', authenticateToken, validateParams(locationI
     return;
   }
 
-  if (existingLocation.created_by !== req.user!.id && req.user!.role !== 'admin') {
+  if (existingLocation.created_by !== req.user!.id && !['admin', 'administrator'].includes((req.user as any).role || '')) {
     res.status(403).json({
       success: false,
       error: 'You can only delete locations you created'
@@ -738,7 +723,7 @@ router.delete('/safe-locations/:id', authenticateToken, validateParams(locationI
     return;
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('safe_locations')
     .delete()
     .eq('id', id);
@@ -815,8 +800,8 @@ router.post('/safe-locations/:id/mark-safe', authenticateToken, validateParams(l
 
     // Award tokens once per user per location
     tokensEarned = 5;
-    await supabase.rpc('add_user_tokens', { user_id_param: userId, amount_param: tokensEarned });
-    await supabase.from('token_transactions').insert({ to_user_id: userId, amount: tokensEarned, type: 'earned', description: `Marked safe: ${existing.name}` });
+    await supabaseAdmin.rpc('add_user_tokens', { user_id_param: userId, amount_param: tokensEarned });
+    await supabaseAdmin.from('token_transactions').insert({ to_user_id: userId, amount: tokensEarned, type: 'earned', description: `Marked safe: ${existing.name}` });
   }
 
   res.json({ success: true, message: 'Safety features updated', location: updated, tokensEarned });
@@ -857,6 +842,69 @@ router.post('/safe-locations/:id/mark-unsafe', authenticateToken, validateParams
   res.json({ success: true, message: 'Safety verification removed', verifications: next });
 }));
 
+// Rate a safe location (1-5 stars)
+const rateLocationSchema = Joi.object({
+  rating: Joi.number().integer().min(1).max(5).required()
+});
+
+router.post('/safe-locations/:id/rate', authenticateToken, validateParams(locationIdSchema), validate(rateLocationSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const userId = req.user!.id;
+  const { rating } = req.body;
+
+  // Ensure location exists
+  const { data: existing, error: fetchErr } = await supabaseAdmin
+    .from('safe_locations')
+    .select('id')
+    .eq('id', id)
+    .single();
+
+  if (fetchErr || !existing) {
+    res.status(404).json({ success: false, error: 'Safe location not found' });
+    return;
+  }
+
+  // Upsert user's rating
+  const { error: rateErr } = await supabaseAdmin
+    .from('safe_location_ratings')
+    .upsert(
+      { location_id: id, user_id: userId, rating, updated_at: new Date().toISOString() },
+      { onConflict: 'location_id,user_id' }
+    );
+
+  if (rateErr) {
+    console.error('Error rating location:', rateErr);
+    res.status(400).json({ success: false, error: 'Failed to rate location', details: rateErr.message });
+    return;
+  }
+
+  // Recalculate average rating from all ratings for this location
+  const { data: allRatings } = await supabaseAdmin
+    .from('safe_location_ratings')
+    .select('rating')
+    .eq('location_id', id);
+
+  const ratings = (allRatings || []).map((r: any) => r.rating);
+  const totalRatings = ratings.length;
+  const averageRating = totalRatings > 0
+    ? parseFloat((ratings.reduce((sum: number, r: number) => sum + r, 0) / totalRatings).toFixed(2))
+    : 0;
+
+  // Update the location with new average
+  await supabaseAdmin
+    .from('safe_locations')
+    .update({ average_rating: averageRating, total_ratings: totalRatings, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  res.json({
+    success: true,
+    message: 'Rating submitted',
+    averageRating,
+    totalRatings,
+    userRating: rating
+  });
+}));
+
 // Get heat map data
 router.get('/heatmap', optionalAuthMiddleware, validateQuery(getHeatMapQuerySchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const {
@@ -869,7 +917,7 @@ router.get('/heatmap', optionalAuthMiddleware, validateQuery(getHeatMapQuerySche
   // Bounds is now parsed by the validation middleware
   const parsedBounds = bounds;
 
-  let query = supabase
+  let query = supabaseAdmin
     .from('heatmap_data')
     .select('*');
 
@@ -915,13 +963,13 @@ router.get('/stats/user', authenticateToken, asyncHandler(async (req: Request, r
   const userId = req.user!.id;
 
   // Get total check-ins
-  const { count: totalCheckIns } = await supabase
+  const { count: totalCheckIns } = await supabaseAdmin
     .from('location_checkins')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId);
 
   // Get total duration
-  const { data: durationData } = await supabase
+  const { data: durationData } = await supabaseAdmin
     .from('location_checkins')
     .select('duration')
     .eq('user_id', userId);
@@ -929,7 +977,7 @@ router.get('/stats/user', authenticateToken, asyncHandler(async (req: Request, r
   const totalDuration = durationData?.reduce((sum, record) => sum + record.duration, 0) || 0;
 
   // Get activity breakdown
-  const { data: activityData } = await supabase
+  const { data: activityData } = await supabaseAdmin
     .from('location_checkins')
     .select('activity, duration')
     .eq('user_id', userId);
@@ -940,14 +988,14 @@ router.get('/stats/user', authenticateToken, asyncHandler(async (req: Request, r
         acc[record.activity] = { count: 0, duration: 0 };
       }
       const activityStats = acc[record.activity]!;
-       activityStats.count++;
-       activityStats.duration += record.duration || 0;
+      activityStats.count++;
+      activityStats.duration += record.duration || 0;
     }
     return acc;
   }, {} as Record<string, { count: number; duration: number }>) || {};
 
   // Get recent check-ins
-  const { data: recentCheckIns } = await supabase
+  const { data: recentCheckIns } = await supabaseAdmin
     .from('location_checkins')
     .select('*')
     .eq('user_id', userId)
@@ -971,7 +1019,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const R = 6371; // Radius of the Earth in kilometers
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -983,10 +1031,10 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 // Get active users at locations (requires socket handlers to be available)
 router.get('/active-users/:id', optionalAuthMiddleware, validateParams(activeUsersLocationIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { id: locationId } = req.params;
-  
+
   // Get socket handlers from app locals (set during server initialization)
   const socketHandlers = req.app.locals.socketHandlers;
-  
+
   if (!socketHandlers) {
     res.json({
       success: true,
@@ -995,22 +1043,22 @@ router.get('/active-users/:id', optionalAuthMiddleware, validateParams(activeUse
     });
     return;
   }
-  
+
   try {
     const activeUserIds: string[] = socketHandlers.getLocationUsers(locationId);
     const userCount: number = socketHandlers.getLocationUserCount(locationId);
-    
+
     // Get user details for active users
     let activeUsers: any[] = [];
     if (activeUserIds.length > 0) {
-      const { data: users } = await supabase
+      const { data: users } = await supabaseAdmin
         .from('users')
         .select('id, name, avatar_url, role')
         .in('id', activeUserIds);
-      
+
       activeUsers = users || [];
     }
-    
+
     res.json({
       success: true,
       activeUsers,

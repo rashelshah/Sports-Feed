@@ -1,312 +1,507 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  MapPin, 
-  CheckCircle, 
-  Shield, 
-  Heart, 
-  Users, 
-  Star, 
-  Filter, 
-  Plus, 
+import {
+  MapPin,
+  CheckCircle,
+  Shield,
+  Heart,
+  Star,
+  Filter,
+  Plus,
   Navigation,
-  Clock,
   AlertCircle,
-  ThumbsUp,
-  Eye,
-  Zap
+  Zap,
+  Loader2,
+  Trash2
 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import { useAuthStore } from '../../store/authStore';
-import { useAppStore } from '../../store/appStore';
 import { Button } from '../ui/Button';
 import toast from 'react-hot-toast';
-import { LocationCheckIn, SafeLocation, HeatMapData, Event } from '../../types';
 
-interface MapLocation {
-  id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  address: string;
-  type: 'gym' | 'park' | 'studio' | 'field' | 'court' | 'track';
-  isActive: boolean;
-  currentUsers: number;
-  maxCapacity?: number;
-  safetyFeatures: string[];
-  rating: number;
-  totalRatings: number;
-  lastCheckIn?: string;
-  events: Event[];
+// ─── Fix Leaflet default marker icons (Vite bundling breaks them) ────────────
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// ─── Custom marker icons by category ─────────────────────────────────────────
+function createCategoryIcon(emoji: string, color: string): L.DivIcon {
+  return L.divIcon({
+    html: `<div style="background:${color};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:18px;">${emoji}</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20],
+    className: '',
+  });
 }
 
+const CATEGORY_ICONS: Record<string, L.DivIcon> = {
+  gym: createCategoryIcon('🏋️', '#3b82f6'),
+  park: createCategoryIcon('🌳', '#22c55e'),
+  studio: createCategoryIcon('🎭', '#a855f7'),
+  field: createCategoryIcon('⚽', '#f59e0b'),
+  court: createCategoryIcon('🏀', '#f97316'),
+  track: createCategoryIcon('🏃', '#ec4899'),
+  default: createCategoryIcon('📍', '#6b7280'),
+};
+
+const USER_ICON = L.divIcon({
+  html: `<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 2px #3b82f6;"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  className: '',
+});
+
+// ─── API helpers ─────────────────────────────────────────────────────────────
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('token');
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+// ─── Types (frontend-only, matching backend response shapes) ─────────────────
+interface SafeLocationResponse {
+  id: string;
+  name: string;
+  description?: string;
+  latitude: number;
+  longitude: number;
+  address?: string;
+  category?: string;
+  safety_features?: string[];
+  is_verified?: boolean;
+  verifications_count?: number;
+  average_rating?: number;
+  total_ratings?: number;
+  sports_available?: string[];
+  created_by?: string | { id: string; name: string; avatar_url?: string };
+  creator_role?: string;
+  created_at?: string;
+  distance?: number;
+  userHasVerified?: boolean;
+}
+
+interface CheckInResponse {
+  id: string;
+  user_id: string;
+  latitude: number;
+  longitude: number;
+  location_name: string;
+  activity: string;
+  duration: number;
+  notes?: string;
+  checked_in_at: string;
+  user?: { id: string; name: string; avatar_url?: string };
+}
+
+interface HeatMapPoint {
+  grid_lat: number;
+  grid_lng: number;
+  activity: string;
+  intensity: number;
+  total_duration: number;
+  last_activity: string;
+}
+
+interface UserStats {
+  totalCheckIns: number;
+  totalDuration: number;
+  totalHours: number;
+  activityBreakdown: Record<string, number>;
+  recentCheckIns: any[];
+}
+
+// ─── FlyTo helper component ──────────────────────────────────────────────────
+function FlyToLocation({ position }: { position: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) {
+      map.flyTo(position, 14, { duration: 1.5 });
+    }
+  }, [position, map]);
+  return null;
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 export function MapPage() {
-  const { user, darkMode } = useAuthStore();
+  const { user } = useAuthStore();
   const { getUserTokens, addTokens } = useAppStore();
   const [activeTab, setActiveTab] = useState<'map' | 'checkins' | 'safety'>('map');
   const [mapType, setMapType] = useState<'standard' | 'heatmap' | 'safety'>('standard');
-  const [heatMapType, setHeatMapType] = useState<'activity' | 'women-safe' | 'disability-friendly'>('activity');
-  const [locations, setLocations] = useState<MapLocation[]>([]);
-  const [safeLocations, setSafeLocations] = useState<SafeLocation[]>([]);
-  const [userCheckIns, setUserCheckIns] = useState<LocationCheckIn[]>([]);
-  const [heatMapData, setHeatMapData] = useState<HeatMapData[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null);
+
+  // Data state
+  const [locations, setLocations] = useState<SafeLocationResponse[]>([]);
+  const [checkIns, setCheckIns] = useState<CheckInResponse[]>([]);
+  const [heatMapData, setHeatMapData] = useState<HeatMapPoint[]>([]);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+
+  // UI state
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<SafeLocationResponse | null>(null);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showSafetyModal, setShowSafetyModal] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const mapRef = useRef<HTMLDivElement>(null);
+  const [checkInActivity, setCheckInActivity] = useState('unstructured-sports');
+  const [checkInDuration, setCheckInDuration] = useState(60);
+  const [safetyFeatures, setSafetyFeatures] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [ratingId, setRatingId] = useState<string | null>(null);
 
+  // Default map center — overridden by user geolocation
+  const defaultCenter: [number, number] = [20.2961, 85.8245];
+
+  // ─── Geolocation ────────────────────────────────────────────────
   useEffect(() => {
-    // Mock data for locations
-    setLocations([
-      {
-        id: '1',
-        name: 'Downtown Fitness Center',
-        latitude: 40.7128,
-        longitude: -74.0060,
-        address: '123 Main St, New York, NY',
-        type: 'gym',
-        isActive: true,
-        currentUsers: 15,
-        maxCapacity: 50,
-        safetyFeatures: ['well-lit', 'security-present', 'accessible-parking'],
-        rating: 4.5,
-        totalRatings: 120,
-        events: []
-      },
-      {
-        id: '2',
-        name: 'Central Park Running Track',
-        latitude: 40.7829,
-        longitude: -73.9654,
-        address: 'Central Park, New York, NY',
-        type: 'track',
-        isActive: true,
-        currentUsers: 8,
-        safetyFeatures: ['well-lit', 'accessible-entrance'],
-        rating: 4.8,
-        totalRatings: 89,
-        events: []
-      },
-      {
-        id: '3',
-        name: 'Women\'s Self-Defense Studio',
-        latitude: 40.7589,
-        longitude: -73.9851,
-        address: '456 Broadway, New York, NY',
-        type: 'studio',
-        isActive: true,
-        currentUsers: 12,
-        maxCapacity: 20,
-        safetyFeatures: ['women-safe', 'well-lit', 'security-present', 'accessible-entrance'],
-        rating: 4.9,
-        totalRatings: 45,
-        events: []
-      }
-    ]);
-
-    // Mock data for safe locations
-    setSafeLocations([
-      {
-        id: '1',
-        name: 'Downtown Fitness Center',
-        latitude: 40.7128,
-        longitude: -74.0060,
-        address: '123 Main St, New York, NY',
-        safetyFeatures: ['women-safe', 'disability-friendly', 'accessible-parking', 'well-lit', 'security-present'],
-        verifiedBy: ['user1', 'user2', 'user3'],
-        reportedBy: 'user1',
-        lastVerified: '2024-01-10T10:00:00Z',
-        description: 'Well-maintained facility with excellent safety measures',
-        sportsAvailable: ['martial-arts', 'calorie-fight'],
-        averageRating: 4.7,
-        totalRatings: 156
-      },
-      {
-        id: '2',
-        name: 'Central Park Running Track',
-        latitude: 40.7829,
-        longitude: -73.9654,
-        address: 'Central Park, New York, NY',
-        safetyFeatures: ['women-safe', 'disability-friendly', 'accessible-entrance', 'well-lit'],
-        verifiedBy: ['user4', 'user5'],
-        reportedBy: 'user4',
-        lastVerified: '2024-01-08T15:30:00Z',
-        description: 'Open space with good visibility and accessibility features',
-        sportsAvailable: ['calorie-fight', 'unstructured-sports'],
-        averageRating: 4.6,
-        totalRatings: 89
-      }
-    ]);
-
-    // Mock heat map data
-    setHeatMapData([
-      {
-        latitude: 40.7128,
-        longitude: -74.0060,
-        intensity: 0.8,
-        type: 'activity',
-        timestamp: new Date().toISOString(),
-        userCount: 15
-      },
-      {
-        latitude: 40.7829,
-        longitude: -73.9654,
-        intensity: 0.6,
-        type: 'activity',
-        timestamp: new Date().toISOString(),
-        userCount: 8
-      },
-      {
-        latitude: 40.7589,
-        longitude: -73.9851,
-        intensity: 0.9,
-        type: 'women-safe',
-        timestamp: new Date().toISOString(),
-        userCount: 12
-      }
-    ]);
-
-    // Get user's current location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
+        (pos) => {
+          const loc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+          setUserLocation(loc);
+          setFlyTarget(loc);
         },
-        (error) => {
-          console.error('Error getting location:', error);
-        }
+        (err) => console.warn('Geolocation denied:', err.message),
+        { enableHighAccuracy: true, timeout: 10000 }
       );
     }
   }, []);
 
-  const handleCheckIn = async (location: MapLocation) => {
-    if (!user) return;
-
-    const checkIn: LocationCheckIn = {
-      id: Date.now().toString(),
-      userId: user.id,
-      user: user,
-      locationId: location.id,
-      locationName: location.name,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      checkInType: 'general',
-      createdAt: new Date().toISOString()
-    };
-
-    setUserCheckIns(prev => [checkIn, ...prev]);
-    
-    // Award tokens for checking in
-    addTokens(user.id, 5, 'earned', `Checked in at ${location.name}`);
-    
-    // Update location user count
-    setLocations(prev => prev.map(loc => 
-      loc.id === location.id 
-        ? { ...loc, currentUsers: loc.currentUsers + 1, lastCheckIn: new Date().toISOString() }
-        : loc
-    ));
-
-    // Update heat map data
-    setHeatMapData(prev => prev.map(data => 
-      data.latitude === location.latitude && data.longitude === location.longitude
-        ? { ...data, userCount: data.userCount + 1, intensity: Math.min(1, data.intensity + 0.1) }
-        : data
-    ));
-
-    toast.success(`Checked in at ${location.name}! +5 tokens earned`);
-    setShowCheckInModal(false);
-  };
-
-  const handleMarkSafe = async (location: MapLocation, safetyFeatures: string[]) => {
-    if (!user) return;
-
-    const safeLocation: SafeLocation = {
-      id: Date.now().toString(),
-      name: location.name,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      address: location.address,
-      safetyFeatures,
-      verifiedBy: [user.id],
-      reportedBy: user.id,
-      lastVerified: new Date().toISOString(),
-      description: `Marked as safe by ${user.fullName}`,
-      sportsAvailable: [user.sportsCategory],
-      averageRating: 0,
-      totalRatings: 0
-    };
-
-    setSafeLocations(prev => [safeLocation, ...prev]);
-    
-    // Award tokens for marking safety
-    addTokens(user.id, 10, 'earned', `Marked ${location.name} as safe`);
-    
-    toast.success(`Location marked as safe! +10 tokens earned`);
-    setShowSafetyModal(false);
-  };
-
-  const getLocationIcon = (type: string) => {
-    switch (type) {
-      case 'gym': return '🏋️';
-      case 'park': return '🌳';
-      case 'studio': return '🎭';
-      case 'field': return '⚽';
-      case 'court': return '🏀';
-      case 'track': return '🏃';
-      default: return '📍';
+  // ─── Fetch all data ─────────────────────────────────────────────
+  const fetchLocations = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ limit: '100', sortBy: 'created_at', sortOrder: 'desc' });
+      if (userLocation) {
+        params.set('latitude', String(userLocation[0]));
+        params.set('longitude', String(userLocation[1]));
+        params.set('radius', '50');
+        params.set('sortBy', 'distance');
+      }
+      const res = await fetch(`${API_BASE}/api/locations/safe-locations?${params}`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLocations(data.locations || []);
+      }
+    } catch (err) {
+      console.error('Error fetching locations:', err);
     }
+  }, [userLocation]);
+
+  const fetchCheckIns = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/locations/checkins?limit=50`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCheckIns(data.checkIns || []);
+      }
+    } catch (err) {
+      console.error('Error fetching check-ins:', err);
+    }
+  }, []);
+
+  const fetchHeatMap = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/locations/heatmap`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setHeatMapData(data.heatMapData || []);
+      }
+    } catch (err) {
+      console.error('Error fetching heatmap:', err);
+    }
+  }, []);
+
+  const fetchUserStats = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/locations/stats/user`, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUserStats(data.stats);
+      }
+    } catch (err) {
+      console.error('Error fetching user stats:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    async function loadAll() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        await Promise.all([fetchLocations(), fetchCheckIns(), fetchHeatMap(), fetchUserStats()]);
+      } catch (err) {
+        setError('Failed to load map data. Please check your connection.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadAll();
+  }, [fetchLocations, fetchCheckIns, fetchHeatMap, fetchUserStats]);
+
+  // ─── Check-in handler ───────────────────────────────────────────
+  // Build a set of location names the user has recently checked in to
+  const checkedInLocationNames = new Set(
+    checkIns.map(ci => ci.location_name?.toLowerCase())
+  );
+
+  const isLocationCheckedIn = (loc: SafeLocationResponse) => {
+    return checkedInLocationNames.has(loc.name?.toLowerCase());
+  };
+
+  const handleCheckIn = async () => {
+    if (!selectedLocation || !user) return;
+
+    // If already checked in, show info and close
+    if (isLocationCheckedIn(selectedLocation)) {
+      toast('You have already checked in at this location', { icon: 'ℹ️' });
+      setShowCheckInModal(false);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/locations/checkin`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude,
+          locationName: selectedLocation.name,
+          activity: checkInActivity,
+          duration: checkInDuration,
+        }),
+      });
+      const data = await res.json();
+
+      // Handle duplicate check-in (409)
+      if (res.status === 409 && data.alreadyCheckedIn) {
+        toast('You have already checked in here in the last 24 hours!', { icon: 'ℹ️' });
+        setShowCheckInModal(false);
+        await fetchCheckIns(); // refresh to update button state
+        return;
+      }
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Check-in failed');
+      }
+      const tokensEarned = data.tokensEarned || 0;
+      toast.success(`Checked in at ${selectedLocation.name}! +${tokensEarned} tokens earned 🎉`);
+      setShowCheckInModal(false);
+      // Refresh data + token UI
+      await Promise.all([fetchCheckIns(), fetchUserStats(), fetchHeatMap()]);
+      await initSession();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to check in');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ─── Check if user can create safe locations ──────────────────
+  const canCreateSafeLocation = user && ['admin', 'administrator', 'coach'].includes(user.role || '');
+
+  // ─── Mark safe handler ──────────────────────────────────────────
+  const handleMarkSafe = async () => {
+    if (!user) return;
+    setIsSubmitting(true);
+    try {
+      if (selectedLocation) {
+        const res = await fetch(`${API_BASE}/api/locations/safe-locations/${selectedLocation.id}/mark-safe`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ safetyFeatures }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Failed to mark as safe');
+        }
+        const tokensEarned = data.tokensEarned || 0;
+        toast.success(`Location safety verified! ${tokensEarned > 0 ? `+${tokensEarned} tokens earned` : ''} ✅`);
+      } else if (userLocation) {
+        const res = await fetch(`${API_BASE}/api/locations/safe-locations`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            name: 'My Location',
+            latitude: userLocation[0],
+            longitude: userLocation[1],
+            address: 'User-reported location',
+            category: 'other',
+            safetyFeatures,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Failed to create safe location');
+        }
+        toast.success(`Safe location created! +${data.tokensEarned || 25} tokens earned 🎉`);
+      }
+      setShowSafetyModal(false);
+      setSafetyFeatures([]);
+      await Promise.all([fetchLocations(), fetchUserStats()]);
+      await initSession();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to mark safe');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ─── Rate location handler ──────────────────────────────────────
+  const handleRateLocation = async (locationId: string, rating: number) => {
+    if (!user || ratingId) return;
+    setRatingId(locationId);
+    try {
+      // Optimistic update
+      setLocations(prev => prev.map(loc =>
+        loc.id === locationId ? { ...loc, average_rating: rating, total_ratings: (loc.total_ratings || 0) + 1 } : loc
+      ));
+      const res = await fetch(`${API_BASE}/api/locations/safe-locations/${locationId}/rate`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ rating }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to rate');
+      }
+      // Update with server values
+      setLocations(prev => prev.map(loc =>
+        loc.id === locationId ? { ...loc, average_rating: data.averageRating, total_ratings: data.totalRatings } : loc
+      ));
+      toast.success('Rating submitted ⭐');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to rate location');
+      await fetchLocations();
+    } finally {
+      setRatingId(null);
+    }
+  };
+
+  // ─── Get role-based address label ──────────────────────────────
+  const getRoleLabel = (loc: SafeLocationResponse) => {
+    const role = loc.creator_role || '';
+    if (role === 'admin' || role === 'administrator') return 'Platform created';
+    if (role === 'coach') return 'Coach reported location';
+    return loc.address || 'Community reported';
+  };
+
+  // ─── Check if user can delete a location ───────────────────────
+  const canDeleteLocation = (loc: SafeLocationResponse) => {
+    if (!user) return false;
+    const isCreator = typeof loc.created_by === 'string'
+      ? loc.created_by === user.id
+      : loc.created_by?.id === user.id;
+    const isAdmin = ['admin', 'administrator'].includes(user.role || '');
+    return isCreator || isAdmin;
+  };
+
+  // ─── Delete location handler ──────────────────────────────────
+  const handleDeleteLocation = async (locationId: string, locationName: string) => {
+    if (!user || deletingId) return;
+    if (!window.confirm(`Are you sure you want to delete "${locationName}"?`)) return;
+    setDeletingId(locationId);
+    try {
+      const res = await fetch(`${API_BASE}/api/locations/safe-locations/${locationId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to delete location');
+      }
+      toast.success('Location deleted successfully');
+      await fetchLocations();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete location');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // ─── Safety feature toggle ─────────────────────────────────────
+  const toggleSafetyFeature = (feature: string) => {
+    setSafetyFeatures((prev) =>
+      prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature]
+    );
   };
 
   const getSafetyIcon = (feature: string) => {
     switch (feature) {
-      case 'women-safe': return <Heart className="h-4 w-4 text-pink-500" />;
-      case 'disability-friendly': return <Shield className="h-4 w-4 text-blue-500" />;
-      case 'accessible-parking': return <MapPin className="h-4 w-4 text-green-500" />;
-      case 'accessible-entrance': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'well-lit': return <Zap className="h-4 w-4 text-yellow-500" />;
-      case 'security-present': return <Shield className="h-4 w-4 text-red-500" />;
-      default: return <AlertCircle className="h-4 w-4 text-gray-500" />;
+      case 'women-safe': return <Heart className="h-3.5 w-3.5 text-pink-500" />;
+      case 'disability-friendly': return <Shield className="h-3.5 w-3.5 text-blue-500" />;
+      case 'accessible-parking': return <MapPin className="h-3.5 w-3.5 text-green-500" />;
+      case 'accessible-entrance': return <CheckCircle className="h-3.5 w-3.5 text-green-500" />;
+      case 'well-lit': return <Zap className="h-3.5 w-3.5 text-yellow-500" />;
+      case 'security-present': return <Shield className="h-3.5 w-3.5 text-red-500" />;
+      default: return <AlertCircle className="h-3.5 w-3.5 text-gray-500" />;
     }
   };
 
-  const getHeatMapColor = (intensity: number, type: string) => {
-    const opacity = Math.max(0.3, intensity);
-    switch (type) {
-      case 'activity': return `rgba(59, 130, 246, ${opacity})`; // Blue
-      case 'women-safe': return `rgba(236, 72, 153, ${opacity})`; // Pink
-      case 'disability-friendly': return `rgba(34, 197, 94, ${opacity})`; // Green
-      default: return `rgba(156, 163, 175, ${opacity})`; // Gray
+  const getHeatColor = (activity: string, intensity: number) => {
+    const opacity = Math.min(0.7, Math.max(0.15, intensity * 0.1));
+    switch (activity) {
+      case 'coco': return { color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: opacity };
+      case 'martial-arts': return { color: '#ef4444', fillColor: '#ef4444', fillOpacity: opacity };
+      case 'calorie-fight': return { color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: opacity };
+      case 'adaptive-sports': return { color: '#22c55e', fillColor: '#22c55e', fillOpacity: opacity };
+      default: return { color: '#8b5cf6', fillColor: '#8b5cf6', fillOpacity: opacity };
     }
+  };
+
+  const getCategoryIcon = (loc: SafeLocationResponse) => {
+    return CATEGORY_ICONS[loc.category || 'default'] || CATEGORY_ICONS.default;
   };
 
   if (!user) return null;
 
+  // ─── RENDER ─────────────────────────────────────────────────────
   return (
-    <div className={`max-w-7xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}>
+    <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
-            <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Sports Map</h1>
-            <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Discover sports locations, check in, and mark safe spaces</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sports Map</h1>
+            <p className="text-gray-600">Discover sports locations, check in, and mark safe spaces</p>
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <div className="text-sm text-gray-600">
               <span className="font-medium">{userCheckIns.length}</span> check-ins today
             </div>
-            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <div className="text-sm text-gray-600">
               <span className="font-medium">{safeLocations.length}</span> safe locations
             </div>
+            {userStats && (
+              <div>
+                <span className="font-semibold text-gray-900">{userStats.totalHours}</span> hrs active
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className={`flex space-x-1 rounded-lg p-1 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
         {[
           { id: 'map', label: 'Map View', icon: MapPin },
           { id: 'checkins', label: 'My Check-ins', icon: CheckCircle },
@@ -317,8 +512,8 @@ export function MapPage() {
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
               activeTab === tab.id
-                ? (darkMode ? 'bg-gray-700 text-blue-400 shadow-sm' : 'bg-white text-blue-600 shadow-sm')
-                : (darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900')
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             <tab.icon className="h-4 w-4" />
@@ -327,29 +522,50 @@ export function MapPage() {
         ))}
       </div>
 
-      {/* Map View */}
-      {activeTab === 'map' && (
+      {/* Loading state */}
+      {isLoading && (
+        <div className="bg-white rounded-xl shadow-md p-12 flex flex-col items-center justify-center">
+          <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
+          <p className="text-gray-600">Loading map data...</p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !isLoading && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center mb-6">
+          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+          <p className="text-red-700">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* ═══ MAP VIEW TAB ═══ */}
+      {!isLoading && !error && activeTab === 'map' && (
         <div className="space-y-6">
           {/* Map Controls */}
-          <div className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center space-x-2">
-                <Filter className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Map Type:</span>
+                <Filter className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Map Type:</span>
               </div>
-              
-              {[
-                { id: 'standard', label: 'Standard' },
-                { id: 'heatmap', label: 'Heat Map' },
-                { id: 'safety', label: 'Safety View' }
-              ].map((type) => (
+              {([
+                { id: 'standard' as const, label: 'Standard' },
+                { id: 'heatmap' as const, label: 'Heat Map' },
+                { id: 'safety' as const, label: 'Safety View' },
+              ]).map((type) => (
                 <button
                   key={type.id}
                   onClick={() => setMapType(type.id as any)}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     mapType === type.id
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
-                      : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   {type.label}
@@ -358,7 +574,7 @@ export function MapPage() {
 
               {mapType === 'heatmap' && (
                 <div className="flex items-center space-x-2 ml-4">
-                  <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Heat Type:</span>
+                  <span className="text-sm text-gray-600">Heat Type:</span>
                   {[
                     { id: 'activity', label: 'Activity' },
                     { id: 'women-safe', label: 'Women Safe' },
@@ -369,8 +585,8 @@ export function MapPage() {
                       onClick={() => setHeatMapType(type.id as any)}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                         heatMapType === type.id
-                          ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
-                          : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
                       {type.label}
@@ -381,58 +597,117 @@ export function MapPage() {
             </div>
           </div>
 
-          {/* Map Container */}
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="h-96 bg-gray-100 relative" ref={mapRef}>
-              {/* Mock Map - In a real app, this would be a proper map component like Google Maps or Mapbox */}
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-green-100 flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Interactive Map</h3>
-                  <p className="text-gray-600">Map integration would go here</p>
-                </div>
-              </div>
+          {/* Leaflet Map */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <MapContainer
+              center={userLocation || defaultCenter}
+              zoom={13}
+              style={{ height: '480px', width: '100%' }}
+              scrollWheelZoom={true}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
 
-              {/* Location Markers */}
-              {locations.map((location) => (
-                <div
-                  key={location.id}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer"
-                  style={{
-                    left: `${((location.longitude + 180) / 360) * 100}%`,
-                    top: `${((90 - location.latitude) / 180) * 100}%`
+              <FlyToLocation position={flyTarget} />
+
+              {/* User location marker */}
+              {userLocation && (
+                <Marker position={userLocation} icon={USER_ICON}>
+                  <Popup>
+                    <strong>You are here</strong>
+                  </Popup>
+                </Marker>
+              )}
+
+              {/* Location markers */}
+              {locations.map((loc) => (
+                <Marker
+                  key={loc.id}
+                  position={[loc.latitude, loc.longitude]}
+                  icon={getCategoryIcon(loc)}
+                  eventHandlers={{
+                    click: () => setSelectedLocation(loc),
                   }}
-                  onClick={() => setSelectedLocation(location)}
                 >
-                  <div className="bg-white rounded-full p-2 shadow-lg border-2 border-blue-500 hover:border-blue-600 transition-colors">
-                    <span className="text-lg">{getLocationIcon(location.type)}</span>
-                  </div>
-                  {location.currentUsers > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {location.currentUsers}
+                  <Popup maxWidth={280}>
+                    <div style={{ fontSize: '14px' }}>
+                      <h3 style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '4px' }}>{loc.name}</h3>
+                      {loc.address && <p style={{ color: '#666', marginBottom: '4px' }}>{loc.address}</p>}
+                      {loc.description && <p style={{ color: '#888', fontSize: '12px', marginBottom: '8px' }}>{loc.description}</p>}
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+                        {(loc.safety_features || []).slice(0, 4).map((f: string, i: number) => (
+                          <span key={i} style={{ display: 'inline-block', background: '#f0fdf4', color: '#166534', fontSize: '11px', padding: '2px 6px', borderRadius: '4px' }}>
+                            {f.replace(/-/g, ' ')}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#888', marginBottom: '8px' }}>
+                        {loc.verifications_count !== undefined && (
+                          <span>✅ {loc.verifications_count} verifications</span>
+                        )}
+                        {loc.distance !== undefined && (
+                          <span>📍 {loc.distance.toFixed(1)} km</span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => { setSelectedLocation(loc); setShowCheckInModal(true); }}
+                          style={{ flex: 1, background: '#2563eb', color: 'white', fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+                        >
+                          Check In
+                        </button>
+                        <button
+                          onClick={() => { setSelectedLocation(loc); setShowSafetyModal(true); }}
+                          style={{ flex: 1, background: '#16a34a', color: 'white', fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+                        >
+                          Verify Safe
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </Popup>
+                </Marker>
               ))}
 
-              {/* Heat Map Overlay */}
-              {mapType === 'heatmap' && heatMapData
-                .filter(data => data.type === heatMapType)
-                .map((data, index) => (
-                  <div
-                    key={index}
-                    className="absolute rounded-full transform -translate-x-1/2 -translate-y-1/2"
-                    style={{
-                      left: `${((data.longitude + 180) / 360) * 100}%`,
-                      top: `${((90 - data.latitude) / 180) * 100}%`,
-                      width: `${Math.max(20, data.intensity * 100)}px`,
-                      height: `${Math.max(20, data.intensity * 100)}px`,
-                      backgroundColor: getHeatMapColor(data.intensity, data.type),
-                      opacity: 0.6
+              {/* Heatmap overlay (circles with popups) */}
+              {mapType === 'heatmap' && heatMapData.map((pt, i) => (
+                <Circle
+                  key={`heat-${i}`}
+                  center={[pt.grid_lat, pt.grid_lng]}
+                  radius={Math.max(200, pt.intensity * 100)}
+                  pathOptions={getHeatColor(pt.activity, pt.intensity)}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <p className="font-semibold capitalize">{pt.activity.replace(/-/g, ' ')}</p>
+                      <p className="text-gray-600">{pt.intensity} check-in{pt.intensity !== 1 ? 's' : ''}</p>
+                      <p className="text-gray-500 text-xs">{Math.round(pt.total_duration / 60)}h total activity</p>
+                    </div>
+                  </Popup>
+                </Circle>
+              ))}
+
+              {/* Safety view — highlight safe locations */}
+              {mapType === 'safety' && locations
+                .filter((loc) => (loc.safety_features || []).length > 0)
+                .map((loc) => (
+                  <Circle
+                    key={`safe-${loc.id}`}
+                    center={[loc.latitude, loc.longitude]}
+                    radius={300}
+                    pathOptions={{
+                      color: '#22c55e',
+                      fillColor: '#22c55e',
+                      fillOpacity: 0.2,
+                      weight: 2,
                     }}
                   />
                 ))}
-            </div>
+            </MapContainer>
           </div>
 
           {/* Location List */}
@@ -442,15 +717,15 @@ export function MapPage() {
                 key={location.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+                className="bg-white rounded-lg shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow"
                 onClick={() => setSelectedLocation(location)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-2">
                     <span className="text-2xl">{getLocationIcon(location.type)}</span>
                     <div>
-                      <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
-                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
+                      <h3 className="font-semibold text-gray-900">{location.name}</h3>
+                      <p className="text-sm text-gray-600">{location.address}</p>
                     </div>
                   </div>
                   
@@ -460,7 +735,7 @@ export function MapPage() {
                   </div>
                 </div>
 
-                <div className={`flex items-center justify-between text-sm mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
                   <div className="flex items-center space-x-1">
                     <Users className="h-4 w-4" />
                     <span>{location.currentUsers} active</span>
@@ -472,71 +747,90 @@ export function MapPage() {
 
                 <div className="flex flex-wrap gap-1 mb-3">
                   {location.safetyFeatures.slice(0, 3).map((feature, index) => (
-                    <div key={index} className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <div key={index} className="flex items-center space-x-1 bg-gray-100 px-2 py-1 rounded text-xs">
                       {getSafetyIcon(feature)}
-                      <span className={`capitalize ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>{feature.replace('-', ' ')}</span>
+                      <span className="capitalize">{feature.replace('-', ' ')}</span>
                     </div>
                   ))}
                   {location.safetyFeatures.length > 3 && (
-                    <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>+{location.safetyFeatures.length - 3} more</span>
+                    <span className="text-xs text-gray-500">+{location.safetyFeatures.length - 3} more</span>
                   )}
                 </div>
 
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedLocation(location);
-                    setShowCheckInModal(true);
-                  }}
-                  size="sm"
-                  className="w-full"
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Check In
-                </Button>
-              </motion.div>
-            ))}
-          </div>
+                  <Button
+                    onClick={() => {
+                      setSelectedLocation(loc);
+                      if (isLocationCheckedIn(loc)) {
+                        toast('You have already checked in at this location', { icon: 'ℹ️' });
+                      } else {
+                        setShowCheckInModal(true);
+                      }
+                    }}
+                    size="sm"
+                    className={`w-full ${isLocationCheckedIn(loc)
+                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                        : ''
+                      }`}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    {isLocationCheckedIn(loc) ? 'Checked In ✓' : 'Check In'}
+                  </Button>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {locations.length === 0 && !isLoading && (
+            <div className="bg-white rounded-xl shadow-md p-8 text-center">
+              <MapPin className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No locations found</h3>
+              <p className="text-gray-600 mb-4">Be the first to add a safe location in your area!</p>
+              <Button onClick={() => { setSelectedLocation(null); setShowSafetyModal(true); }}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Safe Location
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Check-ins Tab */}
-      {activeTab === 'checkins' && (
+      {/* ═══ CHECK-INS TAB ═══ */}
+      {!isLoading && activeTab === 'checkins' && (
         <div className="space-y-6">
-          <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>My Check-ins</h2>
+          <h2 className="text-2xl font-bold text-gray-900">My Check-ins</h2>
           
           {userCheckIns.length === 0 ? (
-            <div className={`rounded-lg shadow-md p-8 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <CheckCircle className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
-              <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No check-ins yet</h3>
-              <p className={`mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Start exploring and check in at sports locations to earn tokens!</p>
+            <div className="bg-white rounded-lg shadow-md p-8 text-center">
+              <CheckCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No check-ins yet</h3>
+              <p className="text-gray-600 mb-4">Start exploring and check in at sports locations to earn tokens!</p>
               <Button onClick={() => setActiveTab('map')}>
                 Explore Map
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {userCheckIns.map((checkIn) => (
+            <div className="space-y-3">
+              {checkIns.map((ci) => (
                 <motion.div
-                  key={checkIn.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  key={ci.id}
+                  initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+                  className="bg-white rounded-lg shadow-md p-4"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2 rounded-full ${darkMode ? 'bg-green-900/30' : 'bg-green-100'}`}>
-                        <CheckCircle className={`h-5 w-5 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
+                      <div className="bg-green-100 p-2 rounded-full">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
                       </div>
                       <div>
-                        <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{checkIn.locationName}</h3>
-                        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <h3 className="font-semibold text-gray-900">{checkIn.locationName}</h3>
+                        <p className="text-sm text-gray-600">
                           {new Date(checkIn.createdAt).toLocaleDateString()} at{' '}
                           {new Date(checkIn.createdAt).toLocaleTimeString()}
                         </p>
                       </div>
                     </div>
-                    
                     <div className="text-right">
                       <div className={`text-sm font-medium ${darkMode ? 'text-green-400' : 'text-green-600'}`}>+5 tokens</div>
                       <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Check-in</div>
@@ -549,11 +843,11 @@ export function MapPage() {
         </div>
       )}
 
-      {/* Safety Map Tab */}
-      {activeTab === 'safety' && (
+      {/* ═══ SAFETY TAB ═══ */}
+      {!isLoading && activeTab === 'safety' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Safe Locations</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Safe Locations</h2>
             <Button
               onClick={() => setShowSafetyModal(true)}
               size="sm"
@@ -569,12 +863,12 @@ export function MapPage() {
                 key={location.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+                className="bg-white rounded-lg shadow-md p-4"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{location.name}</h3>
-                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{location.address}</p>
+                    <h3 className="font-semibold text-gray-900">{location.name}</h3>
+                    <p className="text-sm text-gray-600">{location.address}</p>
                   </div>
                   
                   <div className="flex items-center space-x-1">
@@ -585,14 +879,14 @@ export function MapPage() {
 
                 <div className="flex flex-wrap gap-1 mb-3">
                   {location.safetyFeatures.map((feature, index) => (
-                    <div key={index} className={`flex items-center space-x-1 px-2 py-1 rounded text-xs ${darkMode ? 'bg-green-900/30' : 'bg-green-100'}`}>
+                    <div key={index} className="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded text-xs">
                       {getSafetyIcon(feature)}
-                      <span className={`capitalize ${darkMode ? 'text-green-300' : 'text-green-800'}`}>{feature.replace('-', ' ')}</span>
+                      <span className="capitalize">{feature.replace('-', ' ')}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                <div className="text-xs text-gray-500">
                   Verified by {location.verifiedBy.length} users
                 </div>
               </motion.div>
@@ -601,49 +895,42 @@ export function MapPage() {
         </div>
       )}
 
-      {/* Check-in Modal */}
+      {/* ═══ CHECK-IN MODAL ═══ */}
       {showCheckInModal && selectedLocation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`rounded-lg p-6 max-w-md w-full mx-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
           >
             <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Check in at {selectedLocation.name}
             </h3>
-            
+
             <div className="space-y-4">
-              <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <MapPin className="h-4 w-4" />
-                <span>{selectedLocation.address}</span>
+                <span>{selectedLocation.address || `${selectedLocation.latitude.toFixed(4)}, ${selectedLocation.longitude.toFixed(4)}`}</span>
               </div>
               
-              <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <Users className="h-4 w-4" />
                 <span>{selectedLocation.currentUsers} people currently here</span>
               </div>
 
-              <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
-                <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-800">
                   <strong>Reward:</strong> Earn 5 tokens for checking in!
                 </p>
               </div>
             </div>
 
-            <div className="flex space-x-3 mt-6">
-              <Button
-                onClick={() => handleCheckIn(selectedLocation)}
-                className="flex-1"
-              >
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Check In
+            <div className="flex gap-3 mt-6">
+              <Button onClick={handleCheckIn} className="flex-1" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                {isSubmitting ? 'Checking in...' : 'Check In'}
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowCheckInModal(false)}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => setShowCheckInModal(false)} className="flex-1" disabled={isSubmitting}>
                 Cancel
               </Button>
             </div>
@@ -651,20 +938,20 @@ export function MapPage() {
         </div>
       )}
 
-      {/* Safety Modal */}
+      {/* ═══ SAFETY MODAL ═══ */}
       {showSafetyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`rounded-lg p-6 max-w-md w-full mx-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
           >
-            <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Mark Location as Safe
             </h3>
-            
+
             <div className="space-y-4">
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className="text-sm text-gray-600">
                 Select the safety features available at this location:
               </p>
               
@@ -676,43 +963,41 @@ export function MapPage() {
                   'accessible-entrance',
                   'accessible-restrooms',
                   'well-lit',
-                  'security-present'
+                  'security-present',
                 ].map((feature) => (
-                  <label key={feature} className="flex items-center space-x-2">
+                  <label key={feature} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      className={`rounded text-blue-600 focus:ring-blue-500 ${darkMode ? 'border-gray-600 bg-gray-700' : 'border-gray-300'}`}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className={`text-sm capitalize ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <span className="text-sm text-gray-700 capitalize">
                       {feature.replace('-', ' ')}
                     </span>
                   </label>
                 ))}
               </div>
 
-              <div className={`p-3 rounded-lg ${darkMode ? 'bg-green-900/30' : 'bg-green-50'}`}>
-                <p className={`text-sm ${darkMode ? 'text-green-300' : 'text-green-800'}`}>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <p className="text-sm text-green-800">
                   <strong>Reward:</strong> Earn 10 tokens for marking a safe location!
                 </p>
               </div>
             </div>
 
-            <div className="flex space-x-3 mt-6">
+            <div className="flex gap-3 mt-6">
               <Button
-                onClick={() => {
-                  // In a real app, you'd collect the selected features
-                  const features = ['women-safe', 'disability-friendly'];
-                  handleMarkSafe(selectedLocation!, features);
-                }}
+                onClick={handleMarkSafe}
                 className="flex-1"
+                disabled={isSubmitting || safetyFeatures.length === 0}
               >
-                <Shield className="h-4 w-4 mr-1" />
-                Mark Safe
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Shield className="h-4 w-4 mr-1" />}
+                {isSubmitting ? 'Saving...' : selectedLocation ? 'Verify Safe' : 'Mark Safe'}
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowSafetyModal(false)}
+                onClick={() => { setShowSafetyModal(false); setSafetyFeatures([]); }}
                 className="flex-1"
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
