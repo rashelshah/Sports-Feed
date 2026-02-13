@@ -415,8 +415,8 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               </div>
             )}
 
-            <div className="flex items-center justify-between mt-4">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 space-y-3 sm:space-y-0">
+              <div className="flex items-center space-x-3 sm:space-x-4">
                 <input
                   type="file"
                   id="image-upload"
@@ -430,10 +430,10 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                 />
                 <label
                   htmlFor="image-upload"
-                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}
+                  className={`flex items-center space-x-1 sm:space-x-2 cursor-pointer transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}
                 >
                   <Image className="h-5 w-5" />
-                  <span className="text-sm">Photo</span>
+                  <span className="text-sm hidden sm:inline">Photo</span>
                 </label>
 
                 <input
@@ -449,22 +449,22 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                 />
                 <label
                   htmlFor="video-upload"
-                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${darkMode ? 'text-gray-400 hover:text-purple-400' : 'text-gray-500 hover:text-purple-500'}`}
+                  className={`flex items-center space-x-1 sm:space-x-2 cursor-pointer transition-colors ${darkMode ? 'text-gray-400 hover:text-purple-400' : 'text-gray-500 hover:text-purple-500'}`}
                 >
                   <Video className="h-5 w-5" />
-                  <span className="text-sm">Video</span>
+                  <span className="text-sm hidden sm:inline">Video</span>
                 </label>
 
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`flex items-center space-x-2 cursor-pointer transition-colors ${isRecording
+                  className={`flex items-center space-x-1 sm:space-x-2 cursor-pointer transition-colors ${isRecording
                     ? 'text-red-500 hover:text-red-700'
                     : (darkMode ? 'text-gray-400 hover:text-green-400' : 'text-gray-500 hover:text-green-500')
                     }`}
                 >
                   {isRecording ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                  <span className="text-sm">{isRecording ? 'Stop' : 'Voice'}</span>
+                  <span className="text-sm hidden sm:inline">{isRecording ? 'Stop' : 'Voice'}</span>
                 </button>
               </div>
 
@@ -473,6 +473,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                 loading={isPosting}
                 disabled={!content.trim() && !mediaFile && !audioBlob}
                 size="sm"
+                className="w-full sm:w-auto"
               >
                 <Send className="h-4 w-4 mr-2" />
                 Post

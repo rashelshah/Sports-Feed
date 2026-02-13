@@ -41,20 +41,21 @@ export function Feed() {
       className="max-w-2xl mx-auto dark:bg-gray-900 min-h-screen p-4"
     >
       {/* Feed Filter */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-        <div className="flex items-center justify-center space-x-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4">
           <button
             onClick={() => setFeedFilter('my-sport')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'my-sport'
+            className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'my-sport'
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
           >
-            My Sport ({user.sportsCategory.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())})
+            <span className="sm:hidden">My Sport</span>
+            <span className="hidden sm:inline">My Sport ({user.sportsCategory.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())})</span>
           </button>
           <button
             onClick={() => setFeedFilter('all-sports')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'all-sports'
+            className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'all-sports'
               ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
