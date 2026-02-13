@@ -156,14 +156,22 @@ interface AppState {
   watchVideo: (videoId: string, userId: string) => void;
   fetchVideos: (category?: string, coachId?: string) => Promise<void>;
   getUserTokens: (userId: string) => UserTokens;
+  fetchUserTokens: (userId: string) => Promise<void>;
   addTokens: (userId: string, amount: number, reason: string, description: string) => void;
   spendTokens: (userId: string, amount: number, reason: string, description: string) => boolean;
   purchaseTokens: (userId: string, amount: number, price: number) => void;
   addMembership: (membership: Membership) => void;
   getMembershipsByCoach: (coachId: string) => Membership[];
+  purchasedVideoIds: string[];
+  followedCoachIds: string[];
+  fetchPurchasedVideos: () => Promise<void>;
+  fetchFollowedCoachIds: (userId: string) => Promise<void>;
+  claimDailyLogin: (userId: string) => Promise<boolean>;
+  fetchMemberships: () => Promise<void>;
   livestreams: any[];
   addLivestream: (livestream: any) => void;
   getLivestreams: (category: string) => any[];
+  fetchLivestreams: (category?: string) => Promise<void>;
   // Map and location features
   locationCheckIns: LocationCheckIn[];
   safeLocations: SafeLocation[];
@@ -201,6 +209,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   memberships: [],
   userTokens: [],
   userFollowing: [],
+  purchasedVideoIds: [],
+  followedCoachIds: [],
   livestreams: [],
 
   setCurrentView: (view) => set({ currentView: view }),
@@ -845,10 +855,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
       }));
 
-      // Award tokens for liking
+      // Refresh token balance from server (backend handles deduplication)
       if (data.liked) {
-        const { addTokens } = get();
-        addTokens(userId, 2, 'earned', 'Liked video');
+        get().fetchUserTokens(userId);
       }
     } catch (err) {
       console.error('Error liking video:', err);
@@ -883,9 +892,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           ),
         }));
 
-        // Award tokens for watching
-        const { addTokens } = get();
-        addTokens(userId, 5, 'earned', 'Watched video');
+        // Refresh token balance from server (backend handles deduplication)
+        get().fetchUserTokens(userId);
       }
     } catch (err) {
       console.error('Error watching video:', err);
@@ -962,32 +970,53 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Token functions
   getUserTokens: (userId) => {
     const { userTokens } = get();
-    let userToken = userTokens.find(ut => ut.userId === userId);
+    const userToken = userTokens.find(ut => ut.userId === userId);
 
-    if (!userToken) {
-      // Create initial token balance for new user
-      userToken = {
-        userId,
-        balance: 100, // Starting bonus
-        totalEarned: 100,
-        totalSpent: 0,
-        transactions: [{
-          id: Date.now().toString(),
+    // Return existing token record or a default (don't call set() during render)
+    return userToken || {
+      userId,
+      balance: 0,
+      totalEarned: 0,
+      totalSpent: 0,
+      transactions: [],
+    };
+  },
+
+  fetchUserTokens: async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/tokens/balance`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (data.success) {
+        const updatedToken: UserTokens = {
           userId,
-          type: 'earned',
-          amount: 100,
-          reason: 'earned',
-          description: 'Welcome bonus',
-          createdAt: new Date().toISOString(),
-        }],
-      };
+          balance: data.balance ?? 0,
+          totalEarned: data.totalEarned ?? 0,
+          totalSpent: data.totalSpent ?? 0,
+          transactions: [],
+        };
 
-      set((state) => ({
-        userTokens: [...state.userTokens, userToken!]
-      }));
+        set((state) => {
+          const existing = state.userTokens.findIndex(ut => ut.userId === userId);
+          if (existing >= 0) {
+            const updated = [...state.userTokens];
+            updated[existing] = { ...updated[existing], ...updatedToken };
+            return { userTokens: updated };
+          }
+          return { userTokens: [...state.userTokens, updatedToken] };
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching user tokens:', err);
     }
-
-    return userToken;
   },
 
   addTokens: (userId, amount, reason, description) => {
@@ -1150,5 +1179,125 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  fetchPurchasedVideos: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/videos/purchases`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.success) {
+        set({ purchasedVideoIds: data.purchasedVideoIds || [] });
+      }
+    } catch (err) {
+      console.error('Error fetching purchased videos:', err);
+    }
+  },
+
+  fetchFollowedCoachIds: async (userId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/users/${userId}/following`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!response.ok) {
+        // Fallback: fetch via current user id
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success && data.following) {
+        const ids = data.following.map((u: any) => u.id);
+        set({ followedCoachIds: ids });
+      }
+    } catch (err) {
+      console.error('Error fetching followed coach IDs:', err);
+    }
+  },
+
+  claimDailyLogin: async (userId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return false;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/tokens/daily-login`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+
+      if (!response.ok) return false;
+      const data = await response.json();
+      if (data.success && data.awarded) {
+        // Refresh balance from server
+        await get().fetchUserTokens(userId);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error claiming daily login reward:', err);
+      return false;
+    }
+  },
+
+  fetchMemberships: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/memberships?limit=50`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.success && data.memberships) {
+        const mapped = data.memberships.map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          description: m.description,
+          price: m.price,
+          tokenCost: m.tokenCost || m.token_cost || 0,
+          duration: m.duration,
+          features: m.features || [],
+          type: m.type,
+          coachId: m.coachId || m.coach_id,
+          coach: m.coach ? {
+            id: m.coach.id,
+            username: m.coach.full_name || m.coach.name,
+            fullName: m.coach.full_name || m.coach.name,
+            email: '',
+            profileImage: m.coach.profile_image || m.coach.avatar_url,
+            sportsCategory: m.coach.sports_category || 'coco',
+            gender: 'prefer-not-to-say' as const,
+            role: m.coach.role || 'coach',
+            isVerified: m.coach.is_verified || false,
+            bio: m.coach.bio || '',
+            followers: 0,
+            following: 0,
+            posts: 0,
+            createdAt: m.coach.created_at || new Date().toISOString(),
+          } : undefined,
+          isActive: m.is_active ?? m.isActive ?? true,
+          createdAt: m.created_at || m.createdAt,
+        }));
+        set({ memberships: mapped });
+      }
+    } catch (err) {
+      console.error('Error fetching memberships:', err);
+    }
+  },
 
 }));

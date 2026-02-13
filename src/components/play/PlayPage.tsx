@@ -16,7 +16,7 @@ import { Button } from '../ui/Button';
 
 export function PlayPage() {
   const { user, darkMode } = useAuthStore();
-  const { videos, memberships, livestreams, getVideosByCategory, getMembershipsByCoach, getUserTokens, getLivestreams, fetchLivestreams, fetchVideos } = useAppStore();
+  const { videos, memberships, livestreams, getVideosByCategory, getMembershipsByCoach, getUserTokens, fetchUserTokens, getLivestreams, fetchLivestreams, fetchVideos, fetchPurchasedVideos, fetchFollowedCoachIds, followedCoachIds, claimDailyLogin, fetchMemberships } = useAppStore();
   const [activeTab, setActiveTab] = useState<'videos' | 'memberships' | 'livestreams' | 'upload' | 'womens-lounge'>('videos');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'coco' | 'martial-arts' | 'calorie-fight'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'free' | 'premium'>('all');
@@ -27,27 +27,58 @@ export function PlayPage() {
   const [isLoadingVideos, setIsLoadingVideos] = useState(true);
   const [isLoadingLivestreams, setIsLoadingLivestreams] = useState(true);
 
-  // Fetch livestreams and videos from database on mount
+  // Fetch livestreams, videos, purchases and followed coaches on mount
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingVideos(true);
       setIsLoadingLivestreams(true);
       await Promise.all([
         fetchLivestreams().finally(() => setIsLoadingLivestreams(false)),
-        fetchVideos().finally(() => setIsLoadingVideos(false))
+        fetchVideos().finally(() => setIsLoadingVideos(false)),
+        user ? fetchUserTokens(user.id) : Promise.resolve(),
+        fetchPurchasedVideos(),
+        user ? fetchFollowedCoachIds(user.id) : Promise.resolve(),
+        fetchMemberships(),
       ]);
+      // Claim daily login reward (non-blocking)
+      if (user) {
+        claimDailyLogin(user.id).then(async (awarded) => {
+          if (awarded) {
+            const { default: toast } = await import('react-hot-toast');
+            toast.success('🎉 Daily login reward: +10 tokens!');
+          }
+        }).catch(() => { });
+      }
     };
     loadData();
-  }, [fetchLivestreams, fetchVideos]);
+  }, [fetchLivestreams, fetchVideos, fetchUserTokens, fetchPurchasedVideos, fetchFollowedCoachIds, fetchMemberships, claimDailyLogin, user]);
 
   if (!user) return null;
 
   const userTokens = getUserTokens(user.id);
-  const filteredVideos = getVideosByCategory(categoryFilter === 'all' ? 'all' : categoryFilter)
+
+  // Filter by category and type
+  const categoryVideos = getVideosByCategory(categoryFilter === 'all' ? 'all' : categoryFilter)
     .filter(video => typeFilter === 'all' || video.type === typeFilter);
 
-  const displayMemberships = user.role === 'coach' ? getMembershipsByCoach(user.id) : memberships;
-  const displayLivestreams = getLivestreams ? getLivestreams(categoryFilter === 'all' ? 'all' : categoryFilter) : [];
+  // Follow-gated: only show videos from coaches the user follows (or own videos if coach)
+  const filteredVideos = categoryVideos.filter(video => {
+    // Coaches always see their own content
+    if (video.coach?.id === user.id) return true;
+    // Users see content only from coaches they follow
+    return followedCoachIds.includes(video.coach?.id);
+  });
+
+  // Follow-gated memberships: coaches see their own, users see only from followed coaches
+  const displayMemberships = user.role === 'coach'
+    ? getMembershipsByCoach(user.id)
+    : memberships.filter(m => followedCoachIds.includes(m.coachId));
+
+  // Follow-gated livestreams
+  const allLivestreams = getLivestreams ? getLivestreams(categoryFilter === 'all' ? 'all' : categoryFilter) : [];
+  const displayLivestreams = allLivestreams.filter(ls =>
+    ls.coach?.id === user.id || followedCoachIds.includes(ls.coach?.id)
+  );
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -68,7 +99,7 @@ export function PlayPage() {
             <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Play & Learn</h1>
             <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Watch videos, earn tokens, and unlock premium content</p>
           </div>
-          
+
           <TokenWallet tokens={userTokens} />
         </div>
       </div>
@@ -79,23 +110,21 @@ export function PlayPage() {
           <nav className="flex">
             <button
               onClick={() => setActiveTab('videos')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'videos'
-                  ? 'border-blue-500 text-blue-600'
-                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-              }`}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'videos'
+                ? 'border-blue-500 text-blue-600'
+                : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
+                }`}
             >
               <Play className="h-4 w-4 inline mr-2" />
               Videos ({filteredVideos.length})
             </button>
-            
+
             <button
               onClick={() => setActiveTab('memberships')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'memberships'
-                  ? 'border-blue-500 text-blue-600'
-                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-              }`}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'memberships'
+                ? 'border-blue-500 text-blue-600'
+                : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
+                }`}
             >
               <Star className="h-4 w-4 inline mr-2" />
               {user.role === 'coach' ? 'My Memberships' : 'Memberships'} ({displayMemberships.length})
@@ -103,11 +132,10 @@ export function PlayPage() {
 
             <button
               onClick={() => setActiveTab('livestreams')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'livestreams'
-                  ? 'border-red-500 text-red-600'
-                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-              }`}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'livestreams'
+                ? 'border-red-500 text-red-600'
+                : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
+                }`}
             >
               <Radio className="h-4 w-4 inline mr-2" />
               Livestreams ({displayLivestreams.length})
@@ -115,11 +143,10 @@ export function PlayPage() {
 
             <button
               onClick={() => setActiveTab('womens-lounge')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'womens-lounge'
-                  ? 'border-pink-500 text-pink-600'
-                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-              }`}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'womens-lounge'
+                ? 'border-pink-500 text-pink-600'
+                : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
+                }`}
             >
               <Heart className="h-4 w-4 inline mr-2" />
               Women's Lounge
@@ -128,11 +155,10 @@ export function PlayPage() {
             {user.role === 'coach' && (
               <button
                 onClick={() => setActiveTab('upload')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'upload'
-                    ? 'border-blue-500 text-blue-600'
-                    : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
-                }`}
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'upload'
+                  ? 'border-blue-500 text-blue-600'
+                  : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
+                  }`}
               >
                 Upload Content
               </button>
@@ -148,7 +174,7 @@ export function PlayPage() {
                 <Filter className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                 <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Filters:</span>
               </div>
-              
+
               {/* Category Filter */}
               <div className="flex space-x-2">
                 <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Sport:</span>
@@ -156,17 +182,16 @@ export function PlayPage() {
                   <button
                     key={category}
                     onClick={() => setCategoryFilter(category as any)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      categoryFilter === category
-                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
-                        : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
-                    }`}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${categoryFilter === category
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
+                      : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
+                      }`}
                   >
                     {category === 'all' ? 'All Sports' : category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                   </button>
                 ))}
               </div>
-              
+
               {/* Type Filter */}
               <div className="flex space-x-2">
                 <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Type:</span>
@@ -174,11 +199,10 @@ export function PlayPage() {
                   <button
                     key={type}
                     onClick={() => setTypeFilter(type as any)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      typeFilter === type
-                        ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
-                        : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
-                    }`}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${typeFilter === type
+                      ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
+                      : `bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600`
+                      }`}
                   >
                     {type.charAt(0).toUpperCase() + type.slice(1)}
                   </button>
@@ -203,7 +227,7 @@ export function PlayPage() {
                 {filteredVideos.map((video) => (
                   <VideoCard key={video.id} video={video} userTokens={userTokens} />
                 ))}
-                
+
                 {filteredVideos.length === 0 && (
                   <div className="col-span-full text-center py-12">
                     <Play className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />

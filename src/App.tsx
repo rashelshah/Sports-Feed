@@ -4,6 +4,8 @@ import { Toaster } from 'react-hot-toast';
 import { AuthPage } from './pages/AuthPage';
 import { Dashboard } from './pages/Dashboard';
 import { useAuthStore } from './store/authStore';
+import { TokenPurchaseSuccess } from './components/play/TokenPurchaseSuccess';
+import { TokenPurchaseCancel } from './components/play/TokenPurchaseCancel';
 
 function App() {
   const { isAuthenticated, isInitialized, initSession, darkMode } = useAuthStore();
@@ -51,8 +53,10 @@ function App() {
               <Navigate to={isAuthenticated ? "/dashboard" : "/auth"} replace />
             }
           />
+          <Route path="/tokens/success" element={<TokenPurchaseSuccess />} />
+          <Route path="/tokens/cancel" element={<TokenPurchaseCancel />} />
         </Routes>
-        
+
         <Toaster
           position="top-right"
           toastOptions={{
