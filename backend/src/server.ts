@@ -32,6 +32,7 @@ import migrationRoutes from './routes/migration';
 import verificationRoutes from './routes/verification';
 import aiRoutes from './routes/ai';
 import gamificationRoutes from './routes/gamification';
+import stripeRoutes from './routes/stripe';
 
 // Import socket handlers
 import { setupSocketHandlers } from './socket/socketHandlers';
@@ -175,6 +176,9 @@ const tokenActionLimiter = createUserRateLimit({
 app.use('/api/auth/', authLimiter);
 app.use('/api/auth/', authUserLimiter);
 
+// Stripe webhook needs raw body for signature verification — MUST be before express.json()
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -246,6 +250,9 @@ app.use('/api/ai', authMiddleware, userLimiter, aiRoutes);
 
 // Gamification routes
 app.use('/api/gamification', authMiddleware, userLimiter, gamificationRoutes);
+
+// Stripe routes (checkout + webhook)
+app.use('/api/stripe', stripeRoutes);
 
 // Socket.IO setup
 const socketHandlers = setupSocketHandlers(io);

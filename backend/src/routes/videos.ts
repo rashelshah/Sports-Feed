@@ -117,15 +117,15 @@ router.get('/', optionalAuthMiddleware, validateQuery(getVideosQuerySchema), asy
   const processedVideos = await Promise.all(
     (videos || []).map(async (video) => {
       let isLikedByUser = false;
-      
+
       if (req.user) {
-            const { data: like } = await supabaseAdmin
-              .from('video_likes')
-              .select('id')
-              .eq('video_id', video.id)
-              .eq('user_id', req.user.id)
-              .single();
-        
+        const { data: like } = await supabaseAdmin
+          .from('video_likes')
+          .select('id')
+          .eq('video_id', video.id)
+          .eq('user_id', req.user.id)
+          .single();
+
         isLikedByUser = !!like;
       }
 
@@ -148,6 +148,26 @@ router.get('/', optionalAuthMiddleware, validateQuery(getVideosQuerySchema), asy
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1
     }
+  });
+}));
+
+// Get current user's purchased video IDs
+router.get('/purchases', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.id;
+
+  const { data, error } = await supabaseAdmin
+    .from('video_purchases')
+    .select('video_id')
+    .eq('user_id', userId);
+
+  if (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch purchases' });
+    return;
+  }
+
+  res.json({
+    success: true,
+    purchasedVideoIds: (data || []).map((r: any) => r.video_id),
   });
 }));
 
@@ -408,12 +428,12 @@ router.post('/:id/like', authenticateToken, validateParams(videoIdSchema), async
   }
 
   // Check if user already liked the video
-    const { data: existingLike } = await supabaseAdmin
-      .from('video_likes')
-      .select('id')
-      .eq('video_id', id)
-      .eq('user_id', userId)
-      .single();
+  const { data: existingLike } = await supabaseAdmin
+    .from('video_likes')
+    .select('id')
+    .eq('video_id', id)
+    .eq('user_id', userId)
+    .single();
 
   if (existingLike) {
     // Unlike the video
@@ -467,21 +487,31 @@ router.post('/:id/like', authenticateToken, validateParams(videoIdSchema), async
       .update({ likes_count: video.likes_count + 1 })
       .eq('id', id);
 
-    // Award tokens for liking the video (+2)
+    // Award tokens for liking the video (+2) — only on first-ever like (dedup)
     try {
-      await supabase.rpc('add_user_tokens', {
-        user_id_param: userId,
-        amount_param: 2
-      });
-      await supabase
+      const { data: existingReward } = await supabaseAdmin
         .from('token_transactions')
-        .insert({
-          to_user_id: userId,
-          amount: 2,
-          type: 'earned',
-          description: `Liked video: ${id}`,
-          created_at: new Date().toISOString()
+        .select('id')
+        .eq('to_user_id', userId)
+        .eq('type', 'earned')
+        .eq('description', `Liked video: ${id}`)
+        .maybeSingle();
+
+      if (!existingReward) {
+        await supabaseAdmin.rpc('add_user_tokens', {
+          user_id_param: userId,
+          amount_param: 2
         });
+        await supabaseAdmin
+          .from('token_transactions')
+          .insert({
+            to_user_id: userId,
+            amount: 2,
+            type: 'earned',
+            description: `Liked video: ${id}`,
+            created_at: new Date().toISOString()
+          });
+      }
     } catch (e) {
       // Non-fatal: token award failure shouldn't block like action
       console.warn('Token award failed for like:', e);
@@ -524,6 +554,73 @@ router.post('/:id/like', authenticateToken, validateParams(videoIdSchema), async
   }
 }));
 
+// Purchase (unlock) a premium video with tokens
+router.post('/:id/purchase', authenticateToken, validateParams(videoIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const userId = req.user!.id;
+
+  // Check if video exists and is premium
+  const { data: video, error: videoError } = await supabaseAdmin
+    .from('videos')
+    .select('id, title, type, token_cost')
+    .eq('id', id)
+    .single();
+
+  if (videoError || !video) {
+    res.status(404).json({ success: false, error: 'Video not found' });
+    return;
+  }
+
+  if (video.type !== 'premium' || !video.token_cost || video.token_cost <= 0) {
+    res.status(400).json({ success: false, error: 'This video is free or has no token cost' });
+    return;
+  }
+
+  // Check if already purchased
+  const { data: existing } = await supabaseAdmin
+    .from('video_purchases')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('video_id', id)
+    .maybeSingle();
+
+  if (existing) {
+    res.json({ success: true, message: 'Video already purchased', alreadyOwned: true });
+    return;
+  }
+
+  // Atomically spend tokens and record purchase via RPC
+  const { data: success, error: rpcError } = await supabaseAdmin.rpc('spend_tokens_for_video', {
+    p_user_id: userId,
+    p_video_id: id,
+    p_cost: video.token_cost,
+  });
+
+  if (rpcError) {
+    console.error('spend_tokens_for_video RPC error:', rpcError);
+    res.status(500).json({ success: false, error: 'Failed to process video purchase' });
+    return;
+  }
+
+  if (success !== true) {
+    res.status(400).json({ success: false, error: 'Insufficient token balance' });
+    return;
+  }
+
+  // Get updated balance
+  const { data: wallet } = await supabaseAdmin
+    .from('user_tokens')
+    .select('balance')
+    .eq('user_id', userId)
+    .single();
+
+  res.json({
+    success: true,
+    message: `Unlocked "${video.title}" for ${video.token_cost} tokens`,
+    newBalance: wallet?.balance ?? 0,
+  });
+}));
+
 // Watch video (increment view count and handle token cost)
 router.post('/:id/watch', authenticateToken, validateParams(videoIdSchema), asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
@@ -544,26 +641,37 @@ router.post('/:id/watch', authenticateToken, validateParams(videoIdSchema), asyn
     return;
   }
 
-  // Enforce premium membership before allowing premium video playback
+  // Enforce premium membership OR individual purchase before allowing premium video playback
   if (video.type === 'premium') {
-    const { data: activeMemberships } = await supabaseAdmin
-      .from('user_memberships')
-      .select('id, membership:memberships!inner(type, is_active)')
+    // Check individual purchase first (faster)
+    const { data: purchased } = await supabaseAdmin
+      .from('video_purchases')
+      .select('id')
       .eq('user_id', userId)
-      .eq('is_active', true)
-      .gte('expires_at', new Date().toISOString())
-      .eq('membership.is_active', true);
+      .eq('video_id', id)
+      .maybeSingle();
 
-    const hasPremiumAccess = Array.isArray(activeMemberships)
-      ? activeMemberships.some((m: any) => m.membership?.type === 'premium' || m.membership?.type === 'vip')
-      : false;
+    if (!purchased) {
+      // Fall back to membership check
+      const { data: activeMemberships } = await supabaseAdmin
+        .from('user_memberships')
+        .select('id, membership:memberships!inner(type, is_active)')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .gte('expires_at', new Date().toISOString())
+        .eq('membership.is_active', true);
 
-    if (!hasPremiumAccess) {
-      res.status(403).json({
-        success: false,
-        error: 'Premium membership required to watch this video'
-      });
-      return;
+      const hasPremiumAccess = Array.isArray(activeMemberships)
+        ? activeMemberships.some((m: any) => m.membership?.type === 'premium' || m.membership?.type === 'vip')
+        : false;
+
+      if (!hasPremiumAccess) {
+        res.status(403).json({
+          success: false,
+          error: 'Premium membership or video purchase required to watch this video'
+        });
+        return;
+      }
     }
   }
 

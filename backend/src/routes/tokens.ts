@@ -1,5 +1,5 @@
 import express, { Response } from 'express';
-import { supabase } from '../config/supabase';
+import { supabase, supabaseAdmin } from '../config/supabase';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { validate, validateQuery, validateParams } from '../middleware/validation';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -50,50 +50,43 @@ const transactionIdSchema = Joi.object({
 });
 
 const purchaseTokensSchema = Joi.object({
-  packageId: Joi.string().valid('basic', 'standard', 'premium', 'ultimate').required(),
-  paymentMethod: Joi.string().valid('demo', 'stripe').required(),
-  stripePaymentIntentId: Joi.string().when('paymentMethod', {
-    is: 'stripe',
-    then: Joi.required(),
-    otherwise: Joi.optional()
-  })
+  packageId: Joi.string().max(30).required(),
 });
 
 // Get user's token balance
 router.get('/balance', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const authed = createAuthedClient(req);
-  let { data: userTokens, error } = await authed
+  const userId = req.user!.id;
+
+  // Use supabaseAdmin for reliable read (bypasses RLS locked-down writes)
+  let { data: userTokens, error } = await supabaseAdmin
     .from('user_tokens')
-    .select('balance')
-    .eq('user_id', req.user!.id)
-    .single();
+    .select('balance, total_earned, total_spent')
+    .eq('user_id', userId)
+    .maybeSingle();
 
   // Lazy initialize if missing
-  if ((error && error.code === 'PGRST116') || !userTokens) {
-    // PGRST116: Row not found
-    await authed
+  if (!userTokens) {
+    const initialBalance = 100;
+
+    await supabaseAdmin
       .from('user_tokens')
-      .insert({ user_id: req.user!.id, balance: 100, total_earned: 100, total_spent: 0 })
-      .select('balance')
-      .single();
-    // Also ensure users.tokens is set
-    await authed
-      .from('users')
-      .update({ tokens: 100 })
-      .eq('id', req.user!.id);
-    // Re-read
-    const reread = await authed
-      .from('user_tokens')
-      .select('balance')
-      .eq('user_id', req.user!.id)
-      .single();
-    userTokens = reread.data as any;
-    error = reread.error as any;
+      .upsert({
+        user_id: userId,
+        balance: initialBalance,
+        total_earned: initialBalance,
+        total_spent: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    userTokens = { balance: initialBalance, total_earned: initialBalance, total_spent: 0 } as any;
   }
 
   res.json({
     success: true,
-    balance: userTokens?.balance ?? 100
+    balance: userTokens?.balance ?? 0,
+    totalEarned: userTokens?.total_earned ?? 0,
+    totalSpent: userTokens?.total_spent ?? 0
   });
 }));
 
@@ -331,7 +324,7 @@ router.post('/transfer', authenticateToken, validate(transferTokensSchema), asyn
         .from('users')
         .update({ tokens: sender.tokens })
         .eq('id', req.user!.id);
-      
+
       throw new Error('Failed to add tokens to recipient');
     }
 
@@ -368,12 +361,12 @@ router.post('/transfer', authenticateToken, validate(transferTokensSchema), asyn
         .from('users')
         .update({ tokens: sender.tokens })
         .eq('id', req.user!.id);
-      
+
       await supabase
         .from('users')
         .update({ tokens: recipient.tokens })
         .eq('id', recipientId);
-      
+
       throw new Error('Failed to record transaction');
     }
 
@@ -585,148 +578,39 @@ router.get('/opportunities', authenticateToken, asyncHandler(async (req: Authent
   });
 }));
 
-// Purchase tokens with payment
+// Purchase tokens — redirects to Stripe checkout
 router.post('/purchase', authenticateToken, validate(purchaseTokensSchema), asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const { packageId, paymentMethod, stripePaymentIntentId } = req.body;
+  const { packageId } = req.body;
+  const userId = req.user!.id;
 
-  // Debug logging removed to reduce noise
+  // Look up the package from the DB
+  const { data: pkg, error: pkgError } = await supabaseAdmin
+    .from('token_packages')
+    .select('*')
+    .eq('id', packageId)
+    .eq('is_active', true)
+    .single();
 
-  // Token packages configuration
-  const tokenPackages = [
-    { id: 'basic', tokens: 100, price: 4.99, bonus: 0 },
-    { id: 'standard', tokens: 250, price: 9.99, bonus: 25 },
-    { id: 'premium', tokens: 500, price: 19.99, bonus: 75 },
-    { id: 'ultimate', tokens: 1000, price: 34.99, bonus: 200 }
-  ];
-
-  const selectedPackage = tokenPackages.find(pkg => pkg.id === packageId);
-  if (!selectedPackage) {
-    logger.warn('Token package not found', { packageId });
-    res.status(400).json({
-      success: false,
-      error: 'Invalid package selected'
-    });
+  if (pkgError || !pkg) {
+    res.status(400).json({ success: false, error: 'Invalid or inactive package' });
     return;
   }
 
-  const totalTokens = selectedPackage.tokens + selectedPackage.bonus;
-  const userId = req.user!.id;
-
-  try {
-    // Debug logging removed to reduce noise
-    
-    // For demo purposes, we'll simulate successful payment
-    // In production, you would integrate with Stripe or other payment processors
-    if (paymentMethod === 'stripe' && !stripePaymentIntentId) {
-      res.status(400).json({
-        success: false,
-        error: 'Stripe payment intent ID required for Stripe payments'
-      });
-      return;
-    }
-
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Create authenticated client for RLS
-    const authed = createAuthedClient(req);
-
-    // Get current user tokens
-    const { data: userTokens, error: userTokensError } = await authed
-      .from('user_tokens')
-      .select('balance, total_earned')
-      .eq('user_id', userId)
-      .single();
-
-    if (userTokensError && userTokensError.code !== 'PGRST116') {
-      logger.error('Failed to fetch user tokens', { error: userTokensError, userId });
-      throw new Error(`Failed to fetch user tokens: ${userTokensError.message}`);
-    }
-
-    const currentBalance = userTokens?.balance || 0;
-    const currentTotalEarned = userTokens?.total_earned || 0;
-
-    // Update user tokens
-    const { error: updateTokensError } = await authed
-      .from('user_tokens')
-      .upsert({
-        user_id: userId,
-        balance: currentBalance + totalTokens,
-        total_earned: currentTotalEarned + totalTokens,
-        updated_at: new Date().toISOString()
-      });
-
-    if (updateTokensError) {
-      logger.error('Failed to update user tokens', { error: updateTokensError, userId });
-      throw new Error(`Failed to update user tokens: ${updateTokensError.message}`);
-    }
-
-    // Update users table tokens
-    const { error: updateUsersError } = await authed
-      .from('users')
-      .update({ tokens: currentBalance + totalTokens })
-      .eq('id', userId);
-
-    if (updateUsersError) {
-      logger.error('Failed to update users table', { error: updateUsersError, userId });
-      throw new Error(`Failed to update user balance: ${updateUsersError.message}`);
-    }
-
-    // Record transaction
-    const { data: transaction, error: transactionError } = await authed
-      .from('token_transactions')
-      .insert({
-        to_user_id: userId,
-        amount: totalTokens,
-        type: 'earned',
-        description: `Purchased ${selectedPackage.tokens} tokens${selectedPackage.bonus > 0 ? ` + ${selectedPackage.bonus} bonus` : ''} for $${selectedPackage.price}`,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (transactionError) {
-      logger.error('Failed to record transaction', { error: transactionError, userId });
-      throw new Error(`Failed to record transaction: ${transactionError.message}`);
-    }
-
-    // Create notification
-    const { data: notif } = await authed
-      .from('notifications')
-      .insert({
-        user_id: userId,
-        type: 'system',
-        title: 'Tokens Purchased',
-        message: `You successfully purchased ${totalTokens} tokens!`,
-        data: { 
-          amount: totalTokens, 
-          package: selectedPackage,
-          transactionId: transaction.id 
-        },
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    const socketHandlers = (req as any).app?.locals?.socketHandlers;
-    if (socketHandlers && notif) {
-      socketHandlers.sendNotificationToUser(userId, notif);
-    }
-
-    res.json({
-      success: true,
-      message: 'Tokens purchased successfully',
-      transaction,
-      newBalance: currentBalance + totalTokens
-    });
-
-         } catch (error: any) {
-           logger.error('Token purchase failed', { error: error.message, userId, packageId });
-           res.status(400).json({
-             success: false,
-             error: error.message || 'Token purchase failed'
-           });
-         }
+  // Return info so the frontend can call /api/stripe/create-checkout-session
+  const totalTokens = pkg.tokens + pkg.bonus_tokens;
+  res.json({
+    success: true,
+    message: 'Use POST /api/stripe/create-checkout-session to complete purchase',
+    package: {
+      id: pkg.id,
+      tokens: pkg.tokens,
+      bonusTokens: pkg.bonus_tokens,
+      totalTokens,
+      price: pkg.price_cents / 100,
+      priceCents: pkg.price_cents,
+    },
+    redirectTo: '/api/stripe/create-checkout-session'
+  });
 }));
 
 // Award tokens (admin only)
@@ -830,7 +714,7 @@ router.post('/award', authenticateToken, asyncHandler(async (req: AuthenticatedR
 // Get referral code for user
 router.get('/referral-code', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.user!.id;
-  
+
   // Get the referral code from the database
   const { data: referralCodeData, error } = await supabase
     .from('referral_codes')
@@ -841,7 +725,7 @@ router.get('/referral-code', authenticateToken, asyncHandler(async (req: Authent
   if (error || !referralCodeData) {
     // If no code exists, create one automatically
     const newCode = `SPORT${userId.slice(-8).toUpperCase()}`;
-    
+
     const { data: newReferralCode, error: insertError } = await supabase
       .from('referral_codes')
       .insert({
@@ -870,7 +754,7 @@ router.get('/referral-code', authenticateToken, asyncHandler(async (req: Authent
     });
     return;
   }
-  
+
   res.json({
     success: true,
     referralCode: referralCodeData.code,
@@ -934,6 +818,33 @@ router.get('/referral-stats', authenticateToken, asyncHandler(async (req: Authen
       referrals: referrals || [],
       referralCode: referralCode?.code || null
     }
+  });
+}));
+
+// Claim daily login reward (+10 tokens, once per day)
+router.post('/daily-login', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user!.id;
+
+  const { data: awarded, error } = await supabaseAdmin.rpc('claim_daily_login_reward', {
+    user_id_param: userId
+  });
+
+  if (error) {
+    console.error('Daily login reward error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process daily login reward'
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    awarded: awarded === true,
+    tokensAwarded: awarded === true ? 10 : 0,
+    message: awarded === true
+      ? 'Daily login reward claimed! +10 tokens'
+      : 'Daily login reward already claimed today'
   });
 }));
 
