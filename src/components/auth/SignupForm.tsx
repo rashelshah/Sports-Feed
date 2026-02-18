@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion } from 'framer-motion';
-import { User, Shield, Trophy, Heart, ChevronDown, Check, X } from 'lucide-react';
+import { User, Shield, Trophy, Heart, ChevronDown, Check, X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
@@ -40,7 +40,9 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
   const [showAccommodationsDropdown, setShowAccommodationsDropdown] = useState(false);
   const { register: registerUser, isLoading } = useAuthStore();
   const { darkMode } = useAuthStore();
-  
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -48,7 +50,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
     setValue,
   } = useForm<SignupFormData>({
     resolver: yupResolver(schema),
-    defaultValues: { 
+    defaultValues: {
       role: 'user',
       accessibilityNeeds: [],
       preferredAccommodations: []
@@ -101,24 +103,23 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
     >
       <div>
         <h2 className={`text-3xl font-bold mb-6 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>Join SportsFeed</h2>
-        
+
         {/* Role Selection */}
         <div className="mb-6">
           <label className={`block text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Select Your Role
+            Select Your Role<span className="text-red-500 ml-0.5">*</span>
           </label>
           <div className="grid grid-cols-2 gap-4">
             <motion.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleRoleSelect('user')}
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                selectedRole === 'user'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                  : darkMode
-                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
-                    : 'border-gray-300 hover:border-gray-400 bg-white'
-              }`}
+              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedRole === 'user'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                : darkMode
+                  ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                  : 'border-gray-300 hover:border-gray-400 bg-white'
+                }`}
             >
               <div className="flex items-center space-x-3">
                 <User className={`h-6 w-6 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
@@ -133,13 +134,12 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleRoleSelect('coach')}
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                selectedRole === 'coach'
-                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
-                  : darkMode
-                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
-                    : 'border-gray-300 hover:border-gray-400 bg-white'
-              }`}
+              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedRole === 'coach'
+                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30'
+                : darkMode
+                  ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                  : 'border-gray-300 hover:border-gray-400 bg-white'
+                }`}
             >
               <div className="flex items-center space-x-3">
                 <Shield className={`h-6 w-6 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} />
@@ -154,13 +154,12 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleRoleSelect('fan')}
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                selectedRole === 'fan'
-                  ? 'border-green-500 bg-green-50 dark:bg-green-900/30'
-                  : darkMode
-                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
-                    : 'border-gray-300 hover:border-gray-400 bg-white'
-              }`}
+              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedRole === 'fan'
+                ? 'border-green-500 bg-green-50 dark:bg-green-900/30'
+                : darkMode
+                  ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                  : 'border-gray-300 hover:border-gray-400 bg-white'
+                }`}
             >
               <div className="flex items-center space-x-3">
                 <Heart className={`h-6 w-6 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
@@ -175,13 +174,12 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleRoleSelect('aspirant')}
-              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                selectedRole === 'aspirant'
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'
-                  : darkMode
-                    ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
-                    : 'border-gray-300 hover:border-gray-400 bg-white'
-              }`}
+              className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedRole === 'aspirant'
+                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'
+                : darkMode
+                  ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                  : 'border-gray-300 hover:border-gray-400 bg-white'
+                }`}
             >
               <div className="flex items-center space-x-3">
                 <Trophy className={`h-6 w-6 ${darkMode ? 'text-orange-400' : 'text-orange-600'}`} />
@@ -197,15 +195,14 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
         {/* Sports Category */}
         <div className="mb-6">
           <label className={`block text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Sports Category
+            Sports Category<span className="text-red-500 ml-0.5">*</span>
           </label>
           <select
             {...register('sportsCategory')}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              darkMode 
-                ? 'bg-gray-700 border-gray-600 text-white' 
-                : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode
+              ? 'bg-gray-700 border-gray-600 text-white'
+              : 'border-gray-300'
+              }`}
           >
             <option value="">Select a category</option>
             <option value="coco">Coco</option>
@@ -228,11 +225,10 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
             <select
               value={selectedSportRole}
               onChange={(e) => setSelectedSportRole(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                darkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white' 
-                  : 'border-gray-300'
-              }`}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${darkMode
+                ? 'bg-gray-700 border-gray-600 text-white'
+                : 'border-gray-300'
+                }`}
               title="Select your sport role"
             >
               <option value="">Select your sport role</option>
@@ -299,7 +295,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
         {/* Gender Selection */}
         <div className="mb-6">
           <label className={`block text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-            Gender Identity
+            Gender Identity<span className="text-red-500 ml-0.5">*</span>
           </label>
           <div className="grid grid-cols-2 gap-3">
             {[
@@ -317,13 +313,12 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                   setSelectedGender(option.value as any);
                   setValue('gender', option.value as any);
                 }}
-                className={`p-3 border-2 rounded-lg text-sm font-medium transition-all ${
-                  selectedGender === option.value
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : darkMode
-                      ? 'border-gray-600 hover:border-gray-500 text-gray-300'
-                      : 'border-gray-300 hover:border-gray-400 text-gray-700'
-                }`}
+                className={`p-3 border-2 rounded-lg text-sm font-medium transition-all ${selectedGender === option.value
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : darkMode
+                    ? 'border-gray-600 hover:border-gray-500 text-gray-300'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                  }`}
               >
                 {option.label}
               </motion.button>
@@ -342,24 +337,22 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
           <button
             type="button"
             onClick={() => setShowAccessibilityDropdown(!showAccessibilityDropdown)}
-            className={`w-full px-4 py-3 border-2 rounded-lg flex items-center justify-between transition-all ${
-              showAccessibilityDropdown
-                ? 'border-blue-500 ring-2 ring-blue-200'
-                : darkMode
-                  ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
-                  : 'border-gray-300 hover:border-gray-400 bg-white'
-            }`}
+            className={`w-full px-4 py-3 border-2 rounded-lg flex items-center justify-between transition-all ${showAccessibilityDropdown
+              ? 'border-blue-500 ring-2 ring-blue-200'
+              : darkMode
+                ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                : 'border-gray-300 hover:border-gray-400 bg-white'
+              }`}
           >
             <span className={`text-sm ${accessibilityNeeds.length === 0 ? (darkMode ? 'text-gray-500' : 'text-gray-400') : (darkMode ? 'text-white' : 'text-gray-900')}`}>
               {accessibilityNeeds.length === 0 ? 'Select accessibility needs...' : `${accessibilityNeeds.length} selected`}
             </span>
             <ChevronDown className={`h-5 w-5 transition-transform ${showAccessibilityDropdown ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
           </button>
-          
+
           {showAccessibilityDropdown && (
-            <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg max-h-60 overflow-auto ${
-              darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-            }`}>
+            <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg max-h-60 overflow-auto ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+              }`}>
               <div className="p-2">
                 {[
                   'Wheelchair accessible',
@@ -373,17 +366,15 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                 ].map((need) => (
                   <label
                     key={need}
-                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                      darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                    }`}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                      }`}
                   >
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                      accessibilityNeeds.includes(need)
-                        ? 'bg-blue-500 border-blue-500'
-                        : darkMode
-                          ? 'border-gray-500'
-                          : 'border-gray-300'
-                    }`}>
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${accessibilityNeeds.includes(need)
+                      ? 'bg-blue-500 border-blue-500'
+                      : darkMode
+                        ? 'border-gray-500'
+                        : 'border-gray-300'
+                      }`}>
                       {accessibilityNeeds.includes(need) && <Check className="h-3 w-3 text-white" />}
                     </div>
                     <input
@@ -407,7 +398,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               </div>
             </div>
           )}
-          
+
           {accessibilityNeeds.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {accessibilityNeeds.map((need) => (
@@ -416,11 +407,10 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.8, opacity: 0 }}
-                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
-                    darkMode 
-                      ? 'bg-blue-600/30 text-blue-300 border border-blue-500/30' 
-                      : 'bg-blue-100 text-blue-700 border border-blue-200'
-                  }`}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${darkMode
+                    ? 'bg-blue-600/30 text-blue-300 border border-blue-500/30'
+                    : 'bg-blue-100 text-blue-700 border border-blue-200'
+                    }`}
                 >
                   {need}
                   <button
@@ -430,9 +420,8 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                       setAccessibilityNeeds(updated);
                       setValue('accessibilityNeeds', updated);
                     }}
-                    className={`ml-2 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-colors ${
-                      darkMode ? 'text-blue-300' : 'text-blue-600'
-                    }`}
+                    className={`ml-2 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-colors ${darkMode ? 'text-blue-300' : 'text-blue-600'
+                      }`}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -450,24 +439,22 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
           <button
             type="button"
             onClick={() => setShowAccommodationsDropdown(!showAccommodationsDropdown)}
-            className={`w-full px-4 py-3 border-2 rounded-lg flex items-center justify-between transition-all ${
-              showAccommodationsDropdown
-                ? 'border-green-500 ring-2 ring-green-200'
-                : darkMode
-                  ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
-                  : 'border-gray-300 hover:border-gray-400 bg-white'
-            }`}
+            className={`w-full px-4 py-3 border-2 rounded-lg flex items-center justify-between transition-all ${showAccommodationsDropdown
+              ? 'border-green-500 ring-2 ring-green-200'
+              : darkMode
+                ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                : 'border-gray-300 hover:border-gray-400 bg-white'
+              }`}
           >
             <span className={`text-sm ${preferredAccommodations.length === 0 ? (darkMode ? 'text-gray-500' : 'text-gray-400') : (darkMode ? 'text-white' : 'text-gray-900')}`}>
               {preferredAccommodations.length === 0 ? 'Select preferred accommodations...' : `${preferredAccommodations.length} selected`}
             </span>
             <ChevronDown className={`h-5 w-5 transition-transform ${showAccommodationsDropdown ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
           </button>
-          
+
           {showAccommodationsDropdown && (
-            <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg max-h-60 overflow-auto ${
-              darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-            }`}>
+            <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg max-h-60 overflow-auto ${darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+              }`}>
               <div className="p-2">
                 {[
                   'Quiet spaces',
@@ -481,17 +468,15 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                 ].map((accommodation) => (
                   <label
                     key={accommodation}
-                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                      darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                    }`}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                      }`}
                   >
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                      preferredAccommodations.includes(accommodation)
-                        ? 'bg-green-500 border-green-500'
-                        : darkMode
-                          ? 'border-gray-500'
-                          : 'border-gray-300'
-                    }`}>
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${preferredAccommodations.includes(accommodation)
+                      ? 'bg-green-500 border-green-500'
+                      : darkMode
+                        ? 'border-gray-500'
+                        : 'border-gray-300'
+                      }`}>
                       {preferredAccommodations.includes(accommodation) && <Check className="h-3 w-3 text-white" />}
                     </div>
                     <input
@@ -515,7 +500,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
               </div>
             </div>
           )}
-          
+
           {preferredAccommodations.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {preferredAccommodations.map((accommodation) => (
@@ -524,11 +509,10 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.8, opacity: 0 }}
-                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
-                    darkMode 
-                      ? 'bg-green-600/30 text-green-300 border border-green-500/30' 
-                      : 'bg-green-100 text-green-700 border border-green-200'
-                  }`}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${darkMode
+                    ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                    : 'bg-green-100 text-green-700 border border-green-200'
+                    }`}
                 >
                   {accommodation}
                   <button
@@ -538,9 +522,8 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
                       setPreferredAccommodations(updated);
                       setValue('preferredAccommodations', updated);
                     }}
-                    className={`ml-2 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-colors ${
-                      darkMode ? 'text-green-300' : 'text-green-600'
-                    }`}
+                    className={`ml-2 p-0.5 rounded-full hover:bg-red-500/20 hover:text-red-500 transition-colors ${darkMode ? 'text-green-300' : 'text-green-600'
+                      }`}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -553,6 +536,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Full Name"
+            showRequired
             {...register('fullName')}
             error={errors.fullName?.message}
             placeholder="Enter your full name"
@@ -560,6 +544,7 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
 
           <Input
             label="Username"
+            showRequired
             {...register('username')}
             error={errors.username?.message}
             placeholder="Choose a username"
@@ -569,26 +554,51 @@ export function SignupForm({ onSignupSuccess }: SignupFormProps) {
         <Input
           label="Email"
           type="email"
+          showRequired
           {...register('email')}
           error={errors.email?.message}
           placeholder="Enter your email"
         />
 
-        <Input
-          label="Password"
-          type="password"
-          {...register('password')}
-          error={errors.password?.message}
-          placeholder="Create a password"
-        />
+        <div className="relative">
+          <Input
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            showRequired
+            {...register('password')}
+            error={errors.password?.message}
+            placeholder="Create a password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="password-toggle"
+            style={{ top: '38px' }}
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
 
-        <Input
-          label="Confirm Password"
-          type="password"
-          {...register('confirmPassword')}
-          error={errors.confirmPassword?.message}
-          placeholder="Confirm your password"
-        />
+        <div className="relative">
+          <Input
+            label="Confirm Password"
+            type={showConfirmPassword ? 'text' : 'password'}
+            showRequired
+            {...register('confirmPassword')}
+            error={errors.confirmPassword?.message}
+            placeholder="Confirm your password"
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="password-toggle"
+            style={{ top: '38px' }}
+            tabIndex={-1}
+          >
+            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
 
         <input type="hidden" {...register('role')} />
         <input type="hidden" {...register('gender')} />

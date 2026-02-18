@@ -415,7 +415,7 @@ router.put('/:id', authenticateToken, validateParams(postIdSchema), validate(upd
     return;
   }
 
-  if (existingPost.author_id !== req.user!.id && req.user!.role !== 'administrator') {
+  if (existingPost.author_id !== req.user!.id && !['administrator', 'admin'].includes(req.user!.role)) {
     res.status(403).json({
       success: false,
       error: 'Not authorized to update this post'
@@ -474,7 +474,7 @@ router.delete('/:id', authenticateToken, validateParams(postIdSchema), asyncHand
     return;
   }
 
-  if (existingPost.author_id !== req.user!.id && req.user!.role !== 'administrator') {
+  if (existingPost.author_id !== req.user!.id && !['administrator', 'admin', 'expert'].includes(req.user!.role)) {
     res.status(403).json({
       success: false,
       error: 'Not authorized to delete this post'

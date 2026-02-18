@@ -203,7 +203,7 @@ export function PostCard({ post }: PostCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6"
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6 post-card"
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4">
@@ -217,6 +217,7 @@ export function PostCard({ post }: PostCardProps) {
             <div className="flex items-center space-x-1">
               <h3 className="font-semibold text-gray-900 dark:text-white">{post.user.username}</h3>
               {getVerificationBadge()}
+
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{post.user.sportsCategory.replace('-', ' ')}</p>
           </div>
@@ -231,7 +232,7 @@ export function PostCard({ post }: PostCardProps) {
           >
             <MoreHorizontal className="h-5 w-5" />
           </button>
-          {menuOpen && user && (user.id === post.userId || user.role === 'administrator') && (
+          {menuOpen && user && (user.id === post.userId || user.role === 'administrator' || user.role === 'admin' || user.role === 'expert') && (
             <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
               <button
                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2"
@@ -247,6 +248,10 @@ export function PostCard({ post }: PostCardProps) {
                     setIsDeleting(true);
                     try {
                       await deletePost(post.id);
+                      // Show moderation message for expert deletion
+                      if (user.role === 'expert' && user.id !== post.userId) {
+                        toast.success('Post removed by moderation');
+                      }
                     } finally {
                       setIsDeleting(false);
                     }

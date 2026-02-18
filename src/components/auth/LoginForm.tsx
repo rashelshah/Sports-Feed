@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion } from 'framer-motion';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
@@ -21,7 +21,8 @@ interface LoginFormProps {
 
 export function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const { login, isLoading, darkMode } = useAuthStore();
-  
+  const [showPassword, setShowPassword] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -56,30 +57,66 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
     >
       <div>
         <h2 className={`text-3xl font-bold mb-6 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>Welcome Back</h2>
-        
-        <Input
-          label="Email"
-          type="email"
-          {...register('email')}
-          error={errors.email?.message}
-          placeholder="Enter your email"
-        />
 
-        <div className="mt-4">
-          <Input
-            label="Password"
-            type="password"
-            {...register('password')}
-            error={errors.password?.message}
-            placeholder="Enter your password"
-          />
+        <div className="space-y-4">
+          {/* Email */}
+          <div>
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Email
+            </label>
+            <input
+              type="email"
+              {...register('email')}
+              placeholder="Enter your email"
+              className={`w-full px-3 py-2 border rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent input-glow ${errors.email
+                  ? (darkMode ? 'border-red-500 bg-red-900/20' : 'border-red-300 bg-red-50')
+                  : (darkMode
+                    ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500 placeholder-gray-400'
+                    : 'border-gray-300 bg-white hover:border-gray-400')
+                }`}
+            />
+            {errors.email && (
+              <p className={`mt-1 text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>{errors.email.message}</p>
+            )}
+          </div>
+
+          {/* Password with toggle */}
+          <div>
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                {...register('password')}
+                placeholder="Enter your password"
+                className={`w-full px-3 py-2 pr-10 border rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent input-glow ${errors.password
+                    ? (darkMode ? 'border-red-500 bg-red-900/20' : 'border-red-300 bg-red-50')
+                    : (darkMode
+                      ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500 placeholder-gray-400'
+                      : 'border-gray-300 bg-white hover:border-gray-400')
+                  }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="password-toggle"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {errors.password && (
+              <p className={`mt-1 text-sm ${darkMode ? 'text-red-400' : 'text-red-600'}`}>{errors.password.message}</p>
+            )}
+          </div>
         </div>
       </div>
 
       <Button
         type="submit"
         loading={isLoading}
-        className="w-full"
+        className="w-full btn-press"
         size="lg"
       >
         Sign In

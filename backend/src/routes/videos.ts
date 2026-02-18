@@ -366,7 +366,7 @@ router.delete('/:id', authenticateToken, validateParams(videoIdSchema), asyncHan
   const { id } = req.params;
 
   // Check if video exists and user owns it
-  const { data: existingVideo, error: fetchError } = await supabase
+  const { data: existingVideo, error: fetchError } = await supabaseAdmin
     .from('videos')
     .select('coach_id')
     .eq('id', id)
@@ -380,7 +380,7 @@ router.delete('/:id', authenticateToken, validateParams(videoIdSchema), asyncHan
     return;
   }
 
-  if (existingVideo.coach_id !== req.user!.id && req.user!.role !== 'admin') {
+  if (existingVideo.coach_id !== req.user!.id && !['administrator', 'admin', 'expert'].includes(req.user!.role)) {
     res.status(403).json({
       success: false,
       error: 'You can only delete your own videos'
@@ -388,7 +388,7 @@ router.delete('/:id', authenticateToken, validateParams(videoIdSchema), asyncHan
     return;
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('videos')
     .delete()
     .eq('id', id);
@@ -641,8 +641,11 @@ router.post('/:id/watch', authenticateToken, validateParams(videoIdSchema), asyn
     return;
   }
 
+  // Expert/admin bypass premium restriction entirely
+  const isPrivilegedRole = ['expert', 'admin', 'administrator'].includes(req.user!.role);
+
   // Enforce premium membership OR individual purchase before allowing premium video playback
-  if (video.type === 'premium') {
+  if (video.type === 'premium' && !isPrivilegedRole) {
     // Check individual purchase first (faster)
     const { data: purchased } = await supabaseAdmin
       .from('video_purchases')

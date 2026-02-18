@@ -62,23 +62,29 @@ export function PlayPage() {
     .filter(video => typeFilter === 'all' || video.type === typeFilter);
 
   // Follow-gated: only show videos from coaches the user follows (or own videos if coach)
+  // Expert sees everything — no follow restriction
   const filteredVideos = categoryVideos.filter(video => {
+    if (user.role === 'expert' || user.role === 'admin' || user.role === 'administrator') return true;
     // Coaches always see their own content
     if (video.coach?.id === user.id) return true;
     // Users see content only from coaches they follow
     return followedCoachIds.includes(video.coach?.id);
   });
 
-  // Follow-gated memberships: coaches see their own, users see only from followed coaches
-  const displayMemberships = user.role === 'coach'
-    ? getMembershipsByCoach(user.id)
-    : memberships.filter(m => followedCoachIds.includes(m.coachId));
+  // Follow-gated memberships: experts see all, coaches see their own, users see only from followed coaches
+  const displayMemberships = (user.role === 'expert' || user.role === 'admin' || user.role === 'administrator')
+    ? memberships
+    : user.role === 'coach'
+      ? getMembershipsByCoach(user.id)
+      : memberships.filter(m => followedCoachIds.includes(m.coachId));
 
-  // Follow-gated livestreams
+  // Follow-gated livestreams: experts see all
   const allLivestreams = getLivestreams ? getLivestreams(categoryFilter === 'all' ? 'all' : categoryFilter) : [];
-  const displayLivestreams = allLivestreams.filter(ls =>
-    ls.coach?.id === user.id || followedCoachIds.includes(ls.coach?.id)
-  );
+  const displayLivestreams = (user.role === 'expert' || user.role === 'admin' || user.role === 'administrator')
+    ? allLivestreams
+    : allLivestreams.filter(ls =>
+      ls.coach?.id === user.id || followedCoachIds.includes(ls.coach?.id)
+    );
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -93,7 +99,7 @@ export function PlayPage() {
       className="max-w-6xl mx-auto"
     >
       {/* Header with Token Wallet */}
-      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'glass' : 'bg-white'}`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
             <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Play & Learn</h1>
@@ -105,7 +111,7 @@ export function PlayPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className={`rounded-lg shadow-md mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`rounded-lg shadow-md mb-6 ${darkMode ? 'glass' : 'bg-white'}`}>
         <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <nav className="flex">
             <button

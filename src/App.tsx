@@ -14,6 +14,15 @@ function App() {
     initSession();
   }, [initSession]);
 
+  // Restore font scale from localStorage on app load
+  useEffect(() => {
+    const savedScale = localStorage.getItem('fontScale');
+    if (savedScale) {
+      const scale = Math.min(1.15, Math.max(0.9, parseFloat(savedScale)));
+      document.documentElement.style.setProperty('--font-scale', String(scale));
+    }
+  }, []);
+
   // Apply dark mode class on mount and when darkMode changes
   useEffect(() => {
     if (darkMode) {

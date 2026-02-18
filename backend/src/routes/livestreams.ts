@@ -258,7 +258,7 @@ router.put('/:id', authenticateToken, validateParams(livestreamIdSchema), valida
   }
 
   const updateData: any = { ...req.body };
-  
+
   // Convert camelCase to snake_case for database
   if (updateData.youtubeUrl) {
     updateData.youtube_url = updateData.youtubeUrl;
@@ -275,7 +275,7 @@ router.put('/:id', authenticateToken, validateParams(livestreamIdSchema), valida
   if (updateData.isLive !== undefined) {
     updateData.is_live = updateData.isLive;
     delete updateData.isLive;
-    
+
     // Set started_at when going live
     if (updateData.is_live && !existingLivestream.started_at) {
       updateData.started_at = new Date().toISOString();
@@ -341,7 +341,7 @@ router.delete('/:id', authenticateToken, validateParams(livestreamIdSchema), asy
     return;
   }
 
-  if (existingLivestream.user_id !== user.id) {
+  if (existingLivestream.user_id !== user.id && !['administrator', 'admin', 'expert'].includes(user.role)) {
     res.status(403).json({
       success: false,
       error: 'You can only delete your own livestreams'

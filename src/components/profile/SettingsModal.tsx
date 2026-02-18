@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -14,8 +14,19 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [settings, setSettings] = useState({
     pushNotifications: true,
     emailNotifications: true,
-    privacyMode: false,
   });
+
+  // Font scale state — read from localStorage on mount
+  const [fontScale, setFontScale] = useState(() => {
+    const saved = localStorage.getItem('fontScale');
+    return saved ? Math.min(1.15, Math.max(0.9, parseFloat(saved))) : 1;
+  });
+  const [isSliding, setIsSliding] = useState(false);
+
+  // Apply font scale live as user drags
+  useEffect(() => {
+    document.documentElement.style.setProperty('--font-scale', String(fontScale));
+  }, [fontScale]);
 
   const handleToggle = (key: keyof typeof settings) => {
     setSettings(prev => ({ ...prev, [key]: !prev[key] }));
@@ -25,7 +36,21 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     toggleDarkMode();
   };
 
+  const handleFontScaleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    const clamped = Math.min(1.15, Math.max(0.9, value));
+    setFontScale(clamped);
+  };
+
+  const getScaleLabel = (scale: number): string => {
+    if (scale <= 0.95) return '🐣 Rookie';
+    if (scale <= 1.05) return '🏃 Pro';
+    return '🏆 Legend';
+  };
+
   const handleSave = () => {
+    // Persist font scale to localStorage
+    localStorage.setItem('fontScale', String(fontScale));
     toast.success('Settings saved successfully!');
     onClose();
   };
@@ -42,7 +67,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+        className={`rounded-2xl shadow-xl max-w-md w-full ${darkMode ? 'glass clay-soft' : 'bg-white clay-soft-light'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
@@ -60,14 +85,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             <span className="text-gray-700 dark:text-gray-300 font-medium">Push Notifications</span>
             <button
               onClick={() => handleToggle('pushNotifications')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                settings.pushNotifications ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.pushNotifications ? 'bg-blue-500' : 'bg-gray-300'
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.pushNotifications ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.pushNotifications ? 'translate-x-6' : 'translate-x-1'
+                  }`}
               />
             </button>
           </div>
@@ -76,53 +99,72 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             <span className="text-gray-700 dark:text-gray-300 font-medium">Email Notifications</span>
             <button
               onClick={() => handleToggle('emailNotifications')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                settings.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.emailNotifications ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.emailNotifications ? 'translate-x-6' : 'translate-x-1'
+                  }`}
               />
             </button>
           </div>
 
-          <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-            <span className="text-gray-700 dark:text-gray-300 font-medium">Privacy Mode</span>
-            <button
-              onClick={() => handleToggle('privacyMode')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                settings.privacyMode ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.privacyMode ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
+          {/* Text Size Control — replaces Privacy Mode */}
+          <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-700 dark:text-gray-300 font-medium">⚙️ Text Size Control</span>
+              <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                {Math.round(fontScale * 100)}%
+              </span>
+            </div>
+
+            {/* Sports-themed label progression */}
+            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2 px-0.5">
+              <span>🐣 Rookie</span>
+              <span>🏃 Pro</span>
+              <span>🏆 Legend</span>
+            </div>
+
+            {/* Custom Slider */}
+            <input
+              type="range"
+              min="0.9"
+              max="1.15"
+              step="0.01"
+              value={fontScale}
+              onChange={handleFontScaleChange}
+              onMouseDown={() => setIsSliding(true)}
+              onMouseUp={() => setIsSliding(false)}
+              onTouchStart={() => setIsSliding(true)}
+              onTouchEnd={() => setIsSliding(false)}
+              className={`text-size-slider w-full ${isSliding ? 'slider-active' : ''}`}
+            />
+
+            {/* Current level label */}
+            <div className="text-center mt-2">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                {getScaleLabel(fontScale)}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             <span className="text-gray-700 dark:text-gray-300 font-medium">Dark Mode</span>
             <button
               onClick={handleDarkModeToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                darkMode ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${darkMode ? 'bg-blue-500' : 'bg-gray-300'
+                }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  darkMode ? 'translate-x-6' : 'translate-x-1'
-                }`}
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-1'
+                  }`}
               />
             </button>
           </div>
         </div>
 
         <div className="p-6 pt-0">
-          <Button onClick={handleSave} className="w-full">
+          <Button onClick={handleSave} className="w-full btn-press">
             Save Settings
           </Button>
         </div>
