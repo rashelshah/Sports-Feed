@@ -5,12 +5,260 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Global Font Scale Controller ===== */
+:root {
+  --font-scale: 1;
+}
+
+html {
+  font-size: calc(16px * var(--font-scale));
+}
+
+body {
+  transition: font-size 0.2s ease;
+}
+
 @layer base {
   * {
     font-family: 'Inter', sans-serif;
   }
-  
+
   body {
     font-feature-settings: 'cv03', 'cv04', 'cv11';
   }
+
+  /* ===== Dark Mode Deep Background ===== */
+  .dark body {
+    background-color: #0b1220;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  /* ===== Dark Mode Input Text Readability Fix ===== */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color: #f1f5f9;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* ===== Glassmorphism — Premium Soft Glass ===== */
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+}
+
+/* Light mode glass variant */
+.glass-light {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== Claymorphism — Soft Depth ===== */
+.clay-soft {
+  border-radius: 20px;
+  box-shadow:
+    8px 8px 16px rgba(0, 0, 0, 0.35),
+    -4px -4px 12px rgba(255, 255, 255, 0.05);
+}
+
+/* Light mode clay */
+.clay-soft-light {
+  border-radius: 20px;
+  box-shadow:
+    8px 8px 16px rgba(0, 0, 0, 0.08),
+    -4px -4px 12px rgba(255, 255, 255, 0.8);
+}
+
+/* ===== Post Cards — Minimal Soft Upgrade ===== */
+.post-card {
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Frosted Glass Navbar — Stronger Than Panels ===== */
+.navbar-glass {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+
+.navbar-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.05),
+      transparent);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Navbar text contrast */
+.navbar-glass a,
+.navbar-glass button,
+.navbar-glass span,
+.navbar-glass p {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ===== Dark Card Layering ===== */
+.dark-card {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ===== Button Press Micro-Interaction ===== */
+.btn-press {
+  transition: transform 0.1s ease;
+}
+
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* ===== Input Field Glow on Focus ===== */
+.input-glow {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.input-glow:focus {
+  box-shadow: 0 0 0 2px rgba(100, 150, 255, 0.4);
+}
+
+/* ===== Password Toggle Button ===== */
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: rgba(156, 163, 175, 1);
+  transition: color 0.15s ease;
+}
+
+.password-toggle:hover {
+  color: rgba(107, 114, 128, 1);
+}
+
+.dark .password-toggle {
+  color: rgba(156, 163, 175, 0.7);
+}
+
+.dark .password-toggle:hover {
+  color: rgba(209, 213, 219, 1);
+}
+
+/* ===== Text Size Slider Custom Styles ===== */
+
+/* Track styling */
+.text-size-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  outline: none;
+  cursor: pointer;
+}
+
+/* Webkit (Chrome, Safari, Edge) thumb */
+.text-size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 40%, #a78bfa 100%);
+  border: 2px solid #8b5cf6;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.text-size-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.7);
+  transform: scale(1.1);
+}
+
+.text-size-slider:active::-webkit-slider-thumb {
+  box-shadow: 0 0 18px rgba(139, 92, 246, 0.9);
+}
+
+/* Firefox thumb */
+.text-size-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 40%, #a78bfa 100%);
+  border: 2px solid #8b5cf6;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.text-size-slider::-moz-range-thumb:hover {
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.7);
+}
+
+/* Firefox track */
+.text-size-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+
+/* Subtle pulse animation for slider knob */
+@keyframes sliderPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+  }
+
+  50% {
+    box-shadow: 0 0 14px rgba(139, 92, 246, 0.8);
+  }
+}
+
+.slider-active::-webkit-slider-thumb {
+  animation: sliderPulse 1.5s ease-in-out infinite;
+}
+
+.slider-active::-moz-range-thumb {
+  animation: sliderPulse 1.5s ease-in-out infinite;
+}
+
+/* ===== Hover Elevation (kept for non-post cards) ===== */
+.hover-elevate {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-elevate:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
 }

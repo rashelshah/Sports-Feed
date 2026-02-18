@@ -79,7 +79,7 @@ export function ExpertDashboard() {
       animate={{ opacity: 1, y: 0 }}
       className={`max-w-6xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}
     >
-      <div className="bg-white rounded-lg shadow-md">
+      <div className={`rounded-lg shadow-md ${darkMode ? 'glass' : 'bg-white'}`}>
         <div className="mb-8">
           <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Expert Review Dashboard</h1>
           <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Review and verify user-submitted documents</p>
@@ -120,7 +120,7 @@ export function ExpertDashboard() {
           </div>
         </div>
 
-        <div className={`rounded-lg shadow-md overflow-hidden ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+        <div className={`rounded-lg shadow-md overflow-hidden ${darkMode ? 'glass border border-gray-700/50' : 'bg-white'}`}>
           <div className={`px-6 py-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
             <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Documents</h2>
           </div>
@@ -149,14 +149,13 @@ export function ExpertDashboard() {
                     </div>
 
                     <div className="flex items-center space-x-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        doc.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${doc.status === 'approved' ? 'bg-green-100 text-green-800' :
                         doc.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {doc.status}
                       </span>
-                      
+
                       {doc.status === 'pending' && (
                         <div className="flex space-x-2">
                           <Button

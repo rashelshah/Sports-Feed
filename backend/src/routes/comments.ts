@@ -392,7 +392,8 @@ router.delete('/:id', authenticateToken, validateParams(commentIdSchema), asyncH
     .single();
 
   const canDelete = existingComment.user_id === req.user!.id ||
-    (post && post.author_id === req.user!.id);
+    (post && post.author_id === req.user!.id) ||
+    ['administrator', 'admin', 'expert'].includes(req.user!.role);
 
   if (!canDelete) {
     res.status(403).json({

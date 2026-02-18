@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Clock, Eye, Heart, Lock, Coins, Share, X, Unlock } from 'lucide-react';
+import { Play, Clock, Eye, Heart, Lock, Coins, Share, X, Unlock, Trash2 } from 'lucide-react';
 import { Video, UserTokens } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
@@ -16,7 +16,7 @@ interface VideoCardProps {
 
 export function VideoCard({ video, userTokens }: VideoCardProps) {
   const { user, darkMode } = useAuthStore();
-  const { likeVideo, watchVideo, purchasedVideoIds, fetchUserTokens, fetchPurchasedVideos } = useAppStore();
+  const { likeVideo, watchVideo, purchasedVideoIds, fetchUserTokens, fetchPurchasedVideos, fetchVideos } = useAppStore();
   const [showPlayer, setShowPlayer] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
@@ -24,9 +24,11 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
   const [isLiked, setIsLiked] = useState(video.isLiked);
   const [likesCount, setLikesCount] = useState(video.likes);
 
+  const isExpert = user?.role === 'expert' || user?.role === 'admin' || user?.role === 'administrator';
   const isPremium = video.type === 'premium' && video.tokenCost > 0;
   const isPurchased = purchasedVideoIds.includes(video.id);
-  const isLocked = isPremium && !isPurchased;
+  // Expert bypasses premium lock — sees all content as unlocked
+  const isLocked = isPremium && !isPurchased && !isExpert;
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -142,6 +144,27 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
     }
   };
 
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete video "${video.title}"? This action cannot be undone.`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/videos/${video.id}`,
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Video deleted — moderation action logged');
+        fetchVideos();
+      } else {
+        toast.error(data.error || 'Failed to delete video');
+      }
+    } catch {
+      toast.error('Failed to delete video');
+    }
+  };
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner': return darkMode ? 'bg-green-900/50 text-green-300' : 'bg-green-100 text-green-800';
@@ -223,6 +246,17 @@ export function VideoCard({ video, userTokens }: VideoCardProps) {
             <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs">
               FREE
             </div>
+          )}
+
+          {/* Expert Delete Button */}
+          {isExpert && (
+            <button
+              onClick={handleDelete}
+              className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full shadow-lg transition-colors z-10"
+              title="Delete video (Expert moderation)"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
         </div>
 

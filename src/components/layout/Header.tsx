@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { Home, Search, Bell, MessageCircle, User, LogOut, MapPin } from 'lucide-react';
+import { Home, Search, Bell, MessageCircle, LogOut, MapPin } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useSocketStore } from '../../store/socketStore';
 import { useAppStore } from '../../store/appStore';
 
 export function Header() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, darkMode } = useAuthStore();
   const { isConnected } = useSocketStore();
   const { currentView, setCurrentView, notifications } = useAppStore();
 
@@ -17,9 +17,9 @@ export function Header() {
 
   const getVerificationBadge = () => {
     if (!user?.isVerified) return null;
-    
+
     const badgeColor = user.role === 'coach' ? 'text-purple-500' : 'text-blue-500';
-    
+
     return (
       <svg className={`w-5 h-5 ${badgeColor}`} fill="currentColor" viewBox="0 0 20 20">
         <path
@@ -31,11 +31,28 @@ export function Header() {
     );
   };
 
+  // Navigation items
+  const navItems = [
+
+    { key: 'home', label: 'Home', icon: <Home className="h-5 w-5" /> },
+    { key: 'discover', label: 'Discover', icon: <Search className="h-5 w-5" /> },
+    { key: 'notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" />, badge: unreadNotifications },
+    { key: 'messages', label: 'Messages', icon: <MessageCircle className="h-5 w-5" /> },
+    {
+      key: 'play', label: 'Play', icon: (
+        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+        </svg>
+      )
+    },
+    { key: 'map', label: 'Map', icon: <MapPin className="h-5 w-5" /> },
+  ];
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50"
+      className={`${darkMode ? 'navbar-glass' : 'bg-white border-b border-gray-200'} fixed top-0 left-0 right-0 z-50`}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -47,93 +64,41 @@ export function Header() {
             )}
           </div>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            {user?.role === 'expert' && (
-              <button 
-                onClick={() => setCurrentView('expert')}
-                className={`flex items-center space-x-2 transition-colors ${
-                  currentView === 'expert' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400'
-                }`}
+          {/* Navigation with active tab underline animation */}
+          <nav className="hidden md:flex items-center space-x-6 relative">
+            {navItems.map(item => (
+              <button
+                key={item.key}
+                onClick={() => setCurrentView(item.key as any)}
+                className={`flex items-center space-x-2 transition-colors relative py-4 ${currentView === item.key
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-700 dark:text-gray-400 dark:opacity-70 hover:text-blue-600 dark:hover:text-blue-400 dark:hover:opacity-100'
+                  }`}
               >
-                <User className="h-5 w-5" />
-                <span>Expert Panel</span>
+                {item.icon}
+                <span>{item.label}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {item.badge}
+                  </span>
+                )}
+                {/* Active tab underline — smooth animated */}
+                {currentView === item.key && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
               </button>
-            )}
-            
-            <button 
-              onClick={() => setCurrentView('home')}
-              className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'home' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
-              }`}
-            >
-              <Home className="h-5 w-5" />
-              <span>Home</span>
-            </button>
-            
-            <button 
-              onClick={() => setCurrentView('discover')}
-              className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'discover' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
-              }`}
-            >
-              <Search className="h-5 w-5" />
-              <span>Discover</span>
-            </button>
-            
-            <button 
-              onClick={() => setCurrentView('notifications')}
-              className={`flex items-center space-x-2 transition-colors relative ${
-                currentView === 'notifications' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
-              }`}
-            >
-              <Bell className="h-5 w-5" />
-              <span>Notifications</span>
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadNotifications}
-                </span>
-              )}
-            </button>
-            
-            <button
-              onClick={() => setCurrentView('messages')}
-              className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'messages' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
-              }`}
-            >
-              <MessageCircle className="h-5 w-5" />
-              <span>Messages</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('play')}
-              className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'play' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
-              }`}
-            >
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-              </svg>
-              <span>Play</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('map')}
-              className={`flex items-center space-x-2 transition-colors ${
-                currentView === 'map' ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300 hover:text-blue-600'
-              }`}
-            >
-              <MapPin className="h-5 w-5" />
-              <span>Map</span>
-            </button>
+            ))}
           </nav>
 
           {/* User Profile */}
           <div className="flex items-center space-x-4">
-            <button 
+            <button
               onClick={() => setCurrentView('profile')}
-              className="flex items-center space-x-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 transition-colors"
+              className={`flex items-center space-x-2 rounded-lg p-2 transition-colors ${user?.role === 'expert' ? '' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
             >
               <img
                 src={user?.profileImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
@@ -146,11 +111,12 @@ export function Header() {
                     {user?.fullName}
                   </p>
                   {getVerificationBadge()}
+
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role}</p>
               </div>
             </button>
-            
+
             <button
               onClick={handleLogout}
               className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"

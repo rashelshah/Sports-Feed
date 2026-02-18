@@ -17,7 +17,7 @@ export function AuthPage() {
         case 'signup':
           return <SignupForm onSignupSuccess={() => setCurrentStep('login')} />;
         default:
-          return <LoginForm onLoginSuccess={() => {}} />;
+          return <LoginForm onLoginSuccess={() => { }} />;
       }
     } catch (error) {
       console.error('Error rendering auth step:', error);
@@ -27,11 +27,10 @@ export function AuthPage() {
 
 
   return (
-    <div className={`min-h-screen flex items-center justify-center p-4 ${
-      darkMode 
-        ? 'bg-gradient-to-br from-gray-900 to-gray-800' 
-        : 'bg-gradient-to-br from-blue-50 to-purple-50'
-    }`}>
+    <div className={`min-h-screen flex items-center justify-center p-4 ${darkMode
+      ? 'bg-[#0b1220]'
+      : 'bg-gradient-to-br from-blue-50 to-purple-50'
+      }`}>
       <div className="w-full max-w-4xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           {/* Left Side - Branding */}
@@ -47,11 +46,11 @@ export function AuthPage() {
                 SportsFeed
               </span>
             </h1>
-            
+
             <p className={`text-xl mb-8 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Connect with certified coaches, share your journey, and level up your athletic performance.
             </p>
-            
+
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Trophy className="h-6 w-6 text-yellow-500" />
@@ -68,17 +67,20 @@ export function AuthPage() {
             </div>
           </motion.div>
 
-          {/* Right Side - Auth Form */}
+          {/* Right Side - Auth Form with Glass + Clay */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className={`rounded-2xl shadow-xl p-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+            className={`rounded-2xl shadow-xl p-8 ${darkMode
+              ? 'glass clay-soft'
+              : 'bg-white glass-light clay-soft-light'
+              }`}
           >
             <div className="min-h-[400px]">
               {renderStep()}
             </div>
-            
+
             <div className="mt-6 text-center">
               {currentStep === 'login' ? (
                 <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>

@@ -7,7 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
 
 export function Feed() {
-  const { user } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
   const { posts, getFilteredPosts, addPost, fetchPosts, isLoadingPosts } = useAppStore();
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [feedFilter, setFeedFilter] = useState<'my-sport' | 'all-sports'>('all-sports');
@@ -41,11 +41,11 @@ export function Feed() {
       className="max-w-2xl mx-auto dark:bg-gray-900 min-h-screen p-4"
     >
       {/* Feed Filter */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-        <div className="flex items-center justify-center space-x-4">
+      <div className={`rounded-lg shadow-md p-4 mb-6 ${darkMode ? 'dark-card' : 'bg-white'}`}>
+        <div className="flex items-center justify-center space-x-4 flex-wrap">
           <button
             onClick={() => setFeedFilter('my-sport')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'my-sport'
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors btn-press ${feedFilter === 'my-sport'
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
@@ -54,7 +54,7 @@ export function Feed() {
           </button>
           <button
             onClick={() => setFeedFilter('all-sports')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${feedFilter === 'all-sports'
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors btn-press ${feedFilter === 'all-sports'
               ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200'
               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
@@ -64,7 +64,8 @@ export function Feed() {
         </div>
       </div>
 
-      <CreatePost onPostCreated={handlePostCreated} />
+      {/* Hide CreatePost for experts — they can moderate but not create */}
+      {user.role !== 'expert' && <CreatePost onPostCreated={handlePostCreated} />}
 
       <div className="space-y-6">
         {isLoadingPosts ? (

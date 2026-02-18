@@ -5,7 +5,7 @@ import { UserProfile } from '../components/profile/UserProfile';
 import { MessagesPage } from '../components/messaging/MessagesPage';
 import { DiscoverPage } from '../components/discover/DiscoverPage';
 import { NotificationsPage } from '../components/notifications/NotificationsPage';
-import { ExpertDashboard } from '../components/expert/ExpertDashboard';
+
 import { PlayPage } from '../components/play/PlayPage';
 import { MapPage } from '../components/map/MapPage';
 import { useAuthStore } from '../store/authStore';
@@ -38,8 +38,7 @@ export function Dashboard() {
           return <MessagesPage />;
         case 'profile':
           return <UserProfile />;
-        case 'expert':
-          return <ExpertDashboard />;
+
         case 'play':
           return <PlayPage />;
         case 'map':
@@ -64,7 +63,7 @@ export function Dashboard() {
 
   if (!user) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-[#0b1220]' : 'bg-gray-50'}`}>
         <div className="text-center">
           <h2 className={`text-2xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Loading...</h2>
           <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Please wait while we load your dashboard.</p>
@@ -74,11 +73,11 @@ export function Dashboard() {
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className={`min-h-screen ${darkMode ? 'bg-[#0b1220]' : 'bg-gray-50'}`}>
       <Header />
 
       {/* Main Content */}
-      <main className="py-8">
+      <main className="pt-24 py-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {renderContent()}
         </div>

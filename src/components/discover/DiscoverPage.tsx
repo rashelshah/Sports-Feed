@@ -91,7 +91,7 @@ export function DiscoverPage() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-4xl mx-auto"
     >
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'glass' : 'bg-white'}`}>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
           Discover Sports Community
         </h1>
@@ -226,7 +226,7 @@ export function DiscoverPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               whileHover={{ y: -5 }}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
+              className={`rounded-lg shadow-md overflow-hidden hover-elevate ${darkMode ? 'glass' : 'bg-white'}`}
             >
               <div className="relative h-32 bg-gradient-to-r from-blue-500 to-purple-600">
                 <img

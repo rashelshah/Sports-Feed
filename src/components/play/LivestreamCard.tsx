@@ -1,7 +1,10 @@
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Users, Clock, Radio } from 'lucide-react';
+import { Play, Users, Clock, Radio, Trash2 } from 'lucide-react';
 import { User } from '../../types';
 import { useAuthStore } from '../../store/authStore';
+import { useAppStore } from '../../store/appStore';
+import toast from 'react-hot-toast';
 
 interface Livestream {
   id: string;
@@ -20,7 +23,30 @@ interface LivestreamCardProps {
 }
 
 export function LivestreamCard({ livestream }: LivestreamCardProps) {
-  const { darkMode } = useAuthStore();
+  const { user, darkMode } = useAuthStore();
+  const { fetchLivestreams } = useAppStore();
+  const isExpert = user?.role === 'expert' || user?.role === 'admin' || user?.role === 'administrator';
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete livestream "${livestream.title}"? This action cannot be undone.`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/livestreams/${livestream.id}`,
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Livestream deleted — moderation action logged');
+        fetchLivestreams();
+      } else {
+        toast.error(data.error || 'Failed to delete livestream');
+      }
+    } catch {
+      toast.error('Failed to delete livestream');
+    }
+  };
   const getYoutubeEmbedUrl = (url: string) => {
     const videoId = url.split('v=')[1]?.split('&')[0] || url.split('/').pop();
     return `https://www.youtube.com/embed/${videoId}`;
@@ -78,6 +104,17 @@ export function LivestreamCard({ livestream }: LivestreamCardProps) {
             <Users className="h-4 w-4" />
             <span>{livestream.viewers.toLocaleString()}</span>
           </div>
+        )}
+
+        {/* Expert Delete Button */}
+        {isExpert && (
+          <button
+            onClick={handleDelete}
+            className={`absolute ${livestream.isLive && livestream.viewers ? 'top-14' : 'top-4'} right-4 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-full shadow-lg transition-colors z-10`}
+            title="Delete livestream (Expert moderation)"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         )}
       </div>
 

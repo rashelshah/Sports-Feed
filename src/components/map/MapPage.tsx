@@ -524,7 +524,7 @@ export function MapPage() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'glass' : 'bg-white'}`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
           <div>
             <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Sports Map</h1>
@@ -548,7 +548,7 @@ export function MapPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className={`flex space-x-1 rounded-lg p-1 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+      <div className={`flex space-x-1 rounded-lg p-1 mb-6 ${darkMode ? 'glass' : 'bg-gray-100'}`}>
         {[
           { id: 'map', label: 'Map View', icon: MapPin },
           { id: 'checkins', label: 'My Check-ins', icon: CheckCircle },
@@ -831,13 +831,12 @@ export function MapPage() {
                         className="p-0.5 hover:scale-110 transition-transform disabled:opacity-50"
                       >
                         <Star
-                          className={`h-4 w-4 ${
-                            star <= (location.average_rating || 0)
+                          className={`h-4 w-4 ${star <= (location.average_rating || 0)
                               ? 'text-yellow-400 fill-current'
                               : darkMode
                                 ? 'text-gray-600'
                                 : 'text-gray-300'
-                          }`}
+                            }`}
                         />
                       </button>
                     ))}
