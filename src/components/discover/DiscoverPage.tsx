@@ -53,7 +53,7 @@ export function DiscoverPage() {
 
   if (!user) return null;
 
-  const allUsers = users.filter((u: User) => u.id !== user.id);
+  const allUsers = users.filter((u: User) => u.id !== user.id && u.role !== 'expert' && u.role !== 'admin' && u.role !== 'administrator' && u.role !== 'pending_coach');
 
   const searchResults = allUsers.filter((u: User) => {
     const matchesSearch = u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -91,7 +91,7 @@ export function DiscoverPage() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-4xl mx-auto"
     >
-      <div className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'glass' : 'bg-white'}`}>
+      <div className={`rounded-2xl p-6 mb-6 ${darkMode ? 'surface-1' : 'bg-white shadow-md'}`}>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
           Discover Sports Community
         </h1>
@@ -105,7 +105,7 @@ export function DiscoverPage() {
               placeholder="Search athletes and coaches from all sports..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${darkMode ? 'bg-white/5 border-white/10 text-white placeholder-white/40' : 'bg-white border-gray-300 text-gray-900'}`}
             />
           </div>
 
@@ -226,13 +226,16 @@ export function DiscoverPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               whileHover={{ y: -5 }}
-              className={`rounded-lg shadow-md overflow-hidden hover-elevate ${darkMode ? 'glass' : 'bg-white'}`}
+              className={`rounded-2xl overflow-hidden hover-elevate ${darkMode ? 'surface-1' : 'bg-white shadow-md'}`}
             >
-              <div className="relative h-32 bg-gradient-to-r from-blue-500 to-purple-600">
+              <div className={`relative h-32 ${darkMode ? 'bg-[rgba(255,255,255,0.04)]' : 'bg-gray-200'}`}>
+                {targetUser.coverPhoto && (
+                  <img src={targetUser.coverPhoto} alt="" className="w-full h-full object-cover" />
+                )}
                 <img
                   src={targetUser.profileImage}
                   alt={targetUser.fullName}
-                  className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 h-20 w-20 rounded-full border-4 border-white dark:border-gray-800 object-cover"
+                  className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 h-20 w-20 rounded-full border-4 object-cover ${darkMode ? 'border-[#111111]' : 'border-white'}`}
                 />
               </div>
 
@@ -305,7 +308,7 @@ export function DiscoverPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-md"
+          className={`text-center py-12 rounded-2xl ${darkMode ? 'surface-1' : 'bg-white shadow-md'}`}
         >
           <Users className="h-12 w-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No users found</h3>

@@ -22,7 +22,7 @@ interface RegisterData {
   password: string;
   username: string;
   fullName: string;
-  role: 'user' | 'coach' | 'fan' | 'aspirant' | 'administrator';
+  role: 'user' | 'coach' | 'fan' | 'aspirant' | 'administrator' | 'pending_coach';
   sportsCategory: 'coco' | 'martial-arts' | 'calorie-fight' | 'adaptive-sports' | 'unstructured-sports';
   gender: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
   accessibilityNeeds?: string[];
@@ -44,6 +44,7 @@ function mapProfileToUser(profile: Record<string, any>): User {
     gender: profile.gender,
     isVerified: profile.verification_status === 'approved',
     profileImage: profile.profile_image,
+    coverPhoto: profile.cover_photo,
     bio: profile.bio,
     followers: profile.followers ?? 0,
     following: profile.following ?? 0,
@@ -55,6 +56,7 @@ function mapProfileToUser(profile: Record<string, any>): User {
     sportInterests: profile.sport_interests ?? [],
     isProfessional: profile.is_professional ?? false,
     verificationStatus: profile.verification_status ?? 'approved',
+    approvalStatus: profile.approval_status,
     evidenceDocuments: profile.evidence_documents ?? [],
   };
 }
@@ -107,6 +109,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error('User profile not found. Please sign up first.');
       }
 
+      // Block pending coaches from logging in
+      if (profile.role === 'pending_coach' || profile.approval_status === 'pending') {
+        await supabase.auth.signOut();
+        throw new Error('Your account is pending approval. Please wait for expert review.');
+      }
+
+      // Block rejected coaches
+      if (profile.approval_status === 'rejected') {
+        await supabase.auth.signOut();
+        throw new Error('Your coach application was not approved. You may reapply with updated details.');
+      }
+
       const user = mapProfileToUser(profile);
 
       // Save the access token to localStorage for API requests
@@ -129,8 +143,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (userData: RegisterData) => {
     set({ isLoading: true });
     try {
-      const role = userData.role;
+      // If role is coach, save as pending_coach
+      const isCoachSignup = userData.role === 'coach';
+      const effectiveRole = isCoachSignup ? 'pending_coach' : userData.role;
       // Only send simple serializable data to Supabase Auth
+      // Send 'coach' (not 'pending_coach') to auth metadata — the DB trigger only accepts standard roles.
+      // Our profile upsert below corrects it to 'pending_coach' immediately after.
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -138,23 +156,62 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           data: {
             username: userData.username,
             full_name: userData.fullName,
-            role: role,
+            role: isCoachSignup ? 'coach' : userData.role,
           },
         },
       });
-      
+
       // Handle 409 conflict - user already exists, try to sign in instead
       if (authError?.code === '409' || authError?.status === 409 || authError?.message?.includes('already registered')) {
         console.log('User already exists, attempting to sign in...');
+
+        // For coach signups, check if account is pending/rejected — never auto-login
+        if (isCoachSignup) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: userData.email,
+            password: userData.password,
+          });
+
+          if (signInError) {
+            throw new Error('Account already exists but login failed. Please try logging in manually.');
+          }
+
+          if (signInData.user) {
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('role, approval_status')
+              .eq('id', signInData.user.id)
+              .single();
+
+            // If pending or rejected coach, sign out and show appropriate message
+            if (existingProfile?.role === 'pending_coach' || existingProfile?.approval_status === 'pending') {
+              await supabase.auth.signOut();
+              localStorage.removeItem('token');
+              set({ user: null, isAuthenticated: false, isLoading: false });
+              throw new Error('PENDING_COACH');
+            }
+            if (existingProfile?.approval_status === 'rejected') {
+              await supabase.auth.signOut();
+              localStorage.removeItem('token');
+              set({ user: null, isAuthenticated: false, isLoading: false });
+              throw new Error('Your coach application was not approved. You may reapply with updated details.');
+            }
+          }
+          // If coach is already approved, sign out anyway — they should use login page
+          await supabase.auth.signOut();
+          throw new Error('An account with this email already exists. Please log in.');
+        }
+
+        // Non-coach 409 handler — auto-login as before
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: userData.email,
           password: userData.password,
         });
-        
+
         if (signInError) {
           throw new Error('Account already exists but login failed. Please try logging in manually.');
         }
-        
+
         if (signInData.user) {
           // User logged in successfully, now fetch their profile
           const fetchedProfile = await supabase
@@ -162,7 +219,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             .select('*')
             .eq('id', signInData.user.id)
             .single();
-          
+
           if (fetchedProfile.data) {
             const mappedUser = mapProfileToUser(fetchedProfile.data);
             if (signInData.session?.access_token) {
@@ -173,38 +230,82 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
         }
       }
-      
+
       if (authError && authError.code !== '409' && authError.status !== 409) throw authError;
       if (!authData.user) throw new Error('Registration failed');
 
       const user = authData.user;
 
       // Insert or update full profile data into profiles table (upsert to handle 409 conflicts)
-      const { error: profileInsertError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          email: user.email ?? userData.email,
-          username: userData.username,
-          full_name: userData.fullName,
-          role,
-          sports_category: userData.sportsCategory,
-          gender: userData.gender,
-          accessibility_needs: userData.accessibilityNeeds ?? [],
-          preferred_accommodations: userData.preferredAccommodations ?? [],
-          sport_role: userData.sportRole ? JSON.stringify(userData.sportRole) : null,
-          sport_interests: userData.sportInterests ?? [],
-          is_professional: userData.isProfessional ?? false,
-          verification_status: userData.verificationStatus ?? 'approved',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
+      const profileData: Record<string, any> = {
+        id: user.id,
+        email: user.email ?? userData.email,
+        username: userData.username,
+        full_name: userData.fullName,
+        role: effectiveRole,
+        sports_category: userData.sportsCategory,
+        gender: userData.gender,
+        accessibility_needs: userData.accessibilityNeeds ?? [],
+        preferred_accommodations: userData.preferredAccommodations ?? [],
+        sport_role: userData.sportRole ? JSON.stringify(userData.sportRole) : null,
+        sport_interests: userData.sportInterests ?? [],
+        is_professional: userData.isProfessional ?? false,
+        verification_status: userData.verificationStatus ?? 'approved',
+        updated_at: new Date().toISOString(),
+      };
 
-      // Log profile insert error for debugging but don't fail - profile may already exist
+      // Try with approval_status first (column may not exist yet)
+      if (isCoachSignup) {
+        profileData.approval_status = 'pending';
+      }
+
+      // For coach signups: upsert with role='coach' first (satisfies DB constraints),
+      // then immediately update to role='pending_coach'
+      const upsertData = isCoachSignup
+        ? { ...profileData, role: 'coach' }
+        : profileData;
+
+      let { error: profileInsertError } = await supabase
+        .from('profiles')
+        .upsert(upsertData, { onConflict: 'id' });
+
+      // If upsert failed with approval_status, retry without it
+      if (profileInsertError && isCoachSignup) {
+        console.warn('Profile upsert with approval_status failed, retrying without:', profileInsertError.message);
+        const retryData = { ...upsertData };
+        delete retryData.approval_status;
+        const retryResult = await supabase
+          .from('profiles')
+          .upsert(retryData, { onConflict: 'id' });
+        profileInsertError = retryResult.error;
+      }
+
       if (profileInsertError) {
-        console.warn('Profile upsert warning (may already exist):', profileInsertError);
-        // Only throw for non-conflict errors
+        console.warn('Profile upsert warning:', profileInsertError);
         if (profileInsertError.code !== '23505' && !profileInsertError.message.includes('duplicate')) {
           throw new Error(profileInsertError.message);
+        }
+      }
+
+      // For coach signups: now update role to 'pending_coach' and approval_status
+      // (do this as a separate update so role constraint check passes above)
+      if (isCoachSignup) {
+        // Try setting pending_coach + approval_status
+        const { error: pendingError } = await supabase
+          .from('profiles')
+          .update({ role: 'pending_coach', approval_status: 'pending' })
+          .eq('id', authData.user!.id);
+
+        if (pendingError) {
+          // If approval_status column missing, just set the role
+          const { error: roleError } = await supabase
+            .from('profiles')
+            .update({ role: 'pending_coach' })
+            .eq('id', authData.user!.id);
+
+          if (roleError) {
+            console.warn('Could not set pending_coach role:', roleError.message);
+          }
         }
       }
 
@@ -215,6 +316,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .single();
 
       if (fetchedProfile.data) {
+        // If this was a coach signup, sign out BEFORE setting authenticated state
+        if (isCoachSignup) {
+          await supabase.auth.signOut();
+          localStorage.removeItem('token');
+          set({ user: null, isAuthenticated: false, isLoading: false });
+          throw new Error('PENDING_COACH');
+        }
+
         const mappedUser = mapProfileToUser(fetchedProfile.data);
 
         // Save token to localStorage
@@ -251,7 +360,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Build payload with only defined values
       const payload: any = {};
-      
+
       if (userData.fullName !== undefined && userData.fullName.trim()) {
         payload.full_name = userData.fullName.trim();
       }
@@ -263,7 +372,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .toLowerCase()
           .replace(/\s+/g, '_')           // Replace spaces with underscores
           .replace(/[^a-zA-Z0-9_]/g, '');  // Remove any other invalid chars
-        
+
         if (cleanUsername.length >= 3) {
           payload.username = cleanUsername;
           console.log('Cleaned username:', cleanUsername);
@@ -276,6 +385,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       if (userData.profileImage !== undefined && userData.profileImage) {
         payload.profile_image = userData.profileImage;
+      }
+      if ((userData as any).coverPhoto !== undefined && (userData as any).coverPhoto) {
+        payload.cover_photo = (userData as any).coverPhoto;
       }
 
       // Call backend API to persist changes
@@ -291,8 +403,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const data = await response.json();
       console.log('Profile update response:', data);
       if (!data.success) {
-        const errorMsg = data.error || data.details || 
-          (data.errors ? JSON.stringify(data.errors) : null) || 
+        const errorMsg = data.error || data.details ||
+          (data.errors ? JSON.stringify(data.errors) : null) ||
           JSON.stringify(data) || 'Failed to update profile';
         throw new Error(errorMsg);
       }

@@ -27,10 +27,10 @@ body {
     font-feature-settings: 'cv03', 'cv04', 'cv11';
   }
 
-  /* ===== Dark Mode Deep Background ===== */
+  /* ===== Dark Mode — Fully Black ===== */
   .dark body {
-    background-color: #0b1220;
-    color: rgba(255, 255, 255, 0.88);
+    background-color: #000000;
+    color: #ffffff;
   }
 
   /* ===== Dark Mode Input Text Readability Fix ===== */
@@ -44,16 +44,125 @@ body {
   .dark textarea::placeholder {
     color: rgba(255, 255, 255, 0.5);
   }
+
+  /* ===== Global Dark Mode Overrides =====
+     Force Tailwind grey backgrounds to use our surface palette
+     so ALL existing components get the contrast system automatically */
+  .dark .bg-gray-800 {
+    background-color: #111111 !important;
+  }
+
+  .dark .bg-gray-700 {
+    background-color: #161616 !important;
+  }
+
+  .dark .bg-gray-900 {
+    background-color: #0a0a0a !important;
+  }
+
+  .dark .border-gray-700 {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .dark .border-gray-600 {
+    border-color: rgba(255, 255, 255, 0.10) !important;
+  }
+
+  .dark .divide-gray-700>*+* {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
 }
 
-/* ===== Glassmorphism — Premium Soft Glass ===== */
+/* ============================================
+   LAYERED SURFACE SYSTEM — Dark Mode Depth
+   ============================================ */
+
+/* Surface Level 1 — Primary Cards
+   Posts, Discover container, Play cards, Profile sections */
+.surface-1 {
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  border-radius: 20px;
+}
+
+/* Surface Level 2 — Secondary Containers
+   Filters, stats rows, small panels, sidebars */
+.surface-2 {
+  background: #161616;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+}
+
+/* Surface Level 3 — Inline elements, pills, tags */
+.surface-3 {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+}
+
+/* ============================================
+   TYPOGRAPHY HIERARCHY — Dark Mode
+   ============================================ */
+.dark .text-primary-d {
+  color: #ffffff;
+}
+
+.dark .text-secondary-d {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark .text-muted-d {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ===== TubeLight Feed Brand Styles ===== */
+.tubelight-brand {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dark .tubelight-brand,
+[class*="dark"] .tubelight-brand {
+  color: #ffffff !important;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+.light .tubelight-brand,
+:not(.dark) .tubelight-brand {
+  color: #000000;
+}
+
+/* Subtle shimmer on brand name */
+@keyframes brandShimmer {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.85;
+    text-shadow: 0 0 14px rgba(255, 255, 255, 0.6);
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.dark .tubelight-brand {
+  animation: brandShimmer 4s ease-in-out infinite;
+}
+
+/* ============================================
+   GLASSMORPHISM — Refined Contrast
+   ============================================ */
 .glass {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 /* Light mode glass variant */
@@ -70,11 +179,10 @@ body {
 .clay-soft {
   border-radius: 20px;
   box-shadow:
-    8px 8px 16px rgba(0, 0, 0, 0.35),
-    -4px -4px 12px rgba(255, 255, 255, 0.05);
+    8px 8px 16px rgba(0, 0, 0, 0.5),
+    -4px -4px 12px rgba(255, 255, 255, 0.04);
 }
 
-/* Light mode clay */
 .clay-soft-light {
   border-radius: 20px;
   box-shadow:
@@ -94,13 +202,15 @@ body {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
 }
 
-/* ===== Frosted Glass Navbar — Stronger Than Panels ===== */
+/* ============================================
+   FROSTED GLASS NAVBAR — Surface Level 3
+   ============================================ */
 .navbar-glass {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background: rgba(15, 15, 15, 0.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
   position: relative;
 }
 
@@ -109,7 +219,7 @@ body {
   position: absolute;
   inset: 0;
   background: linear-gradient(to bottom,
-      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.03),
       transparent);
   pointer-events: none;
   border-radius: inherit;
@@ -123,9 +233,11 @@ body {
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* ===== Dark Card Layering ===== */
+/* ===== Dark Card — Surface Level 2 ===== */
 .dark-card {
-  background: rgba(255, 255, 255, 0.04);
+  background: #161616;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
 }
 
 /* ===== Button Press Micro-Interaction ===== */
@@ -172,9 +284,128 @@ body {
   color: rgba(209, 213, 219, 1);
 }
 
-/* ===== Text Size Slider Custom Styles ===== */
+/* ===== Mobile Hamburger Menu ===== */
+.hamburger-btn {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
 
-/* Track styling */
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hamburger-btn span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 2px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* Dark mode hamburger — white */
+.dark .hamburger-btn span {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* ===== Mobile Slide-In Menu Overlay ===== */
+.mobile-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 99;
+  backdrop-filter: blur(2px);
+}
+
+.mobile-menu-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(300px, 82vw);
+  /* Solid fallback first, then glass on top */
+  background-color: #111111;
+  background: rgba(10, 10, 10, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Light mode panel */
+:not(.dark) .mobile-menu-panel {
+  background-color: #ffffff;
+  background: rgba(255, 255, 255, 0.98);
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+}
+
+.mobile-menu-panel.open {
+  transform: translateX(0);
+}
+
+.mobile-menu-panel a,
+.mobile-menu-panel button.menu-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 52px;
+  padding: 0 20px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+/* Light mode menu links */
+:not(.dark) .mobile-menu-panel a,
+:not(.dark) .mobile-menu-panel button.menu-link {
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.mobile-menu-panel button.menu-link:hover,
+.mobile-menu-panel a:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+:not(.dark) .mobile-menu-panel button.menu-link:hover,
+:not(.dark) .mobile-menu-panel a:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #000000;
+}
+
+.mobile-menu-panel button.menu-link.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:not(.dark) .mobile-menu-panel button.menu-link.active {
+  color: #000000;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ===== Text Size Slider Custom Styles ===== */
 .text-size-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -186,7 +417,6 @@ body {
   cursor: pointer;
 }
 
-/* Webkit (Chrome, Safari, Edge) thumb */
 .text-size-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -209,7 +439,6 @@ body {
   box-shadow: 0 0 18px rgba(139, 92, 246, 0.9);
 }
 
-/* Firefox thumb */
 .text-size-slider::-moz-range-thumb {
   width: 22px;
   height: 22px;
@@ -221,18 +450,12 @@ body {
   transition: box-shadow 0.2s ease, transform 0.1s ease;
 }
 
-.text-size-slider::-moz-range-thumb:hover {
-  box-shadow: 0 0 14px rgba(139, 92, 246, 0.7);
-}
-
-/* Firefox track */
 .text-size-slider::-moz-range-track {
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(90deg, #3b82f6, #8b5cf6);
 }
 
-/* Subtle pulse animation for slider knob */
 @keyframes sliderPulse {
 
   0%,
@@ -253,7 +476,7 @@ body {
   animation: sliderPulse 1.5s ease-in-out infinite;
 }
 
-/* ===== Hover Elevation (kept for non-post cards) ===== */
+/* ===== Hover Elevation ===== */
 .hover-elevate {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -261,4 +484,124 @@ body {
 .hover-elevate:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+}
+
+/* ============================================
+   COVER PHOTO — Facebook-Style Layout
+   ============================================ */
+.cover-photo-container {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  border-radius: 0 0 24px 24px;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .cover-photo-container {
+    height: 180px;
+  }
+}
+
+.cover-photo-container img.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-photo-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
+}
+
+/* Camera upload button — circular icon overlay */
+.cover-upload-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  z-index: 5;
+}
+
+.cover-upload-btn:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.05);
+}
+
+/* Profile avatar overlap for cover photo section */
+.cover-avatar {
+  position: absolute;
+  bottom: -40px;
+  left: 24px;
+  z-index: 10;
+}
+
+.cover-avatar img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #111111;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 768px) {
+  .cover-avatar img {
+    width: 80px;
+    height: 80px;
+    border-width: 3px;
+  }
+
+  .cover-avatar {
+    bottom: -32px;
+    left: 16px;
+  }
+}
+
+/* ===== Expert Panel Glass Cards ===== */
+.expert-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.expert-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== Confirmation Modal ===== */
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 16px;
+}
+
+.confirm-modal {
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 28px 28px 24px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
 }

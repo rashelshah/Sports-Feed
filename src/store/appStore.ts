@@ -15,6 +15,7 @@ function mapDbUserToUser(row: any): User {
     gender: row.gender ?? 'prefer-not-to-say',
     isVerified: row.is_verified ?? (row.verification_status === 'approved') ?? false,
     profileImage: row.profile_image ?? row.profile_image ?? undefined,
+    coverPhoto: row.cover_photo ?? undefined,
     bio: row.bio ?? undefined,
     followers: row.followers_count ?? row.followers ?? 0,
     following: row.following_count ?? row.following ?? 0,
@@ -106,7 +107,7 @@ function mapDbPostToPost(row: any, currentUserId?: string): Post {
 }
 
 interface AppState {
-  currentView: 'home' | 'discover' | 'notifications' | 'messages' | 'profile' | 'expert' | 'play' | 'map';
+  currentView: 'home' | 'discover' | 'notifications' | 'messages' | 'profile' | 'expert' | 'expert-panel' | 'play' | 'map';
   posts: Post[];
   users: User[];
   isLoadingPosts: boolean;

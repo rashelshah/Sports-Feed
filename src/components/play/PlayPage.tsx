@@ -113,60 +113,64 @@ export function PlayPage() {
       {/* Navigation Tabs */}
       <div className={`rounded-lg shadow-md mb-6 ${darkMode ? 'glass' : 'bg-white'}`}>
         <div className={`border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <nav className="flex">
+          <nav className="flex overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('videos')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'videos'
+              className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'videos'
                 ? 'border-blue-500 text-blue-600'
                 : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
                 }`}
             >
-              <Play className="h-4 w-4 inline mr-2" />
-              Videos ({filteredVideos.length})
+              <Play className="h-4 w-4 inline mr-1.5" />
+              <span className="hidden sm:inline">Videos ({filteredVideos.length})</span>
+              <span className="sm:hidden">Videos</span>
             </button>
 
             <button
               onClick={() => setActiveTab('memberships')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'memberships'
+              className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'memberships'
                 ? 'border-blue-500 text-blue-600'
                 : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
                 }`}
             >
-              <Star className="h-4 w-4 inline mr-2" />
-              {user.role === 'coach' ? 'My Memberships' : 'Memberships'} ({displayMemberships.length})
+              <Star className="h-4 w-4 inline mr-1.5" />
+              <span className="hidden sm:inline">{user.role === 'coach' ? 'My Memberships' : 'Memberships'} ({displayMemberships.length})</span>
+              <span className="sm:hidden">Members</span>
             </button>
 
             <button
               onClick={() => setActiveTab('livestreams')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'livestreams'
+              className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'livestreams'
                 ? 'border-red-500 text-red-600'
                 : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
                 }`}
             >
-              <Radio className="h-4 w-4 inline mr-2" />
-              Livestreams ({displayLivestreams.length})
+              <Radio className="h-4 w-4 inline mr-1.5" />
+              <span className="hidden sm:inline">Livestreams ({displayLivestreams.length})</span>
+              <span className="sm:hidden">Live</span>
             </button>
 
             <button
               onClick={() => setActiveTab('womens-lounge')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'womens-lounge'
+              className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'womens-lounge'
                 ? 'border-pink-500 text-pink-600'
                 : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
                 }`}
             >
-              <Heart className="h-4 w-4 inline mr-2" />
-              Women's Lounge
+              <Heart className="h-4 w-4 inline mr-1.5" />
+              <span className="hidden sm:inline">Women's Lounge</span>
+              <span className="sm:hidden">Lounge</span>
             </button>
 
             {user.role === 'coach' && (
               <button
                 onClick={() => setActiveTab('upload')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'upload'
+                className={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'upload'
                   ? 'border-blue-500 text-blue-600'
                   : `border-transparent ${darkMode ? 'text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'}`
                   }`}
               >
-                Upload Content
+                Upload
               </button>
             )}
           </nav>

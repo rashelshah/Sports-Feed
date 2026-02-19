@@ -37,7 +37,14 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       toast.success('Welcome back!');
       onLoginSuccess();
     } catch (error: any) {
-      toast.error(error?.message ?? 'Invalid credentials. Please try again.');
+      const msg = error?.message ?? 'Invalid credentials. Please try again.';
+      if (msg.includes('pending approval')) {
+        toast.error('🕒 Your account is pending approval. Please wait for expert review.', { duration: 5000 });
+      } else if (msg.includes('rejected') || msg.includes('not approved')) {
+        toast.error('❌ Your coach application was not approved. You may reapply with updated details.', { duration: 5000 });
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
@@ -69,10 +76,10 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
               {...register('email')}
               placeholder="Enter your email"
               className={`w-full px-3 py-2 border rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent input-glow ${errors.email
-                  ? (darkMode ? 'border-red-500 bg-red-900/20' : 'border-red-300 bg-red-50')
-                  : (darkMode
-                    ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500 placeholder-gray-400'
-                    : 'border-gray-300 bg-white hover:border-gray-400')
+                ? (darkMode ? 'border-red-500 bg-red-900/20' : 'border-red-300 bg-red-50')
+                : (darkMode
+                  ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500 placeholder-gray-400'
+                  : 'border-gray-300 bg-white hover:border-gray-400')
                 }`}
             />
             {errors.email && (
@@ -91,10 +98,10 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 {...register('password')}
                 placeholder="Enter your password"
                 className={`w-full px-3 py-2 pr-10 border rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent input-glow ${errors.password
-                    ? (darkMode ? 'border-red-500 bg-red-900/20' : 'border-red-300 bg-red-50')
-                    : (darkMode
-                      ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500 placeholder-gray-400'
-                      : 'border-gray-300 bg-white hover:border-gray-400')
+                  ? (darkMode ? 'border-red-500 bg-red-900/20' : 'border-red-300 bg-red-50')
+                  : (darkMode
+                    ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500 placeholder-gray-400'
+                    : 'border-gray-300 bg-white hover:border-gray-400')
                   }`}
               />
               <button

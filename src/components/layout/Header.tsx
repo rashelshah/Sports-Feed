@@ -1,5 +1,6 @@
-import { motion } from 'framer-motion';
-import { Home, Search, Bell, MessageCircle, LogOut, MapPin } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Home, Search, Bell, MessageCircle, LogOut, MapPin, X, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useSocketStore } from '../../store/socketStore';
 import { useAppStore } from '../../store/appStore';
@@ -8,6 +9,8 @@ export function Header() {
   const { user, logout, darkMode } = useAuthStore();
   const { isConnected } = useSocketStore();
   const { currentView, setCurrentView, notifications } = useAppStore();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const unreadNotifications = notifications.filter(n => !n.isRead).length;
 
@@ -15,11 +18,26 @@ export function Header() {
     logout();
   };
 
+  // Close menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    if (menuOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
+  // Close menu on route change
+  const handleNav = (view: string) => {
+    setCurrentView(view as any);
+    setMenuOpen(false);
+  };
+
   const getVerificationBadge = () => {
     if (!user?.isVerified) return null;
-
-    const badgeColor = user.role === 'coach' ? 'text-purple-500' : 'text-blue-500';
-
+    const badgeColor = user.role === 'coach' ? 'text-purple-400' : 'text-blue-400';
     return (
       <svg className={`w-5 h-5 ${badgeColor}`} fill="currentColor" viewBox="0 0 20 20">
         <path
@@ -31,9 +49,8 @@ export function Header() {
     );
   };
 
-  // Navigation items
+  // Desktop nav items
   const navItems = [
-
     { key: 'home', label: 'Home', icon: <Home className="h-5 w-5" /> },
     { key: 'discover', label: 'Discover', icon: <Search className="h-5 w-5" /> },
     { key: 'notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" />, badge: unreadNotifications },
@@ -48,86 +65,191 @@ export function Header() {
     { key: 'map', label: 'Map', icon: <MapPin className="h-5 w-5" /> },
   ];
 
+  // Hamburger menu items (only nav actions, no profile)
+  const mobileNavItems = [
+    ...navItems,
+    ...(user?.role === 'expert' ? [{ key: 'expert-panel', label: 'Expert Panel', icon: <ShieldCheck className="h-5 w-5" /> }] : []),
+  ];
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`${darkMode ? 'navbar-glass' : 'bg-white border-b border-gray-200'} fixed top-0 left-0 right-0 z-50`}
+      className={`${darkMode ? 'navbar-glass' : 'bg-white border-b border-gray-200 shadow-sm'} fixed top-0 left-0 right-0 z-50`}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-blue-600">SportsFeed</h1>
+
+          {/* Logo — TubeLight Feed */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <h1 className={`text-xl font-bold tubelight-brand ${darkMode ? 'text-white' : 'text-black'}`}>
+              TubeLight Feed
+            </h1>
             {isConnected && (
-              <span className="ml-3 h-2 w-2 bg-green-500 rounded-full"></span>
+              <span className="h-2 w-2 bg-green-500 rounded-full flex-shrink-0" />
             )}
           </div>
 
-          {/* Navigation with active tab underline animation */}
-          <nav className="hidden md:flex items-center space-x-6 relative">
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center space-x-5 relative">
             {navItems.map(item => (
               <button
                 key={item.key}
                 onClick={() => setCurrentView(item.key as any)}
                 className={`flex items-center space-x-2 transition-colors relative py-4 ${currentView === item.key
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-700 dark:text-gray-400 dark:opacity-70 hover:text-blue-600 dark:hover:text-blue-400 dark:hover:opacity-100'
+                  ? darkMode ? 'text-white' : 'text-black'
+                  : darkMode
+                    ? 'text-gray-400 hover:text-white'
+                    : 'text-gray-600 hover:text-black'
                   }`}
               >
                 {item.icon}
-                <span>{item.label}</span>
+                <span className="text-sm font-medium">{item.label}</span>
                 {item.badge !== undefined && item.badge > 0 && (
                   <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                     {item.badge}
                   </span>
                 )}
-                {/* Active tab underline — smooth animated */}
                 {currentView === item.key && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full"
+                    className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full ${darkMode ? 'bg-white' : 'bg-black'}`}
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
               </button>
             ))}
+            {user?.role === 'expert' && (
+              <button
+                onClick={() => setCurrentView('expert-panel' as any)}
+                className={`flex items-center space-x-2 transition-colors relative py-4 ${currentView === 'expert-panel'
+                  ? darkMode ? 'text-white' : 'text-black'
+                  : darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-black'
+                  }`}
+              >
+                <ShieldCheck className="h-5 w-5" />
+                <span className="text-sm font-medium">Expert Panel</span>
+                {currentView === 'expert-panel' && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full ${darkMode ? 'bg-white' : 'bg-black'}`}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
+              </button>
+            )}
           </nav>
 
-          {/* User Profile */}
-          <div className="flex items-center space-x-4">
+          {/* Right: Avatar + Hamburger */}
+          <div className="flex items-center gap-3">
+            {/* Avatar — profile access */}
             <button
               onClick={() => setCurrentView('profile')}
-              className={`flex items-center space-x-2 rounded-lg p-2 transition-colors ${user?.role === 'expert' ? '' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+              className="flex items-center gap-2 rounded-full p-1 transition-opacity hover:opacity-80"
             >
               <img
                 src={user?.profileImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
                 alt={user?.fullName}
-                className="h-8 w-8 rounded-full object-cover"
+                className="h-8 w-8 rounded-full object-cover border-2 border-white/20"
               />
-              <div className="hidden sm:block">
-                <div className="flex items-center space-x-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {user?.fullName}
-                  </p>
-                  {getVerificationBadge()}
-
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role}</p>
+              <div className="hidden sm:flex items-center gap-1">
+                <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {user?.fullName?.split(' ')[0]}
+                </span>
+                {getVerificationBadge()}
               </div>
             </button>
 
+            {/* Logout — desktop only */}
             <button
               onClick={handleLogout}
-              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className={`hidden lg:flex transition-opacity hover:opacity-70 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
               title="Logout"
             >
               <LogOut className="h-5 w-5" />
+            </button>
+
+            {/* Hamburger — mobile only */}
+            <button
+              className="hamburger-btn lg:hidden"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+            >
+              <span />
+              <span />
+              <span />
             </button>
           </div>
         </div>
       </div>
 
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mobile-menu-overlay lg:hidden"
+              onClick={() => setMenuOpen(false)}
+            />
+
+            {/* Slide-in Panel */}
+            <motion.div
+              ref={menuRef}
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+              className="mobile-menu-panel lg:hidden"
+            >
+              {/* Panel Header */}
+              <div className={`flex items-center justify-between px-5 py-4 border-b ${darkMode ? 'border-white/10' : 'border-black/10'}`}>
+                <span className={`tubelight-brand text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>TubeLight Feed</span>
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className={`transition-colors rounded-lg p-1 ${darkMode ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-900 hover:bg-black/5'}`}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Nav Links */}
+              <nav className="flex flex-col py-2">
+                {mobileNavItems.map(item => (
+                  <button
+                    key={item.key}
+                    onClick={() => handleNav(item.key)}
+                    className={`menu-link ${currentView === item.key ? 'active' : ''}`}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="ml-auto h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </nav>
+
+              {/* Logout at bottom */}
+              <div className={`mt-auto border-t py-4 px-5 ${darkMode ? 'border-white/10' : 'border-black/10'}`}>
+                <button
+                  onClick={handleLogout}
+                  className={`flex items-center gap-3 transition-colors w-full min-h-[48px] font-medium ${darkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'}`}
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </motion.header>
   );
 }

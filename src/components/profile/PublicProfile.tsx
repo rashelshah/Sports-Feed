@@ -40,12 +40,12 @@ export function PublicProfile({ userId }: PublicProfileProps) {
   const [isStartingChat, setIsStartingChat] = useState(false);
 
   // Use hooks for followers/following lists
-  const { 
-    followers 
+  const {
+    followers
   } = useFollowers(userId, 50);
-  
-  const { 
-    following: followingList 
+
+  const {
+    following: followingList
   } = useFollowing(userId, 50);
 
   // Fetch profile data
@@ -86,11 +86,11 @@ export function PublicProfile({ userId }: PublicProfileProps) {
     if (!profile) return;
 
     const shareUrl = `${window.location.origin}/profile/${profile.username}`;
-    const shareText = `Check out ${profile.full_name}'s profile on SportsFeed! ${profile.role === 'coach' ? 'Professional Coach' : 'Athlete'} in ${profile.sports_category.replace('-', ' ')}`;
+    const shareText = `Check out ${profile.full_name}'s profile on TubeLight Feed! ${profile.role === 'coach' ? 'Professional Coach' : 'Athlete'} in ${profile.sports_category.replace('-', ' ')}`;
 
     if (navigator.share) {
       navigator.share({
-        title: `${profile.full_name} - SportsFeed`,
+        title: `${profile.full_name} - TubeLight Feed`,
         text: shareText,
         url: shareUrl,
       }).catch(() => {
@@ -141,7 +141,7 @@ export function PublicProfile({ userId }: PublicProfileProps) {
 
   if (isLoading) {
     return (
-      <div className={`max-w-4xl mx-auto p-6 flex items-center justify-center min-h-[400px] ${darkMode ? 'bg-gray-900' : ''}`}>
+      <div className={`max-w-4xl mx-auto p-6 flex items-center justify-center min-h-[400px] ${darkMode ? 'bg-black' : ''}`}>
         <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
     );
@@ -149,7 +149,7 @@ export function PublicProfile({ userId }: PublicProfileProps) {
 
   if (!profile) {
     return (
-      <div className={`max-w-4xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}>
+      <div className={`max-w-4xl mx-auto p-6 ${darkMode ? 'bg-black min-h-screen' : ''}`}>
         <div className={`rounded-lg shadow-md p-8 text-center ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
           <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Profile not found</p>
         </div>
@@ -160,7 +160,7 @@ export function PublicProfile({ userId }: PublicProfileProps) {
   const isOwnProfile = currentUser?.id === userId;
 
   return (
-    <div className={`max-w-4xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}>
+    <div className={`max-w-4xl mx-auto p-6 ${darkMode ? 'bg-black min-h-screen' : ''}`}>
       {/* Profile Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -259,15 +259,14 @@ export function PublicProfile({ userId }: PublicProfileProps) {
                       }, 500);
                     }}
                   />
-                  
+
                   <button
                     onClick={handleMessageClick}
                     disabled={isStartingChat}
-                    className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 ${
-                      darkMode 
-                        ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' 
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
+                    className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 ${darkMode
+                      ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      }`}
                   >
                     {isStartingChat ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -278,14 +277,13 @@ export function PublicProfile({ userId }: PublicProfileProps) {
                   </button>
                 </>
               )}
-              
+
               <button
                 onClick={handleShareProfile}
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium border transition-colors ${
-                  darkMode 
-                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
-                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium border transition-colors ${darkMode
+                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Share className="h-5 w-5" />
                 <span>Share</span>
@@ -303,8 +301,8 @@ export function PublicProfile({ userId }: PublicProfileProps) {
             <button
               onClick={() => setActiveTab('posts')}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'posts'
-                  ? 'border-blue-500 text-blue-600'
-                  : (darkMode ? 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')
+                ? 'border-blue-500 text-blue-600'
+                : (darkMode ? 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')
                 }`}
             >
               Posts ({profile.posts})

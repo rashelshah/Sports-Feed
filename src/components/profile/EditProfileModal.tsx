@@ -1,12 +1,36 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, Camera } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import toast from 'react-hot-toast';
+
+/** Compress image via off-screen canvas → returns base64 data URL */
+function compressImage(file: File, maxWidth: number, quality: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas not supported')); return; }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
 
 interface EditProfileModalProps {
   user: UserType;
@@ -23,7 +47,12 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
   });
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState(user.profileImage || '');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState(user.coverPhoto || '');
   const [isLoading, setIsLoading] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const canUploadCover = user.role !== 'admin' && user.role !== 'expert' && user.role !== 'administrator';
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -32,15 +61,31 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         toast.error('Image size must be less than 5MB');
         return;
       }
-      
+
       setProfileImage(file);
       const reader = new FileReader();
       reader.onload = (e) => {
         setPreviewImage(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Cover image must be less than 5MB');
+        return;
+      }
+      setCoverFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setCoverPreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -59,6 +104,17 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
 
       if (profileImage) {
         updatedData.profileImage = previewImage;
+      }
+
+      // Compress & encode cover photo if changed
+      if (coverFile && canUploadCover) {
+        try {
+          const dataUrl = await compressImage(coverFile, 1200, 0.7);
+          updatedData.coverPhoto = dataUrl;
+        } catch (err) {
+          console.warn('Cover compression failed:', err);
+          toast.error('Cover photo processing failed, but other changes will be saved.');
+        }
       }
 
       // Call the async updateUser function which now calls the backend API
@@ -83,34 +139,65 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className={`rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+        className={`rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'surface-1' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-white/10' : 'border-gray-200'}`}>
           <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Edit Profile</h2>
           <button
             onClick={onClose}
-            className={`transition-colors ${darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`transition-colors ${darkMode ? 'text-white/50 hover:text-white' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Cover Photo Preview & Upload */}
+          {canUploadCover && (
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>
+                Cover Photo
+              </label>
+              <div
+                className="relative w-full h-32 rounded-xl overflow-hidden cursor-pointer group"
+                onClick={() => coverInputRef.current?.click()}
+              >
+                {coverPreview ? (
+                  <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className={`w-full h-full flex items-center justify-center ${darkMode ? 'bg-white/5' : 'bg-gray-100'}`}>
+                    <Camera className={`h-8 w-8 ${darkMode ? 'text-white/30' : 'text-gray-400'}`} />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="h-8 w-8 text-white" />
+                </div>
+              </div>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverChange}
+              />
+            </div>
+          )}
+
           {/* Profile Image */}
           <div className="text-center">
             <div className="relative inline-block">
               <img
                 src={previewImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
                 alt="Profile"
-                className={`h-24 w-24 rounded-full object-cover border-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}
+                className={`h-24 w-24 rounded-full object-cover border-4 ${darkMode ? 'border-white/10' : 'border-gray-200'}`}
               />
               <label
                 htmlFor="profile-image"
@@ -126,7 +213,7 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
                 onChange={handleImageChange}
               />
             </div>
-            <p className={`text-sm mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Click to change profile picture</p>
+            <p className={`text-sm mt-2 ${darkMode ? 'text-white/50' : 'text-gray-500'}`}>Click to change profile picture</p>
           </div>
 
           {/* Form Fields */}
@@ -147,22 +234,21 @@ export function EditProfileModal({ user, onClose }: EditProfileModalProps) {
           />
 
           <div>
-            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>
               Bio
             </label>
             <textarea
               value={formData.bio}
               onChange={(e) => handleInputChange('bio', e.target.value)}
               placeholder="Tell us about yourself..."
-              className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                darkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                  : 'border border-gray-300 text-gray-900'
-              }`}
+              className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${darkMode
+                ? 'bg-white/5 border border-white/10 text-white placeholder-white/40'
+                : 'border border-gray-300 text-gray-900'
+                }`}
               rows={4}
               maxLength={200}
             />
-            <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>
               {formData.bio.length}/200 characters
             </p>
           </div>

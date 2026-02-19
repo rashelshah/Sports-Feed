@@ -20,7 +20,7 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    
+
     if (isWatching && countdown > 0) {
       interval = setInterval(() => {
         setCountdown(prev => {
@@ -86,7 +86,7 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
               <p className={`text-sm mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Watch a short 15-second advertisement to earn tokens and unlock premium content.
               </p>
-              
+
               <Button
                 onClick={startWatchingAd}
                 className="w-full"
@@ -102,7 +102,7 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
             <div className="text-center">
               <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg p-8 mb-6">
                 <div className="text-white">
-                  <h3 className="text-xl font-bold mb-2">SportsFeed Premium</h3>
+                  <h3 className="text-xl font-bold mb-2">TubeLight Feed Premium</h3>
                   <p className="text-sm opacity-90 mb-4">
                     Unlock unlimited access to premium training videos from top coaches worldwide!
                   </p>
@@ -112,14 +112,14 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-center space-x-2 mb-4">
                 <Clock className={`h-5 w-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                 <span className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{countdown}s</span>
               </div>
-              
+
               <div className={`w-full rounded-full h-2 ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                <div 
+                <div
                   className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
                   style={{ width: `${((15 - countdown) / 15) * 100}%` }}
                 />
@@ -138,7 +138,7 @@ export function WatchAdModal({ onClose, userId }: WatchAdModalProps) {
               <p className={`text-sm mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Thank you for watching! You've earned 10 tokens.
               </p>
-              
+
               <Button
                 onClick={claimReward}
                 className="w-full"

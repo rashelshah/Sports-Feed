@@ -26,8 +26,8 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
   const shareReferral = () => {
     if (navigator.share) {
       navigator.share({
-        title: 'Join SportsFeed',
-        text: 'Join me on SportsFeed and get 50 free tokens!',
+        title: 'Join TubeLight Feed',
+        text: 'Join me on TubeLight Feed and get 50 free tokens!',
         url: referralLink,
       }).catch(() => {
         // Fallback to clipboard if share fails
@@ -78,7 +78,7 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
               Earn 50 Tokens per Referral!
             </h3>
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Invite friends to join SportsFeed and both of you get 50 tokens when they sign up.
+              Invite friends to join TubeLight Feed and both of you get 50 tokens when they sign up.
             </p>
           </div>
 
@@ -93,11 +93,10 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
                   type="text"
                   value={referralCode}
                   readOnly
-                  className={`flex-1 px-3 py-2 border rounded-lg text-center font-mono font-bold ${
-                    darkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
+                  className={`flex-1 px-3 py-2 border rounded-lg text-center font-mono font-bold ${darkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
                       : 'border-gray-300 bg-gray-50'
-                  }`}
+                    }`}
                 />
                 <Button
                   onClick={() => copyToClipboard(referralCode)}
@@ -119,11 +118,10 @@ export function ReferralModal({ onClose, userId }: ReferralModalProps) {
                   type="text"
                   value={referralLink}
                   readOnly
-                  className={`flex-1 px-3 py-2 border rounded-lg text-sm ${
-                    darkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
+                  className={`flex-1 px-3 py-2 border rounded-lg text-sm ${darkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
                       : 'border-gray-300 bg-gray-50'
-                  }`}
+                    }`}
                 />
                 <Button
                   onClick={() => copyToClipboard(referralLink)}

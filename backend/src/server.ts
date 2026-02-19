@@ -33,6 +33,7 @@ import verificationRoutes from './routes/verification';
 import aiRoutes from './routes/ai';
 import gamificationRoutes from './routes/gamification';
 import stripeRoutes from './routes/stripe';
+import expertRoutes from './routes/expert';
 
 // Import socket handlers
 import { setupSocketHandlers } from './socket/socketHandlers';
@@ -230,6 +231,7 @@ app.use('/api/notifications', authMiddleware, userLimiter, notificationRoutes);
 app.use('/api/tokens', authMiddleware, userLimiter, tokenRoutes);
 app.use('/api/upload', authMiddleware, userLimiter, uploadRoutes);
 app.use('/api/admin', authMiddleware, userLimiter, adminRoutes);
+app.use('/api/expert', expertRoutes);
 
 // Public routes with rate limiting to prevent abuse of token-earning actions
 // optionalAuthMiddleware allows both authenticated and unauthenticated access

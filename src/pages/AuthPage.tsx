@@ -28,8 +28,8 @@ export function AuthPage() {
 
   return (
     <div className={`min-h-screen flex items-center justify-center p-4 ${darkMode
-      ? 'bg-[#0b1220]'
-      : 'bg-gradient-to-br from-blue-50 to-purple-50'
+      ? 'bg-black'
+      : 'bg-gray-50'
       }`}>
       <div className="w-full max-w-4xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
@@ -42,8 +42,8 @@ export function AuthPage() {
           >
             <h1 className={`text-4xl lg:text-5xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               Welcome to{' '}
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                SportsFeed
+              <span className={`tubelight-brand ${darkMode ? '' : 'text-black'}`}>
+                TubeLight Feed
               </span>
             </h1>
 
