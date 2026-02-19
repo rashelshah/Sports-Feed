@@ -206,23 +206,11 @@ body {
    FROSTED GLASS NAVBAR — Surface Level 3
    ============================================ */
 .navbar-glass {
-  background: rgba(15, 15, 15, 0.75);
+  background: #0f0f0f;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-  position: relative;
-}
-
-.navbar-glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom,
-      rgba(255, 255, 255, 0.03),
-      transparent);
-  pointer-events: none;
-  border-radius: inherit;
 }
 
 /* Navbar text contrast */
@@ -332,26 +320,23 @@ body {
   right: 0;
   bottom: 0;
   width: min(300px, 82vw);
-  /* Solid fallback first, then glass on top */
-  background-color: #111111;
-  background: rgba(10, 10, 10, 0.97);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #ffffff;
+  background: rgba(255, 255, 255, 0.98);
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
   z-index: 100;
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
   transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
 }
 
-/* Light mode panel */
-:not(.dark) .mobile-menu-panel {
-  background-color: #ffffff;
-  background: rgba(255, 255, 255, 0.98);
-  border-left: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+/* Dark mode panel */
+.dark .mobile-menu-panel {
+  background-color: #000000;
+  background: #000000;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
 }
 
 .mobile-menu-panel.open {
@@ -365,7 +350,7 @@ body {
   gap: 14px;
   min-height: 52px;
   padding: 0 20px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(0, 0, 0, 0.8);
   font-size: 0.95rem;
   font-weight: 500;
   border-radius: 0;
@@ -377,32 +362,32 @@ body {
   width: 100%;
 }
 
-/* Light mode menu links */
-:not(.dark) .mobile-menu-panel a,
-:not(.dark) .mobile-menu-panel button.menu-link {
-  color: rgba(0, 0, 0, 0.8);
+/* Dark mode menu links */
+.dark .mobile-menu-panel a,
+.dark .mobile-menu-panel button.menu-link {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .mobile-menu-panel button.menu-link:hover,
 .mobile-menu-panel a:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
-}
-
-:not(.dark) .mobile-menu-panel button.menu-link:hover,
-:not(.dark) .mobile-menu-panel a:hover {
   background: rgba(0, 0, 0, 0.05);
   color: #000000;
 }
 
-.mobile-menu-panel button.menu-link.active {
+.dark .mobile-menu-panel button.menu-link:hover,
+.dark .mobile-menu-panel a:hover {
+  background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
 }
 
-:not(.dark) .mobile-menu-panel button.menu-link.active {
+.mobile-menu-panel button.menu-link.active {
   color: #000000;
   background: rgba(0, 0, 0, 0.06);
+}
+
+.dark .mobile-menu-panel button.menu-link.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* ===== Text Size Slider Custom Styles ===== */

@@ -42,11 +42,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     setFontScale(clamped);
   };
 
-  const getScaleLabel = (scale: number): string => {
-    if (scale <= 0.95) return '🐣 Rookie';
-    if (scale <= 1.05) return '🏃 Pro';
-    return '🏆 Legend';
-  };
+
 
   const handleSave = () => {
     // Persist font scale to localStorage
@@ -118,13 +114,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               </span>
             </div>
 
-            {/* Sports-themed label progression */}
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2 px-0.5">
-              <span>🐣 Rookie</span>
-              <span>🏃 Pro</span>
-              <span>🏆 Legend</span>
-            </div>
-
             {/* Custom Slider */}
             <input
               type="range"
@@ -139,13 +128,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               onTouchEnd={() => setIsSliding(false)}
               className={`text-size-slider w-full ${isSliding ? 'slider-active' : ''}`}
             />
-
-            {/* Current level label */}
-            <div className="text-center mt-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {getScaleLabel(fontScale)}
-              </span>
-            </div>
           </div>
 
           <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
