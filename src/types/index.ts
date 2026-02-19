@@ -3,11 +3,12 @@ export interface User {
   email: string;
   username: string;
   fullName: string;
-  role: 'user' | 'admin' | 'moderator' | 'coach' | 'expert' | 'fan' | 'aspirant' | 'administrator';
+  role: 'user' | 'admin' | 'moderator' | 'coach' | 'expert' | 'fan' | 'aspirant' | 'administrator' | 'pending_coach';
   sportsCategory: 'coco' | 'martial-arts' | 'calorie-fight' | 'adaptive-sports' | 'unstructured-sports';
   gender: 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
   isVerified: boolean;
   profileImage?: string;
+  coverPhoto?: string;
   bio?: string;
   followers: number;
   following: number;
@@ -26,6 +27,7 @@ export interface User {
   verifiedAt?: string;
   isProfessional?: boolean;
   sportInterests?: string[];
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
 }
 
 export interface VerificationDocument {

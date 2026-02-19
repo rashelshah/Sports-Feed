@@ -38,7 +38,7 @@ export function Feed() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-2xl mx-auto dark:bg-gray-900 min-h-screen p-4"
+      className="max-w-2xl mx-auto dark:bg-black min-h-screen p-4"
     >
       {/* Feed Filter */}
       <div className={`rounded-lg shadow-md p-4 mb-6 ${darkMode ? 'dark-card' : 'bg-white'}`}>

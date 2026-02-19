@@ -387,23 +387,23 @@ export function PostCard({ post }: PostCardProps) {
       {/* Actions */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-3 sm:space-x-6">
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleLike}
-              className={`flex items-center space-x-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 dark:text-gray-400 hover:text-red-500'
+              className={`flex items-center space-x-1.5 sm:space-x-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 dark:text-gray-400 hover:text-red-500'
                 }`}
             >
-              <Heart className={`h-6 w-6 ${isLiked ? 'fill-current' : ''}`} />
+              <Heart className={`h-5 w-5 sm:h-6 sm:w-6 ${isLiked ? 'fill-current' : ''}`} />
               <span className="text-sm font-medium">{likesCount}</span>
             </motion.button>
 
             <button
               onClick={() => setShowComments(!showComments)}
-              className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
+              className="flex items-center space-x-1.5 sm:space-x-2 text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
             >
-              <MessageCircle className="h-6 w-6" />
+              <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6" />
               <span className="text-sm font-medium">{post.comments}</span>
             </button>
 
@@ -411,9 +411,9 @@ export function PostCard({ post }: PostCardProps) {
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleShare}
-              className="flex items-center space-x-2 text-gray-500 dark:text-gray-400 hover:text-green-500 transition-colors"
+              className="flex items-center space-x-1.5 sm:space-x-2 text-gray-500 dark:text-gray-400 hover:text-green-500 transition-colors"
             >
-              <Share className="h-6 w-6" />
+              <Share className="h-5 w-5 sm:h-6 sm:w-6" />
               <span className="text-sm font-medium">{sharesCount}</span>
             </motion.button>
           </div>

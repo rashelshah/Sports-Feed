@@ -1,190 +1,286 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { CheckCircle, X, Clock, FileText, User } from 'lucide-react';
-import { VerificationDocument } from '../../types';
-import { Button } from '../ui/Button';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, XCircle, Clock, ShieldCheck, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useAppStore } from '../../store/appStore';
 import toast from 'react-hot-toast';
 
+interface PendingCoach {
+  id: string;
+  full_name: string;
+  email: string;
+  username: string;
+  bio?: string;
+  profile_image?: string;
+  sports_category?: string;
+  created_at: string;
+  approval_status: string;
+}
+
 export function ExpertDashboard() {
-  const { darkMode } = useAuthStore();
-  const [documents, setDocuments] = useState<VerificationDocument[]>([]);
-  const [selectedDoc, setSelectedDoc] = useState<VerificationDocument | null>(null);
+  const { user, darkMode } = useAuthStore();
+  const { setCurrentView } = useAppStore();
+  const [pendingCoaches, setPendingCoaches] = useState<PendingCoach[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Fetch real pending documents from Supabase
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    type: 'approve' | 'reject';
+    coachId: string;
+    coachName: string;
+  } | null>(null);
+
+  // Guard: only expert can access
   useEffect(() => {
-    async function fetchDocuments() {
-      try {
-        const { data, error } = await supabase
-          .from('verification_requests')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('Failed to fetch verification documents:', error);
-          return;
-        }
-
-        const mapped = (data || []).map((d: any) => ({
-          id: d.id,
-          userId: d.user_id,
-          fileName: d.file_name ?? d.document_name ?? 'Unknown',
-          fileUrl: d.file_url ?? d.document_url ?? '#',
-          documentType: d.document_type ?? 'certificate',
-          status: d.status ?? 'pending',
-          uploadedAt: d.created_at ?? new Date().toISOString(),
-          reviewedAt: d.reviewed_at,
-          reviewedBy: d.reviewed_by,
-          comments: d.comments,
-        }));
-        setDocuments(mapped);
-      } catch (err) {
-        console.error('Error fetching documents:', err);
-      }
+    if (user && user.role !== 'expert') {
+      setCurrentView('home');
+      toast.error('Access denied. Expert role required.');
     }
-    fetchDocuments();
+  }, [user, setCurrentView]);
+
+  // Fetch pending coaches
+  useEffect(() => {
+    fetchPendingCoaches();
   }, []);
 
-  const handleReview = async (documentId: string, status: 'approved' | 'rejected', comments?: string) => {
+  const fetchPendingCoaches = async () => {
+    setIsLoading(true);
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      setDocuments(prev =>
-        prev.map(doc =>
-          doc.id === documentId
-            ? {
-              ...doc,
-              status,
-              comments,
-              reviewedAt: new Date().toISOString(),
-              reviewedBy: 'Expert Reviewer',
-            }
-            : doc
-        )
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/expert/pending-coaches`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      toast.success(`Document ${status} successfully`);
-      setSelectedDoc(null);
-    } catch (error) {
-      toast.error('Failed to update document status');
+      const data = await response.json();
+      if (data.success) {
+        setPendingCoaches(data.coaches || []);
+      } else {
+        console.error('Failed to fetch pending coaches:', data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching pending coaches:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const pendingCount = documents.filter(doc => doc.status === 'pending').length;
+  const handleAction = async (coachId: string, action: 'approve' | 'reject') => {
+    setActionLoading(coachId);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/expert/${action}-coach`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ userId: coachId }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        toast.success(action === 'approve' ? 'Coach approved successfully!' : 'Coach request rejected.');
+        setPendingCoaches(prev => prev.filter(c => c.id !== coachId));
+      } else {
+        toast.error(data.error || `Failed to ${action} coach`);
+      }
+    } catch (err) {
+      toast.error(`Failed to ${action} coach`);
+    } finally {
+      setActionLoading(null);
+      setConfirmModal(null);
+    }
+  };
+
+  if (user?.role !== 'expert') return null;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`max-w-6xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}
+      className="max-w-4xl mx-auto"
     >
-      <div className={`rounded-lg shadow-md ${darkMode ? 'glass' : 'bg-white'}`}>
-        <div className="mb-8">
-          <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Expert Review Dashboard</h1>
-          <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Review and verify user-submitted documents</p>
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <ShieldCheck className={`h-7 w-7 ${darkMode ? 'text-white' : 'text-gray-900'}`} />
+          <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-black'}`}>
+            Expert Panel
+          </h1>
         </div>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="flex items-center">
-              <Clock className="h-8 w-8 text-yellow-500" />
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
-                <p className="text-yellow-600 text-sm">Pending Reviews</p>
-              </div>
-            </div>
-          </div>
+        <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+          Review and approve pending coach registrations
+        </p>
+      </div>
 
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="flex items-center">
-              <CheckCircle className="h-8 w-8 text-green-500" />
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-green-600">
-                  {documents.filter(doc => doc.status === 'approved').length}
-                </p>
-                <p className="text-green-600 text-sm">Approved</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-red-50 p-4 rounded-lg">
-            <div className="flex items-center">
-              <X className="h-8 w-8 text-red-500" />
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-red-600">
-                  {documents.filter(doc => doc.status === 'rejected').length}
-                </p>
-                <p className="text-red-600 text-sm">Rejected</p>
-              </div>
+      {/* Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className={`p-5 rounded-2xl ${darkMode ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-yellow-50 border border-yellow-200'}`}>
+          <div className="flex items-center gap-3">
+            <Clock className="h-6 w-6 text-yellow-500" />
+            <div>
+              <p className="text-2xl font-bold text-yellow-500">{pendingCoaches.length}</p>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400">Pending</p>
             </div>
           </div>
         </div>
-
-        <div className={`rounded-lg shadow-md overflow-hidden ${darkMode ? 'glass border border-gray-700/50' : 'bg-white'}`}>
-          <div className={`px-6 py-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Documents</h2>
+        <div className={`p-5 rounded-2xl ${darkMode ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-6 w-6 text-green-500" />
+            <div>
+              <p className="text-2xl font-bold text-green-500">—</p>
+              <p className="text-sm text-green-600 dark:text-green-400">Approved</p>
+            </div>
           </div>
-
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {documents.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
-                <h3 className={`text-lg font-medium mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>No documents yet</h3>
-                <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Documents will appear here when users submit them.</p>
-              </div>
-            ) : (
-              documents.map((doc) => (
-                <div key={doc.id} className={`p-6 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-3 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                        <FileText className={`h-6 w-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
-                      </div>
-                      <div>
-                        <h3 className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{doc.fileName}</h3>
-                        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {doc.documentType} • {new Date(doc.uploadedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${doc.status === 'approved' ? 'bg-green-100 text-green-800' :
-                        doc.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
-                        {doc.status}
-                      </span>
-
-                      {doc.status === 'pending' && (
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleReview(doc.id, 'approved')}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleReview(doc.id, 'rejected')}
-                            className="border-red-300 text-red-700 hover:bg-red-50"
-                          >
-                            <X className="h-4 w-4 mr-1" />
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+        </div>
+        <div className={`p-5 rounded-2xl ${darkMode ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'}`}>
+          <div className="flex items-center gap-3">
+            <XCircle className="h-6 w-6 text-red-500" />
+            <div>
+              <p className="text-2xl font-bold text-red-500">—</p>
+              <p className="text-sm text-red-600 dark:text-red-400">Rejected</p>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Pending Coach Cards */}
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <Loader2 className="h-10 w-10 animate-spin text-white/40 mb-4" />
+          <p className={darkMode ? 'text-gray-500' : 'text-gray-500'}>Loading pending requests...</p>
+        </div>
+      ) : pendingCoaches.length === 0 ? (
+        <div className={`text-center py-16 rounded-2xl ${darkMode ? 'bg-white/[0.03] border border-white/10' : 'bg-white border border-gray-200'}`}>
+          <CheckCircle className={`h-12 w-12 mx-auto mb-4 ${darkMode ? 'text-green-400/60' : 'text-green-500'}`} />
+          <h3 className={`text-lg font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>All caught up!</h3>
+          <p className={darkMode ? 'text-gray-500' : 'text-gray-500'}>No pending coach requests at this time.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {pendingCoaches.map((coach) => (
+            <motion.div
+              key={coach.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`expert-card p-5 ${!darkMode ? 'bg-white border-gray-200 shadow-md' : ''}`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {/* Avatar & Info */}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <img
+                    src={coach.profile_image || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
+                    alt={coach.full_name}
+                    className="h-14 w-14 rounded-full object-cover border-2 border-white/10 flex-shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h3 className={`font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {coach.full_name}
+                    </h3>
+                    <p className={`text-sm truncate ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {coach.email}
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {coach.sports_category && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-white/10 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
+                          {coach.sports_category.replace('-', ' ')}
+                        </span>
+                      )}
+                      <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Signed up {new Date(coach.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {coach.bio && (
+                      <p className={`text-sm mt-2 line-clamp-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {coach.bio}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 sm:flex-col sm:w-auto w-full">
+                  <button
+                    onClick={() => setConfirmModal({ open: true, type: 'approve', coachId: coach.id, coachName: coach.full_name })}
+                    disabled={actionLoading === coach.id}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => setConfirmModal({ open: true, type: 'reject', coachId: coach.id, coachName: coach.full_name })}
+                    disabled={actionLoading === coach.id}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${darkMode
+                      ? 'bg-white/10 hover:bg-red-600/30 text-red-400 border border-white/10'
+                      : 'bg-red-50 hover:bg-red-100 text-red-700 border border-red-200'
+                      }`}
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Reject
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmModal?.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="confirm-modal-backdrop"
+            onClick={() => setConfirmModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className={`confirm-modal ${!darkMode ? 'bg-white border-gray-200' : ''}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className={`text-lg font-bold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {confirmModal.type === 'approve' ? 'Approve Coach' : 'Reject Request'}
+              </h3>
+              <p className={`text-sm mb-6 leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {confirmModal.type === 'approve'
+                  ? `Are you sure you want to approve ${confirmModal.coachName} as a coach? This will grant them full coach access.`
+                  : `Are you sure you want to reject ${confirmModal.coachName}'s request? This action cannot be undone.`}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmModal(null)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${darkMode
+                    ? 'bg-white/10 text-white hover:bg-white/15'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleAction(confirmModal.coachId, confirmModal.type)}
+                  disabled={actionLoading === confirmModal.coachId}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-50 ${confirmModal.type === 'approve'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                >
+                  {actionLoading === confirmModal.coachId ? 'Processing...' : 'Confirm'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

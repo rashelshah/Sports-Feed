@@ -271,11 +271,11 @@ export function ChatWindow({ conversationId, conversation, onBack, onArchive }: 
     if (!otherParticipant) return;
 
     const shareUrl = `${window.location.origin}/profile/${otherParticipant.id}`;
-    const shareText = `Connect with ${otherParticipant.full_name} (@${otherParticipant.username}) on SportsFeed!`;
+    const shareText = `Connect with ${otherParticipant.full_name} (@${otherParticipant.username}) on TubeLight Feed!`;
 
     if (navigator.share) {
       navigator.share({
-        title: `${otherParticipant.full_name} - SportsFeed`,
+        title: `${otherParticipant.full_name} - TubeLight Feed`,
         text: shareText,
         url: shareUrl,
       }).then(() => {

@@ -257,7 +257,7 @@ export function WomensLounge() {
   }
 
   return (
-    <div className={`max-w-6xl mx-auto p-6 ${darkMode ? 'bg-gray-900 min-h-screen' : ''}`}>
+    <div className={`max-w-6xl mx-auto p-6 ${darkMode ? 'bg-black min-h-screen' : ''}`}>
       {/* Header */}
       <div className={`rounded-lg p-6 mb-8 ${darkMode ? 'bg-gradient-to-r from-pink-900/30 to-purple-900/30' : 'bg-gradient-to-r from-pink-50 to-purple-50'}`}>
         <div className="flex items-center space-x-4">
@@ -282,8 +282,8 @@ export function WomensLounge() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${activeTab === tab.id
-                ? (darkMode ? 'bg-gray-700 text-pink-400 shadow-sm' : 'bg-white text-pink-600 shadow-sm')
-                : (darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-900')
+              ? (darkMode ? 'bg-gray-700 text-pink-400 shadow-sm' : 'bg-white text-pink-600 shadow-sm')
+              : (darkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-900')
               }`}
           >
             <tab.icon className="h-4 w-4" />

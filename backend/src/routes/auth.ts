@@ -56,7 +56,8 @@ const updateProfileSchema = Joi.object({
   email_notifications: Joi.boolean().optional(),
   privacyMode: Joi.boolean().optional(),
   darkMode: Joi.boolean().optional(),
-  profile_image: Joi.string().max(2000000).optional()
+  profile_image: Joi.string().max(2000000).optional(),
+  cover_photo: Joi.string().max(2000000).optional()
 });
 
 // Register new user
@@ -65,7 +66,7 @@ router.post('/register', validate(registerSchema), asyncHandler(async (req: Requ
     email,
     password,
     name,
-    role,
+    role: requestedRole,
     gender,
     dateOfBirth,
     location,
@@ -76,6 +77,10 @@ router.post('/register', validate(registerSchema), asyncHandler(async (req: Requ
     sportRoles,
     referralCode
   } = req.body;
+
+  // Convert coach to pending_coach for approval flow
+  const isCoachSignup = requestedRole === 'coach';
+  const role = isCoachSignup ? 'pending_coach' : requestedRole;
 
   // Check if user already exists
   const { data: existingUser } = await supabase
@@ -147,6 +152,7 @@ router.post('/register', validate(registerSchema), asyncHandler(async (req: Requ
       accessibility_needs: accessibilityNeeds,
       emergency_contact: emergencyContact,
       sport_roles: sportRoles,
+      ...(isCoachSignup ? { approval_status: 'pending' } : {}),
       updated_at: new Date().toISOString()
     })
     .eq('id', newUserId)

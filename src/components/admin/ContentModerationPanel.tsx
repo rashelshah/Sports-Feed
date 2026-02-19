@@ -55,7 +55,7 @@ export function ContentModerationPanel() {
   };
 
   return (
-    <div className={`space-y-6 ${darkMode ? 'bg-gray-900 min-h-screen p-6' : ''}`}>
+    <div className={`space-y-6 ${darkMode ? 'bg-black min-h-screen p-6' : ''}`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -216,8 +216,8 @@ export function ContentModerationPanel() {
           <div>
             <h4 className={`text-sm font-medium mb-1 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>How It Works</h4>
             <p className={`text-sm ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>
-              Our AI-powered moderation system analyzes all content (messages, posts, and uploads) in real-time using advanced natural language processing. 
-              It detects inappropriate content, filters multilingual text, and transcribes voice messages for accessibility. 
+              Our AI-powered moderation system analyzes all content (messages, posts, and uploads) in real-time using advanced natural language processing.
+              It detects inappropriate content, filters multilingual text, and transcribes voice messages for accessibility.
               The system continuously learns and improves to maintain a safe community environment.
             </p>
           </div>

@@ -321,11 +321,11 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
       className={`rounded-lg shadow-md p-6 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
     >
       <form onSubmit={handleSubmit}>
-        <div className="flex items-start space-x-4">
+        <div className="flex items-start gap-3">
           <img
             src={user?.profileImage || 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400'}
             alt={user?.fullName}
-            className="h-12 w-12 rounded-full object-cover"
+            className="h-10 w-10 md:h-12 md:w-12 rounded-full object-cover flex-shrink-0"
           />
 
           <div className="flex-1">
@@ -415,8 +415,8 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               </div>
             )}
 
-            <div className="flex items-center justify-between mt-4">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mt-4">
+              <div className="flex flex-wrap items-center gap-3">
                 <input
                   type="file"
                   id="image-upload"

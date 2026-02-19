@@ -78,7 +78,7 @@ export function TokenPurchaseSuccess() {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
-        <div className={`min-h-screen flex items-center justify-center p-4 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`min-h-screen flex items-center justify-center p-4 ${darkMode ? 'bg-black' : 'bg-gray-50'}`}>
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -159,8 +159,8 @@ export function TokenPurchaseSuccess() {
                             <button
                                 onClick={() => navigate('/dashboard')}
                                 className={`w-full py-3 px-6 font-semibold rounded-xl transition-colors ${darkMode
-                                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                                     }`}
                             >
                                 Go to Dashboard
