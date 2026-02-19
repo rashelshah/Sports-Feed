@@ -25,6 +25,7 @@ export function PostCard({ post }: PostCardProps) {
   const [editedContent, setEditedContent] = useState(post.content);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [fetchedComments, setFetchedComments] = useState<any[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
 
@@ -232,7 +233,7 @@ export function PostCard({ post }: PostCardProps) {
           >
             <MoreHorizontal className="h-5 w-5" />
           </button>
-          {menuOpen && user && (user.id === post.userId || user.role === 'administrator' || user.role === 'admin' || user.role === 'expert') && (
+          {menuOpen && user && (user.id === post.userId || user.role === 'administrator' || user.role === 'admin' || user.role === 'expert' || user.role === 'coach') && (
             <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
               <button
                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2"
@@ -242,30 +243,14 @@ export function PostCard({ post }: PostCardProps) {
                 <span className="dark:text-gray-200">Edit text</span>
               </button>
               <button
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-red-600 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={async () => {
-                  if (confirm('Delete this post?')) {
-                    setIsDeleting(true);
-                    try {
-                      await deletePost(post.id);
-                      // Show moderation message for expert deletion
-                      if (user.role === 'expert' && user.id !== post.userId) {
-                        toast.success('Post removed by moderation');
-                      }
-                    } finally {
-                      setIsDeleting(false);
-                    }
-                  }
+                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-red-600 flex items-center space-x-2"
+                onClick={() => {
+                  setShowDeleteConfirm(true);
                   setMenuOpen(false);
                 }}
-                disabled={isDeleting}
               >
-                {isDeleting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-                <span>{isDeleting ? 'Deleting...' : 'Delete post'}</span>
+                <Trash2 className="h-4 w-4" />
+                <span>Delete post</span>
               </button>
             </div>
           )}
@@ -520,6 +505,58 @@ export function PostCard({ post }: PostCardProps) {
             ) : null}
           </div>
         </motion.div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="confirm-modal-backdrop" onClick={() => setShowDeleteConfirm(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-2">Delete Post</h3>
+            <p className="text-gray-400 text-sm mb-6">Are you sure you want to delete this post? This action cannot be undone.</p>
+            <div className="flex items-center justify-end space-x-3">
+              <button
+                className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={async () => {
+                  setIsDeleting(true);
+                  try {
+                    await deletePost(post.id);
+                    if (user && user.role === 'expert' && user.id !== post.userId) {
+                      toast.success('Post removed by moderation');
+                    } else {
+                      toast.success('Post deleted successfully');
+                    }
+                  } catch (error) {
+                    toast.error('Failed to delete post');
+                  } finally {
+                    setIsDeleting(false);
+                    setShowDeleteConfirm(false);
+                  }
+                }}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </motion.div>
   );
