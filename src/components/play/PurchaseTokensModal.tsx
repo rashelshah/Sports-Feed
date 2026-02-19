@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, Coins, CreditCard, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -81,22 +82,22 @@ export function PurchaseTokensModal({ onClose }: PurchaseTokensModalProps) {
     }
   };
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className={`rounded-lg shadow-xl max-w-md w-full ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+        className={`rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className={`flex items-center justify-between p-6 border-b flex-shrink-0 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Purchase Tokens</h2>
           <button
             onClick={onClose}
@@ -106,7 +107,7 @@ export function PurchaseTokensModal({ onClose }: PurchaseTokensModalProps) {
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
@@ -150,7 +151,7 @@ export function PurchaseTokensModal({ onClose }: PurchaseTokensModalProps) {
                 })}
               </div>
 
-              <div className={`rounded-lg p-4 mb-6 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <div className={`rounded-lg p-4 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                 <h3 className={`font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>How to earn tokens:</h3>
                 <ul className={`text-sm space-y-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   <li>• Watch videos: +5 tokens</li>
@@ -159,23 +160,29 @@ export function PurchaseTokensModal({ onClose }: PurchaseTokensModalProps) {
                   <li>• Daily login: +10 tokens</li>
                 </ul>
               </div>
-
-              <Button
-                onClick={handlePurchase}
-                loading={isPurchasing}
-                disabled={!selectedPackage}
-                className="w-full"
-                size="lg"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                {selectedPackage
-                  ? `Purchase ${selectedPackage.totalTokens} Tokens for $${selectedPackage.price.toFixed(2)}`
-                  : 'Select a package'}
-              </Button>
             </>
           )}
         </div>
+
+        {/* Buy button — always visible at bottom */}
+        {!isLoading && (
+          <div className={`p-6 pt-4 border-t flex-shrink-0 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <Button
+              onClick={handlePurchase}
+              loading={isPurchasing}
+              disabled={!selectedPackage}
+              className="w-full"
+              size="lg"
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              {selectedPackage
+                ? `Purchase ${selectedPackage.totalTokens} Tokens for $${selectedPackage.price.toFixed(2)}`
+                : 'Select a package'}
+            </Button>
+          </div>
+        )}
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
